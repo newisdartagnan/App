@@ -1,0 +1,151 @@
+services:
+
+  # ══════════════════════════════════════════════════════════════
+  # APPLICATION PRINCIPALE  →  http://localhost:8001
+  # ══════════════════════════════════════════════════════════════
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - BASE_URL=http://localhost:8001/
+
+      # ── Connexion csk_base (prescriptions / patients) ─────────
+      - DB_BASE_HOST=db
+      - DB_BASE_PORT=3306
+      - DB_NAME=csk_base
+      - DB_BASE_USER=my_user
+      - DB_BASE_PASSWORD=my_password
+    ports:
+      - "8001:80"
+    volumes:
+      - ./NOM_PROJET/:/var/www/html/
+      - ./logs/app:/var/log/apache2
+    depends_on:
+      - db
+    container_name: gps-apache
+    restart: unless-stopped
+
+  # ══════════════════════════════════════════════════════════════
+  # BASE DE DONNÉES MySQL 8
+  # Deux bases disponibles :
+  #   • csk_base       → application principale
+  #   • csk_services  → laboratoire / imagerie / pharmacie
+  # ══════════════════════════════════════════════════════════════
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: csk_base        # base principale (créée automatiquement)
+      MYSQL_USER: my_user
+      MYSQL_PASSWORD: my_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_gps_data:/var/lib/mysql
+      # Scripts SQL placés ici sont exécutés à la création du volume :
+      # - ./init-db/:/docker-entrypoint-initdb.d/
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    container_name: gps-mysql
+
+  # ══════════════════════════════════════════════════════════════
+  # phpMyAdmin  →  http://localhost:8801
+  # ══════════════════════════════════════════════════════════════
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    ports:
+      - "8801:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: password
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 300M          # pour importer de gros dumps SQL
+    depends_on:
+      - db
+    container_name: gps-phpmyadmin
+
+  # ══════════════════════════════════════════════════════════════
+  # CRON — tâches planifiées de l'application principale
+  # ══════════════════════════════════════════════════════════════
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - BASE_URL=http://localhost:8001/
+    volumes:
+      - ./NOM_PROJET/:/var/www/html/
+      - ./cron:/etc/cron.d
+      - ./logs/cron:/var/log
+    command: >
+      sh -c "
+        apt-get update -qq && apt-get install -y -qq cron &&
+        echo '*/5 * * * * www-data /usr/local/bin/php /var/www/html/cron/notification-worker.php >> /var/log/notification-worker.log 2>&1' \
+          > /etc/cron.d/gps-notifications &&
+        chmod 0644 /etc/cron.d/gps-notifications &&
+        touch /var/log/notification-worker.log &&
+        cron -f
+      "
+    depends_on:
+      - app
+      - db
+    container_name: gps-cron
+    restart: unless-stopped
+
+  # ══════════════════════════════════════════════════════════════
+  # CSK SERVICES  →  http://localhost:8002
+  # Laboratoire · Imagerie · Pharmacie
+  #
+  # Librairies PDF installées automatiquement par entrypoint.sh
+  # si composer.json est présent dans ./CSK_SERVICES/ :
+  #   • tecnickcom/tcpdf  (generer_pdf_resultat_unique.php)
+  #   • setasign/fpdi     (fusion PDF)
+  #   • mpdf/mpdf         (pdf_resultat.php)
+  #
+  # Accès aux deux bases :
+  #   DB_HOST=db  DB_NAME=csk_services  (services)
+  #   DB_BASE_HOST=db  DB_BASE_NAME=csk_base  (base principale)
+  # ══════════════════════════════════════════════════════════════
+  csk-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - BASE_URL=http://localhost:8002/
+
+      # ── Connexion csk_services (labo / imagerie / pharmacie) ──
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=csk_services
+      - DB_USER=my_user
+      - DB_PASSWORD=my_password
+
+      # ── Connexion csk_base (prescriptions / patients) ─────────
+      - DB_BASE_HOST=db
+      - DB_BASE_PORT=3306
+      - DB_BASE_NAME=csk_base
+      - DB_BASE_USER=my_user
+      - DB_BASE_PASSWORD=my_password
+
+      # ── URL publique pour les liens PDF envoyés par SMS/notif ─
+      - PDF_BASE_URL=http://localhost:8002/
+    ports:
+      - "8002:80"
+    volumes:
+      - ./CSK_SERVICES/:/var/www/html/
+      - ./logs/csk-app:/var/log/apache2
+      - csk_pdf_data:/var/www/html/uploads/resultats_pdf
+    depends_on:
+      - db
+    container_name: csk-apache
+    restart: unless-stopped
+
+volumes:
+  mysql_gps_data:
+  csk_pdf_data:       # PDFs générés persistés entre les redémarrages

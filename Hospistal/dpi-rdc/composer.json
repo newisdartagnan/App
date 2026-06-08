@@ -1,0 +1,71 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "dpi-rdc/hospitalier",
+    "type": "project",
+    "description": "Dossier Patient Informatise - Republique Democratique du Congo",
+    "keywords": ["laravel", "dpi", "hospital", "rdc", "livewire"],
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "barryvdh/laravel-dompdf": "^3.1",
+        "firebase/php-jwt": "^7.0",
+        "laravel/framework": "^12.0",
+        "laravel/horizon": "^5.29",
+        "laravel/sanctum": "^4.0",
+        "laravel/tinker": "^2.10",
+        "livewire/livewire": "^3.5",
+        "spatie/laravel-activitylog": "^4.9",
+        "spatie/laravel-permission": "^6.10",
+        "tpetry/laravel-postgresql-enhanced": "^2.0"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.23",
+        "laravel/dusk": "^8.2",
+        "laravel/pail": "^1.2",
+        "laravel/pint": "^1.13",
+        "laravel/telescope": "^5.2",
+        "mockery/mockery": "^1.6",
+        "nunomaduro/collision": "^8.1",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

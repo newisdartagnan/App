@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+vendor
+storage/logs/*
+storage/framework/cache/*
+.env
+.env.*
+!.env.example
+backups/*.gpg
+backups/*.sql*

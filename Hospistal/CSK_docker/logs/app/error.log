@@ -1,0 +1,34 @@
+AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using 172.18.0.6. Set the 'ServerName' directive globally to suppress this message
+[Thu Jun 04 12:46:17.503503 2026] [mpm_prefork:notice] [pid 1] AH00163: Apache/2.4.38 (Debian) PHP/8.0.1 configured -- resuming normal operations
+[Thu Jun 04 12:46:17.504257 2026] [core:notice] [pid 1] AH00094: Command line: 'apache2 -D FOREGROUND'
+[Thu Jun 04 13:06:29.301162 2026] [mpm_prefork:notice] [pid 1] AH00170: caught SIGWINCH, shutting down gracefully
+AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using 172.18.0.5. Set the 'ServerName' directive globally to suppress this message
+[Thu Jun 04 13:38:10.272232 2026] [mpm_prefork:notice] [pid 1] AH00163: Apache/2.4.38 (Debian) PHP/8.0.1 configured -- resuming normal operations
+[Thu Jun 04 13:38:10.272938 2026] [core:notice] [pid 1] AH00094: Command line: 'apache2 -D FOREGROUND'
+[Fri Jun 05 12:42:25.277084 2026] [mpm_prefork:notice] [pid 1] AH00170: caught SIGWINCH, shutting down gracefully
+AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using 172.18.0.4. Set the 'ServerName' directive globally to suppress this message
+[Fri Jun 05 12:42:37.422672 2026] [mpm_prefork:notice] [pid 1] AH00163: Apache/2.4.38 (Debian) PHP/8.0.1 configured -- resuming normal operations
+[Fri Jun 05 12:42:37.423308 2026] [core:notice] [pid 1] AH00094: Command line: 'apache2 -D FOREGROUND'
+[Fri Jun 05 12:53:01.857965 2026] [php:error] [pid 22] [client 172.18.0.1:52642] script '/var/www/html/config.php' not found or unable to stat
+[Fri Jun 05 12:53:07.410847 2026] [autoindex:error] [pid 23] [client 172.18.0.1:55770] AH01276: Cannot serve directory /var/www/html/config/: No matching DirectoryIndex (index.php,index.html) found, and server-generated directory index forbidden by Options directive
+[Fri Jun 05 13:03:55.550766 2026] [mpm_prefork:notice] [pid 1] AH00170: caught SIGWINCH, shutting down gracefully
+AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using 172.18.0.4. Set the 'ServerName' directive globally to suppress this message
+[Fri Jun 05 13:03:57.523249 2026] [mpm_prefork:notice] [pid 1] AH00163: Apache/2.4.38 (Debian) PHP/8.0.1 configured -- resuming normal operations
+[Fri Jun 05 13:03:57.523715 2026] [core:notice] [pid 1] AH00094: Command line: 'apache2 -D FOREGROUND'
+[Fri Jun 05 13:05:05.380480 2026] [mpm_prefork:notice] [pid 1] AH00170: caught SIGWINCH, shutting down gracefully
+AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using 172.18.0.5. Set the 'ServerName' directive globally to suppress this message
+[Fri Jun 05 13:05:17.691674 2026] [mpm_prefork:notice] [pid 1] AH00163: Apache/2.4.38 (Debian) PHP/8.0.1 configured -- resuming normal operations
+[Fri Jun 05 13:05:17.692495 2026] [core:notice] [pid 1] AH00094: Command line: 'apache2 -D FOREGROUND'
+[Fri Jun 05 13:05:27.863053 2026] [php:notice] [pid 20] [client 172.18.0.1:51322] Erreur connexion DB : SQLSTATE[HY000] [1044] Access denied for user 'my_user'@'%' to database 'csk_base', referer: http://localhost:8001/login.php
+[Fri Jun 05 13:05:38.470065 2026] [php:notice] [pid 21] [client 172.18.0.1:36406] Erreur connexion DB : SQLSTATE[HY000] [1044] Access denied for user 'my_user'@'%' to database 'csk_base', referer: http://localhost:8001/login.php
+[Fri Jun 05 13:16:41.420517 2026] [php:error] [pid 21] [client 172.18.0.1:50526] script '/var/www/html/admin/utilisateurs.php' not found or unable to stat, referer: http://localhost:8001/admin/index.php
+[Fri Jun 05 13:16:44.098338 2026] [php:error] [pid 21] [client 172.18.0.1:50526] script '/var/www/html/admin/profils.php' not found or unable to stat, referer: http://localhost:8001/admin/index.php
+[Fri Jun 05 13:16:46.653003 2026] [php:error] [pid 21] [client 172.18.0.1:50526] script '/var/www/html/admin/referentiels.php' not found or unable to stat, referer: http://localhost:8001/admin/index.php
+[Fri Jun 05 13:17:20.817957 2026] [php:notice] [pid 24] [client 172.18.0.1:44946] Table antecedents_patients non disponible: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'date_creation' in 'order clause', referer: http://localhost:8001/consultation/salle-attente.php
+[Fri Jun 05 13:17:27.482286 2026] [php:error] [pid 25] [client 172.18.0.1:42746] script '/var/www/html/api/get-prescriptions-attente.php' not found or unable to stat, referer: http://localhost:8001/consultation/prescription-quick.php?sous_sejour_id=41
+[Fri Jun 05 13:18:37.619724 2026] [php:error] [pid 23] [client 172.18.0.1:44220] script '/var/www/html/imagerie/rapports-imagerie.php' not found or unable to stat, referer: http://localhost:8001/imagerie/index.php
+[Fri Jun 05 13:18:42.560207 2026] [php:error] [pid 23] [client 172.18.0.1:44220] script '/var/www/html/imagerie/equipements-imagerie.php' not found or unable to stat, referer: http://localhost:8001/imagerie/index.php
+[Fri Jun 05 13:18:47.531486 2026] [php:error] [pid 23] [client 172.18.0.1:44220] script '/var/www/html/imagerie/planning-examens.php' not found or unable to stat, referer: http://localhost:8001/imagerie/index.php
+AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using 172.18.0.6. Set the 'ServerName' directive globally to suppress this message
+[Sun Jun 07 14:25:42.727259 2026] [mpm_prefork:notice] [pid 1] AH00163: Apache/2.4.38 (Debian) PHP/8.0.1 configured -- resuming normal operations
+[Sun Jun 07 14:25:42.733427 2026] [core:notice] [pid 1] AH00094: Command line: 'apache2 -D FOREGROUND'
