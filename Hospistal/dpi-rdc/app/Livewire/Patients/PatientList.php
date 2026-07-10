@@ -30,8 +30,11 @@ class PatientList extends Component
                       ->orWhere('dossier_number', 'LIKE', '%' . $this->search . '%');
                 });
             })
-            ->when($this->sexe, fn($q) => $q->where('sexe', $this->sexe))
-            ->where('merge_status', '!=', 'merged')
+            ->when($this->sexe, fn ($q) => $q->where('sexe', $this->sexe))
+            ->where(function ($q) {
+                $q->where('merge_status', '!=', 'merged')
+                    ->orWhereNull('merge_status');
+            })
             ->orderBy('nom')
             ->paginate($this->perPage);
 

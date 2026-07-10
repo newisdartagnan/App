@@ -2,6 +2,8 @@
 
 namespace App\Models\Concerns;
 
+use Illuminate\Support\Facades\Log;
+
 trait Syncable
 {
     public static function bootSyncable(): void
@@ -23,23 +25,38 @@ trait Syncable
 
     protected function queueForSync(string $action): void
     {
-        $establishmentId = $this->resolveEstablishmentId();
-        if (! $establishmentId) {
-            return;
-        }
+        try {
+            $establishmentId = $this->resolveEstablishmentId();
+            if (! $establishmentId) {
+                return;
+            }
 
-        \App\Models\SyncQueue::create([
-            'establishment_id' => $establishmentId,
-            'table_name' => $this->getTable(),
-            'record_id' => $this->getKey(),
-            'action' => $action,
-            'payload' => $action !== 'delete' ? $this->toArray() : null,
-            'priority' => $this->getSyncPriority(),
-            'created_at' => now(),
-        ]);
+            $payload = null;
+            if ($action !== 'delete') {
+                $payload = collect($this->toArray())
+                    ->except(['password', 'offline_token', 'remember_token'])
+                    ->all();
+            }
 
-        if ($this->sync_status !== 'pending') {
-            $this->updateQuietly(['sync_status' => 'pending']);
+            \App\Models\SyncQueue::create([
+                'establishment_id' => $establishmentId,
+                'table_name' => $this->getTable(),
+                'record_id' => $this->getKey(),
+                'action' => $action,
+                'payload' => $payload,
+                'priority' => $this->getSyncPriority(),
+                'created_at' => now(),
+            ]);
+
+            if (($this->sync_status ?? null) !== 'pending') {
+                $this->updateQuietly(['sync_status' => 'pending']);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Sync queue ignorée', [
+                'table' => $this->getTable(),
+                'id' => $this->getKey(),
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -49,8 +66,17 @@ trait Syncable
             return $this->establishment_id;
         }
 
-        if (method_exists($this, 'visit') && $this->relationLoaded('visit') === false && $this->visit_id) {
+        if ($this->visit_id ?? null) {
             return $this->visit()->value('establishment_id');
+        }
+
+        if ($this->consultation_id ?? null) {
+            return \App\Models\Consultation::query()
+                ->whereKey($this->consultation_id)
+                ->with('visit:id,establishment_id')
+                ->first()
+                ?->visit
+                ?->establishment_id;
         }
 
         return null;

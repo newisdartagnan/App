@@ -161,7 +161,7 @@ class ConsultationCreate extends Component
         ]);
 
         session()->flash('success', 'Consultation enregistrée pour ' . $this->patient->nom_complet);
-        $this->redirect(route('consultations.show', $consultation), navigate: true);
+        $this->redirect(route('consultations.show', $consultation));
     }
 
     public function render()

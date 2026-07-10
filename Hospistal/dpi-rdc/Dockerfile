@@ -1,6 +1,5 @@
-﻿FROM php:8.3-fpm-alpine
+FROM php:8.3-fpm-alpine
 
-# Outils build PHP
 RUN apk add --no-cache \
     postgresql-dev libzip-dev icu-dev oniguruma-dev \
     freetype-dev libjpeg-turbo-dev libpng-dev su-exec \
@@ -14,7 +13,6 @@ RUN apk add --no-cache \
     && sed -i 's|error_log = /proc/self/fd/2|error_log = /dev/stderr|g' /usr/local/etc/php-fpm.d/docker.conf \
     && sed -i 's|access.log = /proc/self/fd/2|access.log = /dev/stdout|g' /usr/local/etc/php-fpm.d/docker.conf
 
-# Node séparé pour éviter les conflits
 RUN apk add --no-cache nodejs npm
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -32,8 +30,10 @@ RUN npm install --ignore-scripts
 
 COPY . .
 
-RUN npm run build \
+RUN find . -name "*.php" -type f -exec sed -i '1s/^\xEF\xBB\xBF//' {} + \
+    && npm ci && npm run build \
     && composer dump-autoload --no-dev --optimize --no-scripts \
+    && rm -f bootstrap/cache/packages.php bootstrap/cache/services.php \
     && mkdir -p storage/logs bootstrap/cache \
     && chmod -R 777 storage bootstrap/cache \
     && chown -R www-data:www-data /var/www

@@ -1,10 +1,11 @@
 <div>
     <div class="bg-white rounded-xl shadow p-4 mb-4">
         <div class="flex gap-3">
-            <input wire:model.live.debounce.300ms="search" type="text"
+            <input id="patient-search" name="search" wire:model.live.debounce.300ms="search" type="search"
                 placeholder="Nom, prénom, n° dossier..."
                 class="flex-1 min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-            <select wire:model.live="sexe"
+            <label for="patient-search-sexe" class="sr-only">Filtrer par sexe</label>
+            <select id="patient-search-sexe" name="sexe" wire:model.live="sexe"
                 class="min-h-[44px] rounded-lg border border-gray-300 px-3 focus:border-blue-500">
                 <option value="">Tous</option>
                 <option value="M">Masculin</option>

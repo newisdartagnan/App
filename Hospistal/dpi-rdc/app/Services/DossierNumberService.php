@@ -13,7 +13,8 @@ class DossierNumberService
         $prefix = "{$establishmentCode}-{$year}-";
 
         return DB::transaction(function () use ($prefix) {
-            $last = Patient::where('dossier_number', 'like', "{$prefix}%")
+            $last = Patient::withTrashed()
+                ->where('dossier_number', 'like', "{$prefix}%")
                 ->orderByDesc('dossier_number')
                 ->lockForUpdate()
                 ->value('dossier_number');

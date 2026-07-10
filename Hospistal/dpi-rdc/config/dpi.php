@@ -9,4 +9,12 @@ return [
     'sync_batch_size' => 500,
     'sync_interval_minutes' => 15,
     'backup_retention_days' => 7,
+
+    'tarifs_cdf' => [
+        'consultation_externe' => 15000,
+        'urgence' => 25000,
+        'hospitalisation_jour' => 35000,
+        'chirurgie_minor' => 150000,
+        'accouchement' => 200000,
+    ],
 ];

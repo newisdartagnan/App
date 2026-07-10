@@ -40,4 +40,40 @@ class Visit extends Model
     {
         return $this->hasMany(Consultation::class);
     }
+
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function lit(): BelongsTo
+    {
+        return $this->belongsTo(Lit::class);
+    }
+
+    public function factures(): HasMany
+    {
+        return $this->hasMany(Facture::class);
+    }
+
+    public function examensLaboratoire(): HasMany
+    {
+        return $this->hasMany(ExamenLaboratoire::class);
+    }
+
+    public function actesCliniques(): HasMany
+    {
+        return $this->hasMany(ActeClinique::class);
+    }
+
+    public function estHospitalise(): bool
+    {
+        return $this->type === 'hospitalisation' && $this->statut === 'en_cours';
+    }
+
+    public function joursHospitalisation(): int
+    {
+        $fin = $this->date_sortie ?? now();
+        return max(1, (int) $this->date_entree->diffInDays($fin) + 1);
+    }
 }

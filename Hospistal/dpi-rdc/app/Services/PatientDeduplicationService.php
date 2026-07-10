@@ -5,40 +5,68 @@ namespace App\Services;
 use App\Models\Patient;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PatientDeduplicationService
 {
     public function findDuplicates(array $data, ?string $excludeId = null): Collection
     {
-        $nom = $data['nom'] ?? '';
-        $prenom = $data['prenom'] ?? '';
+        $nom = trim($data['nom'] ?? '');
+        $prenom = trim($data['prenom'] ?? '');
         $sexe = $data['sexe'] ?? null;
-        $dateNaissance = $data['date_naissance'] ?? null;
-        $lieuNaissance = $data['lieu_naissance'] ?? null;
 
-        $query = Patient::query()
-            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
-            ->when($sexe, fn ($q) => $q->where('sexe', $sexe));
-
-        if (DB::getDriverName() === 'pgsql' && $nom) {
-            $query->where(function ($q) use ($nom, $prenom) {
-                $q->whereRaw('nom % ?', [$nom])
-                    ->orWhereRaw('prenom % ?', [$prenom]);
-            });
-        } else {
-            $query->where(function ($q) use ($nom, $prenom) {
-                $q->where('nom', 'ilike', "%{$nom}%")
-                    ->orWhere('prenom', 'ilike', "%{$prenom}%");
-            });
+        if (strlen($nom) < 2 || strlen($prenom) < 2) {
+            return collect();
         }
 
-        return $query->limit(20)->get()->map(function (Patient $patient) use ($data) {
-            $patient->duplicate_score = $this->calculateScore($data, $patient);
+        try {
+            $query = Patient::query()
+                ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+                ->when($sexe && $sexe !== 'Inconnu', fn ($q) => $q->where('sexe', $sexe));
 
-            return $patient;
-        })->filter(fn ($p) => $p->duplicate_score >= 0.65)
-            ->sortByDesc('duplicate_score')
-            ->values();
+            if (DB::getDriverName() === 'pgsql' && $this->hasPgTrgm()) {
+                $query->where(function ($q) use ($nom, $prenom) {
+                    $q->whereRaw('nom % ?', [$nom])
+                        ->orWhereRaw('prenom % ?', [$prenom]);
+                });
+            } else {
+                $query->where(function ($q) use ($nom, $prenom) {
+                    $q->where('nom', 'ilike', "%{$nom}%")
+                        ->orWhere('prenom', 'ilike', "%{$prenom}%");
+                });
+            }
+
+            return $query->limit(20)->get()->map(function (Patient $patient) use ($data) {
+                $patient->duplicate_score = $this->calculateScore($data, $patient);
+
+                return $patient;
+            })->filter(fn ($p) => $p->duplicate_score >= 0.65)
+                ->sortByDesc('duplicate_score')
+                ->values();
+        } catch (\Throwable $e) {
+            Log::warning('Déduplication patient indisponible', ['error' => $e->getMessage()]);
+
+            return collect();
+        }
+    }
+
+    protected function hasPgTrgm(): bool
+    {
+        static $available = null;
+
+        if ($available !== null) {
+            return $available;
+        }
+
+        try {
+            $available = (bool) DB::selectOne("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'");
+
+            return $available;
+        } catch (\Throwable) {
+            $available = false;
+
+            return false;
+        }
     }
 
     public function calculateScore(array $input, Patient $candidate): float

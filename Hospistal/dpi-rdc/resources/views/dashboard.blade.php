@@ -25,5 +25,17 @@
         <h3 class="text-lg font-semibold mb-4">Recherche patient</h3>
         <livewire:patient-search />
     </div>
+
+    <div class="bg-white border rounded-xl p-6 shadow-sm">
+        <h3 class="text-lg font-semibold mb-3">Parcours patient type (hôpital de référence)</h3>
+        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
+            <li><strong>Patients</strong> → enregistrer le nouveau patient</li>
+            <li><strong>Consultation</strong> (ambulatoire ou urgences) → <strong>Facturer consultation</strong> au guichet</li>
+            <li><strong>Parcours complet</strong> → hospitaliser (service + lit) si nécessaire</li>
+            <li><strong>Labo / Imagerie</strong> → prescription → paiement guichet → saisie résultats → validation bilan</li>
+            <li><strong>Prescription</strong> → facture pharmacie → paiement → dispensation avec bon</li>
+            <li><strong>Facturer séjour</strong> (nuits) → sortie après règlement de toutes les factures</li>
+        </ol>
+    </div>
 </div>
 @endsection

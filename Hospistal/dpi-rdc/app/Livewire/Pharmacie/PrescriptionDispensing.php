@@ -23,6 +23,21 @@ class PrescriptionDispensing extends Component
 
     public function dispenser(): void
     {
+        if (! in_array($this->prescription->statut, ['en_attente', 'partiellement_dispensee'], true)) {
+            $this->erreurs['general'] = 'Ordonnance non disponible pour dispensation (paiement guichet requis).';
+            return;
+        }
+
+        $bonValide = \App\Models\BonSortie::where('prescription_id', $this->prescription->id)
+            ->where('statut', 'emis')
+            ->where('expire_at', '>', now())
+            ->exists();
+
+        if (! $bonValide) {
+            $this->erreurs['general'] = 'Bon pharmacie invalide ou expiré — vérifier le paiement au guichet.';
+            return;
+        }
+
         $this->erreurs = [];
         foreach ($this->prescription->lignes as $ligne) {
             $qte = $this->quantites[$ligne->id] ?? 0;
@@ -53,6 +68,10 @@ class PrescriptionDispensing extends Component
                 $ligne->increment('quantite_dispensee', $qte);
             }
             $this->prescription->update(['statut' => 'dispensee']);
+
+            \App\Models\BonSortie::where('prescription_id', $this->prescription->id)
+                ->where('statut', 'emis')
+                ->update(['statut' => 'utilise', 'utilise_at' => now()]);
         });
 
         $this->prescription->refresh()->load(['lignes.medicament.stock']);
