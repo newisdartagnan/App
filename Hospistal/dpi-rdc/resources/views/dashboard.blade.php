@@ -29,12 +29,12 @@
     <div class="bg-white border rounded-xl p-6 shadow-sm">
         <h3 class="text-lg font-semibold mb-3">Parcours patient type (hôpital de référence)</h3>
         <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
-            <li><strong>Patients</strong> → enregistrer le nouveau patient</li>
-            <li><strong>Consultation</strong> (ambulatoire ou urgences) → <strong>Facturer consultation</strong> au guichet</li>
-            <li><strong>Parcours complet</strong> → hospitaliser (service + lit) si nécessaire</li>
-            <li><strong>Labo / Imagerie</strong> → prescription → paiement guichet → saisie résultats → validation bilan</li>
-            <li><strong>Prescription</strong> → facture pharmacie → paiement → dispensation avec bon</li>
-            <li><strong>Facturer séjour</strong> (nuits) → sortie après règlement de toutes les factures</li>
+            <li><strong>Accueil</strong> → enregistrer / retrouver le patient → <strong>Envoyer à la caisse</strong> (ambulatoire ou urgence)</li>
+            <li><strong>Caisse</strong> → paiement de la consultation → le patient entre dans la <strong>file d'attente du médecin</strong></li>
+            <li><strong>Médecin</strong> → consultation → prescriptions (bilans, imagerie, ordonnance)</li>
+            <li><strong>Caisse</strong> → le patient règle bilans et pharmacie → bons émis → labo / imagerie / dispensation</li>
+            <li><strong>Hospitalisation</strong> → le patient est <em>servi à crédit</em> durant le séjour (bilans, médicaments, actes)</li>
+            <li><strong>Sortie</strong> → toutes les factures réglées → billet de sortie et libération du lit</li>
         </ol>
     </div>
 </div>

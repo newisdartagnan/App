@@ -6,36 +6,41 @@ use App\Models\Establishment;
 use App\Models\Patient;
 use App\Services\DossierNumberService;
 use App\Services\PatientDeduplicationService;
+use App\Services\VisiteService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PatientController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $search = trim((string) $request->query('search', ''));
-        $sexe = (string) $request->query('sexe', '');
+        // Liste et recherche live via le composant Livewire Patients\PatientList
+        return view('patients.index');
+    }
 
-        $patients = Patient::query()
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($q) use ($search) {
-                    $term = '%'.strtolower($search).'%';
-                    $q->whereRaw('LOWER(nom) LIKE ?', [$term])
-                        ->orWhereRaw('LOWER(prenom) LIKE ?', [$term])
-                        ->orWhere('dossier_number', 'ILIKE', '%'.$search.'%');
-                });
-            })
-            ->when($sexe !== '', fn ($q) => $q->where('sexe', $sexe))
-            ->where(function ($q) {
-                $q->where('merge_status', '!=', 'merged')
-                    ->orWhereNull('merge_status');
-            })
-            ->orderBy('nom')
-            ->paginate(20)
-            ->withQueryString();
+    /**
+     * Workflow accueil : envoi du patient à la caisse pour régler la
+     * consultation avant de voir le médecin.
+     */
+    public function envoyerCaisse(Request $request, Patient $patient): RedirectResponse
+    {
+        $request->validate([
+            'type' => 'required|in:consultation_externe,urgence',
+            'motif' => 'nullable|string|max:500',
+        ]);
 
-        return view('patients.index', compact('patients', 'search', 'sexe'));
+        $service = app(VisiteService::class);
+
+        if ($active = $service->visiteActive($patient)) {
+            return redirect()->route('visites.show', $active)
+                ->with('info', 'Ce patient a déjà une visite en cours.');
+        }
+
+        $facture = $service->envoyerEnConsultation($patient, $request->type, $request->motif);
+
+        return redirect()->route('caisse.show', $facture)
+            ->with('success', 'Patient envoyé à la caisse — la consultation sera accessible au médecin après paiement.');
     }
 
     public function create(): View

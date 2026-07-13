@@ -71,6 +71,27 @@ class Visit extends Model
         return $this->type === 'hospitalisation' && $this->statut === 'en_cours';
     }
 
+    /**
+     * La consultation de cette visite a-t-elle été réglée au guichet ?
+     */
+    public function consultationPayee(): bool
+    {
+        return $this->factures()
+            ->where('statut', 'payee')
+            ->whereHas('lignes', fn ($q) => $q->where('type', 'consultation'))
+            ->exists();
+    }
+
+    /**
+     * Les actes de cette visite peuvent-ils être réalisés sans prépaiement ?
+     * Règle métier : durant une hospitalisation le patient est servi,
+     * tout est réglé avant la sortie.
+     */
+    public function serviACredit(): bool
+    {
+        return $this->type === 'hospitalisation';
+    }
+
     public function joursHospitalisation(): int
     {
         $fin = $this->date_sortie ?? now();

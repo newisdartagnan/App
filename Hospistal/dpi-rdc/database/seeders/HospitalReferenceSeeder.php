@@ -91,48 +91,31 @@ class HospitalReferenceSeeder extends Seeder
 
     protected function seedExamens(): void
     {
-        $labo = [
-            ['code' => 'NFS', 'cat' => 'hematologie', 'libelle' => 'Numération formule sanguine', 'prix' => 15000, 'refs' => ['min' => null, 'max' => null, 'unite' => '']],
-            ['code' => 'HB', 'cat' => 'hematologie', 'libelle' => 'Hémoglobine', 'prix' => 5000, 'refs' => ['min' => 12, 'max' => 16, 'unite' => 'g/dL']],
-            ['code' => 'GLU', 'cat' => 'biochimie', 'libelle' => 'Glycémie à jeun', 'prix' => 3000, 'refs' => ['min' => 0.7, 'max' => 1.1, 'unite' => 'g/L']],
-            ['code' => 'CREAT', 'cat' => 'biochimie', 'libelle' => 'Créatininémie', 'prix' => 4000, 'refs' => ['min' => 6, 'max' => 12, 'unite' => 'mg/L']],
-            ['code' => 'UREE', 'cat' => 'biochimie', 'libelle' => 'Urée sanguine', 'prix' => 3500, 'refs' => ['min' => 0.15, 'max' => 0.45, 'unite' => 'g/L']],
-            ['code' => 'PAL', 'cat' => 'biochimie', 'libelle' => 'Transaminases (ALAT/ASAT)', 'prix' => 8000, 'refs' => ['min' => 0, 'max' => 40, 'unite' => 'UI/L']],
-            ['code' => 'CRP', 'cat' => 'biochimie', 'libelle' => 'Protéine C réactive', 'prix' => 6000, 'refs' => ['min' => 0, 'max' => 5, 'unite' => 'mg/L']],
-            ['code' => 'GE', 'cat' => 'parasitologie', 'libelle' => 'Goutte épaisse (paludisme)', 'prix' => 5000, 'refs' => ['min' => null, 'max' => null, 'unite' => '']],
-            ['code' => 'HIV', 'cat' => 'serologie', 'libelle' => 'Test VIH rapide', 'prix' => 8000, 'refs' => ['min' => null, 'max' => null, 'unite' => '']],
-            ['code' => 'BU', 'cat' => 'biochimie', 'libelle' => 'Bandelette urinaire', 'prix' => 2500, 'refs' => ['min' => null, 'max' => null, 'unite' => '']],
-        ];
+        // Catalogue extrait du système CSK (Cliniques Spécialisées de Kinshasa) :
+        // examens avec prix et valeurs de référence homme / femme / enfant.
+        $catalogue = require database_path('data/csk_catalogue_examens.php');
 
-        $imagerie = [
-            ['code' => 'IMG-RX-TORAX', 'libelle' => 'Radiographie thorax', 'prix' => 25000],
-            ['code' => 'IMG-RX-ABD', 'libelle' => 'Radiographie abdomen', 'prix' => 25000],
-            ['code' => 'IMG-ECHO-ABD', 'libelle' => 'Échographie abdominale', 'prix' => 35000],
-            ['code' => 'IMG-ECHO-OBST', 'libelle' => 'Échographie obstétricale', 'prix' => 40000],
-            ['code' => 'IMG-TDM-CRAN', 'libelle' => 'Scanner cérébral', 'prix' => 150000],
-        ];
-
-        foreach ($labo as $e) {
-            TypeExamen::firstOrCreate(
-                ['code' => $e['code']],
+        foreach ($catalogue['labo'] as $examen) {
+            TypeExamen::updateOrCreate(
+                ['code' => $examen['code']],
                 [
-                    'categorie' => $e['cat'],
-                    'libelle' => $e['libelle'],
-                    'prix' => $e['prix'],
-                    'valeurs_reference' => $e['refs'],
+                    'categorie' => $examen['categorie'],
+                    'libelle' => $examen['libelle'],
+                    'prix' => $examen['prix'],
+                    'valeurs_reference' => ['parametres' => $examen['parametres']],
                     'delai_heures' => 4,
                     'est_actif' => true,
                 ]
             );
         }
 
-        foreach ($imagerie as $e) {
-            TypeExamen::firstOrCreate(
-                ['code' => $e['code']],
+        foreach ($catalogue['imagerie'] as $examen) {
+            TypeExamen::updateOrCreate(
+                ['code' => $examen['code']],
                 [
                     'categorie' => 'autre',
-                    'libelle' => $e['libelle'],
-                    'prix' => $e['prix'],
+                    'libelle' => $examen['libelle'],
+                    'prix' => $examen['prix'],
                     'valeurs_reference' => [],
                     'delai_heures' => 24,
                     'est_actif' => true,

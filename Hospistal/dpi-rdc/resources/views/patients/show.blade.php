@@ -10,13 +10,64 @@
             <h2 class="text-2xl font-bold text-gray-800">{{ $patient->nom_complet }}</h2>
             <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{{ $patient->dossier_number }}</span>
         </div>
-        @can('consultation.create')
-        <a href="{{ route('consultations.create', $patient) }}"
-           class="bg-blue-700 hover:bg-blue-800 text-white font-semibold px-5 py-2 rounded-lg transition">
-            + Nouvelle consultation
-        </a>
-        @endcan
     </div>
+
+    @if(session('success'))<div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 mb-4">{{ session('success') }}</div>@endif
+    @if(session('info'))<div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 mb-4">{{ session('info') }}</div>@endif
+
+    {{-- Workflow : le patient passe d'abord à la caisse, puis voit le médecin --}}
+    @php $visiteActive = app(\App\Services\VisiteService::class)->visiteActive($patient); @endphp
+    @if($visiteActive)
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+        <div class="text-sm">
+            <p class="font-semibold text-blue-800">Visite en cours — {{ $visiteActive->type === 'urgence' ? '🚨 Urgence' : ($visiteActive->type === 'hospitalisation' ? '🛏️ Hospitalisation' : 'Ambulatoire') }}</p>
+            <p class="text-blue-700 mt-0.5">
+                @if($visiteActive->statut === 'en_attente')
+                    En attente de paiement de la consultation à la caisse.
+                @elseif($visiteActive->consultations()->exists())
+                    Consultation réalisée — suivre le parcours (bilans, pharmacie, hospitalisation).
+                @else
+                    Consultation payée — le patient attend le médecin.
+                @endif
+            </p>
+        </div>
+        <div class="flex gap-2">
+            @if($visiteActive->statut === 'en_attente')
+                @php $factC = $visiteActive->factures()->where('statut', 'emise')->first(); @endphp
+                @if($factC)
+                <a href="{{ route('caisse.show', $factC) }}" class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg">💰 Caisse →</a>
+                @endif
+            @elseif(! $visiteActive->consultations()->exists())
+                @can('consultation.create')
+                <a href="{{ route('visites.consulter', $visiteActive) }}" class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">🩺 Consulter →</a>
+                @endcan
+            @endif
+            <a href="{{ route('visites.show', $visiteActive) }}" class="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">Parcours →</a>
+        </div>
+    </div>
+    @else
+    <form method="POST" action="{{ route('patients.envoyer-caisse', $patient) }}"
+          class="bg-white rounded-xl shadow p-4 mb-6 flex flex-wrap items-end gap-3">
+        @csrf
+        <div>
+            <label for="type-visite" class="block text-sm font-medium text-gray-700 mb-1">Nouvelle visite</label>
+            <select id="type-visite" name="type" class="min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                <option value="consultation_externe">Consultation ambulatoire</option>
+                <option value="urgence">🚨 Urgence</option>
+            </select>
+        </div>
+        <div class="flex-1 min-w-[220px]">
+            <label for="motif-visite" class="block text-sm font-medium text-gray-700 mb-1">Motif (optionnel)</label>
+            <input id="motif-visite" name="motif" type="text" placeholder="Ex: fièvre, contrôle..."
+                class="w-full min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+        </div>
+        <button type="submit"
+            class="min-h-[44px] bg-blue-700 hover:bg-blue-800 text-white font-semibold px-5 py-2 rounded-lg transition">
+            💰 Envoyer à la caisse
+        </button>
+        <p class="w-full text-xs text-gray-400 -mt-1">Le patient règle la consultation au guichet, puis apparaît dans la file d'attente du médecin.</p>
+    </form>
+    @endif
 
     {{-- Données patient --}}
     <div class="bg-white rounded-xl shadow p-6 grid grid-cols-2 gap-4 text-sm mb-6">

@@ -31,9 +31,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/patients/nouveau', [PatientController::class, 'create'])->name('patients.create');
     Route::post('/patients', [PatientController::class, 'store'])->name('patients.store');
     Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('patients.show');
+    Route::post('/patients/{patient}/envoyer-caisse', [PatientController::class, 'envoyerCaisse'])->name('patients.envoyer-caisse');
 
-    // Consultations
+    // Consultations — workflow caisse-first : le médecin consulte une visite payée
     Route::get('/patients/{patient}/consultation', [ConsultationController::class, 'create'])->name('consultations.create');
+    Route::get('/visites/{visit}/consulter', [ConsultationController::class, 'consulter'])->name('visites.consulter');
     Route::get('/consultations', [ConsultationController::class, 'index'])->name('consultations.index');
     Route::get('/consultations/{consultation}', [ConsultationController::class, 'show'])->name('consultations.show');
     Route::post('/consultations/{consultation}/facturer', [ConsultationController::class, 'facturer'])->name('consultations.facturer');
@@ -50,6 +52,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/labo/prescrire', [LaboratoireController::class, 'create'])->name('labo.create');
     Route::post('/labo', [LaboratoireController::class, 'store'])->name('labo.store');
     Route::get('/labo/{examen}', [LaboratoireController::class, 'show'])->name('labo.show');
+    Route::get('/labo/{examen}/bon', [LaboratoireController::class, 'bon'])->name('labo.bon');
+    Route::get('/labo/{examen}/bulletin', [LaboratoireController::class, 'bulletin'])->name('labo.bulletin');
     Route::post('/labo/{examen}/resultats', [LaboratoireController::class, 'saisirResultats'])->name('labo.resultats');
     Route::post('/labo/{examen}/valider', [LaboratoireController::class, 'valider'])->name('labo.valider');
 
@@ -83,6 +87,7 @@ Route::middleware(['auth'])->group(function () {
     // Caisse
     Route::get('/caisse', [CaisseController::class, 'index'])->name('caisse.index');
     Route::get('/caisse/{facture}', [CaisseController::class, 'show'])->name('caisse.show');
+    Route::get('/caisse/{facture}/imprimer', [CaisseController::class, 'imprimer'])->name('caisse.imprimer');
     Route::post('/caisse/facturer/{prescription}', [CaisseController::class, 'facturer'])->name('caisse.facturer');
     Route::post('/caisse/prescription/{prescription}', [CaisseController::class, 'creerDepuisPrescription'])->name('caisse.prescription');
 });

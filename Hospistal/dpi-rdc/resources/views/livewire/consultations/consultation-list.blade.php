@@ -1,17 +1,69 @@
 <div>
+    {{-- File d'attente médecin : consultations payées à la caisse --}}
+    <div class="bg-white rounded-xl shadow overflow-hidden mb-4 border-l-4 border-green-500">
+        <div class="px-4 py-3 border-b bg-green-50 flex items-center justify-between">
+            <h3 class="font-semibold text-green-800 text-sm">🩺 File d'attente — consultations payées ({{ $fileAttente->count() }})</h3>
+            <span class="text-xs text-green-700">Urgences en premier</span>
+        </div>
+        @forelse($fileAttente as $visit)
+        <div class="px-4 py-3 border-b last:border-0 flex items-center justify-between hover:bg-gray-50">
+            <div>
+                <p class="font-medium text-sm">
+                    {{ $visit->patient->nom_complet }}
+                    <span class="text-xs text-gray-400 font-normal">— {{ $visit->patient->dossier_number }}</span>
+                    @if($visit->type === 'urgence')
+                    <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">🚨 Urgence</span>
+                    @endif
+                </p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Arrivé à {{ $visit->date_entree->format('H:i') }}
+                    @if($visit->motif_consultation) — {{ \Illuminate\Support\Str::limit($visit->motif_consultation, 60) }} @endif
+                </p>
+            </div>
+            <a href="{{ route('visites.consulter', $visit) }}"
+               class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg whitespace-nowrap">
+                Commencer la consultation →
+            </a>
+        </div>
+        @empty
+        <div class="px-4 py-6 text-center text-gray-400 text-sm">Aucun patient en attente — la file se remplit dès que la caisse valide un paiement de consultation.</div>
+        @endforelse
+    </div>
+
+    {{-- Patients envoyés à la caisse, paiement en attente --}}
+    @if($enAttentePaiement->count() > 0)
+    <div class="bg-white rounded-xl shadow overflow-hidden mb-4 border-l-4 border-amber-400">
+        <div class="px-4 py-3 border-b bg-amber-50">
+            <h3 class="font-semibold text-amber-800 text-sm">⏳ En attente de paiement à la caisse ({{ $enAttentePaiement->count() }})</h3>
+        </div>
+        @foreach($enAttentePaiement as $visit)
+        <div class="px-4 py-2.5 border-b last:border-0 flex items-center justify-between text-sm">
+            <span>
+                {{ $visit->patient->nom_complet }}
+                <span class="text-xs text-gray-400">— envoyé à {{ $visit->date_entree->format('H:i') }}</span>
+            </span>
+            @php $fact = $visit->factures->firstWhere('statut', 'emise'); @endphp
+            @if($fact)
+            <a href="{{ route('caisse.show', $fact) }}" class="text-amber-700 hover:underline text-xs font-medium">Caisse →</a>
+            @endif
+        </div>
+        @endforeach
+    </div>
+    @endif
+
     <div class="bg-white rounded-xl shadow p-4 mb-4">
         <div class="flex gap-3">
-            <input wire:model.live.debounce.300ms="search" type="text"
+            <input id="search" name="search" wire:model.live.debounce.300ms="search" type="text"
                 placeholder="Nom patient, n° dossier..."
                 class="flex-1 min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500">
-            <select wire:model.live="statut"
+            <select id="statut" name="statut" wire:model.live="statut"
                 class="min-h-[44px] rounded-lg border border-gray-300 px-3 focus:border-blue-500">
                 <option value="">Tous statuts</option>
                 <option value="en_attente">En attente</option>
                 <option value="en_cours">En cours</option>
                 <option value="termine">Terminé</option>
             </select>
-            <input wire:model.live="date" type="date"
+            <input id="date" name="date" wire:model.live="date" type="date"
                 class="min-h-[44px] rounded-lg border border-gray-300 px-3 focus:border-blue-500">
         </div>
     </div>

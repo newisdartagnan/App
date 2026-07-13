@@ -29,11 +29,22 @@ class CaisseController extends Controller
     }
 
     /**
+     * Facture / reçu imprimable.
+     */
+    public function imprimer(Facture $facture): View
+    {
+        $facture->load(['patient', 'visit', 'lignes', 'paiements.caissier', 'lignesTiersPayant.assurance']);
+
+        return view('caisse.imprimer', compact('facture'));
+    }
+
+    /**
      * Génère la facture au guichet — le patient doit payer avant dispensation/soins.
      */
     public function facturer(Prescription $prescription): RedirectResponse
     {
-        if (! in_array($prescription->statut, ['brouillon', 'en_attente_paiement'], true)) {
+        // 'dispensee' est facturable pour les hospitalisés servis à crédit
+        if (! in_array($prescription->statut, ['brouillon', 'en_attente_paiement', 'dispensee'], true)) {
             return back()->with('error', 'Cette ordonnance n\'est plus facturable.');
         }
 

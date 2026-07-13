@@ -80,7 +80,11 @@ class LaboratoireController extends Controller
 
     public function saisirResultats(Request $request, ExamenLaboratoire $examen): RedirectResponse
     {
-        if ($examen->facture && $examen->facture->statut !== 'payee') {
+        // Hospitalisation : le patient est servi à crédit durant le séjour,
+        // tout est réglé avant la sortie. Sinon : paiement guichet d'abord.
+        $aCredit = $examen->visit?->serviACredit();
+
+        if (! $aCredit && $examen->facture && $examen->facture->statut !== 'payee') {
             return back()->with('error', 'Paiement guichet requis avant saisie des résultats.');
         }
 
@@ -91,10 +95,32 @@ class LaboratoireController extends Controller
         return back()->with('success', 'Résultats enregistrés.');
     }
 
-    public function valider(ExamenLaboratoire $examen): RedirectResponse
+    public function valider(Request $request, ExamenLaboratoire $examen): RedirectResponse
     {
-        app(LaboratoireService::class)->valider($examen);
+        app(LaboratoireService::class)->valider($examen, $request->input('conclusion'));
 
-        return back()->with('success', 'Bilan validé par le biologiste.');
+        return back()->with('success', $examen->domaine === 'imagerie'
+            ? 'Compte-rendu validé.'
+            : 'Bilan validé par le biologiste.');
+    }
+
+    /**
+     * Bon d'examen imprimable (remis au patient pour la caisse / le préleveur).
+     */
+    public function bon(ExamenLaboratoire $examen): View
+    {
+        $examen->load(['patient', 'visit', 'prescripteur', 'resultats.typeExamen', 'facture']);
+
+        return view('labo.bon', compact('examen'));
+    }
+
+    /**
+     * Bulletin de résultats (labo) ou compte-rendu (imagerie) imprimable.
+     */
+    public function bulletin(ExamenLaboratoire $examen): View
+    {
+        $examen->load(['patient', 'visit', 'prescripteur', 'laborantin', 'resultats.typeExamen', 'facture']);
+
+        return view('labo.bulletin', compact('examen'));
     }
 }

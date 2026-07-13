@@ -407,6 +407,15 @@ class FacturationService
                 ]);
             }
 
+            // Workflow accueil : le patient paie la consultation AVANT de voir
+            // le médecin. Le paiement débloque la visite → file d'attente médecin.
+            $facture->loadMissing('lignes', 'visit');
+            if ($facture->visit
+                && $facture->visit->statut === 'en_attente'
+                && $facture->lignes->contains(fn ($l) => $l->type === 'consultation')) {
+                $facture->visit->update(['statut' => 'en_cours']);
+            }
+
             return [
                 'facture' => $facture->fresh(),
                 'bon_sortie' => $bonSortie,
