@@ -15,7 +15,7 @@ class ResultatExamen extends Model
     protected $table = 'resultats_examens';
 
     protected $fillable = [
-        'examen_id', 'type_examen_id', 'valeur_brute', 'valeur_numerique', 'unite',
+        'examen_id', 'type_examen_id', 'parametre', 'valeur_brute', 'valeur_numerique', 'unite',
         'interpretation', 'valeur_reference_min', 'valeur_reference_max',
         'commentaire', 'valide_par', 'valide_at',
     ];

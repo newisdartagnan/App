@@ -21,7 +21,10 @@ class LaboratoireService
         return DB::transaction(function () use ($visit, $typeExamenIds, $domaine, $urgence, $observations) {
             $visit->load('patient');
 
+            $patient = $visit->patient;
+
             $examen = ExamenLaboratoire::create([
+                'numero_bon' => $this->genererNumeroBon($domaine),
                 'visit_id' => $visit->id,
                 'patient_id' => $visit->patient_id,
                 'prescripteur_id' => auth()->id(),
@@ -36,18 +39,70 @@ class LaboratoireService
 
             foreach ($types as $type) {
                 $refs = $type->valeurs_reference ?? [];
-                ResultatExamen::create([
-                    'examen_id' => $examen->id,
-                    'type_examen_id' => $type->id,
-                    'valeur_reference_min' => $refs['min'] ?? null,
-                    'valeur_reference_max' => $refs['max'] ?? null,
-                    'unite' => $refs['unite'] ?? null,
-                    'created_at' => now(),
-                ]);
+
+                // Panels multi-paramètres (NFS, ionogramme…) : une ligne de
+                // résultat par paramètre, bornes résolues selon sexe / âge.
+                $parametres = $refs['parametres'] ?? null;
+
+                if (is_array($parametres) && $parametres !== []) {
+                    foreach ($parametres as $param) {
+                        [$min, $max] = $this->bornesPourPatient($param, $patient);
+                        ResultatExamen::create([
+                            'examen_id' => $examen->id,
+                            'type_examen_id' => $type->id,
+                            'parametre' => $param['nom'] ?? null,
+                            'valeur_reference_min' => $min,
+                            'valeur_reference_max' => $max,
+                            'unite' => $param['unite'] ?? null,
+                            'created_at' => now(),
+                        ]);
+                    }
+                } else {
+                    ResultatExamen::create([
+                        'examen_id' => $examen->id,
+                        'type_examen_id' => $type->id,
+                        'valeur_reference_min' => $refs['min'] ?? null,
+                        'valeur_reference_max' => $refs['max'] ?? null,
+                        'unite' => $refs['unite'] ?? null,
+                        'created_at' => now(),
+                    ]);
+                }
             }
 
             return $examen->fresh(['resultats.typeExamen', 'patient', 'visit']);
         });
+    }
+
+    /**
+     * Bornes de référence selon le sexe et l'âge du patient
+     * (homme / femme / enfant < 16 ans — catalogue CSK).
+     */
+    protected function bornesPourPatient(array $param, $patient): array
+    {
+        $age = $patient->date_naissance?->age;
+        $groupe = ($age !== null && $age < 16) ? 'enfant'
+            : ($patient->sexe === 'F' ? 'femme' : 'homme');
+
+        $bornes = $param[$groupe] ?? $param['homme'] ?? [];
+
+        return [$bornes['min'] ?? null, $bornes['max'] ?? null];
+    }
+
+    /**
+     * Numéro de bon séquentiel par domaine et par année : LAB-2026-000123.
+     */
+    protected function genererNumeroBon(string $domaine): string
+    {
+        $prefix = ($domaine === 'imagerie' ? 'IMG-' : 'LAB-') . now()->format('Y') . '-';
+
+        $last = ExamenLaboratoire::query()
+            ->where('numero_bon', 'like', $prefix . '%')
+            ->orderByDesc('numero_bon')
+            ->value('numero_bon');
+
+        $seq = $last ? (int) substr($last, -6) + 1 : 1;
+
+        return $prefix . str_pad((string) $seq, 6, '0', STR_PAD_LEFT);
     }
 
     public function saisirResultats(ExamenLaboratoire $examen, array $valeurs): ExamenLaboratoire
@@ -86,14 +141,17 @@ class LaboratoireService
         });
     }
 
-    public function valider(ExamenLaboratoire $examen): ExamenLaboratoire
+    public function valider(ExamenLaboratoire $examen, ?string $conclusion = null): ExamenLaboratoire
     {
         $examen->resultats()->update([
             'valide_par' => auth()->id(),
             'valide_at' => now(),
         ]);
 
-        $examen->update(['statut' => 'valide']);
+        $examen->update([
+            'statut' => 'valide',
+            'conclusion' => $conclusion ?: $examen->conclusion,
+        ]);
 
         return $examen->fresh(['resultats.typeExamen']);
     }

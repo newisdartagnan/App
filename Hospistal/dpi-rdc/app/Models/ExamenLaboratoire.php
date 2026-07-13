@@ -15,9 +15,9 @@ class ExamenLaboratoire extends Model
     protected $table = 'examens_laboratoire';
 
     protected $fillable = [
-        'visit_id', 'patient_id', 'prescripteur_id', 'laborantin_id', 'facture_id',
+        'numero_bon', 'visit_id', 'patient_id', 'prescripteur_id', 'laborantin_id', 'facture_id',
         'date_prescription', 'date_prelevement', 'date_resultat',
-        'statut', 'domaine', 'urgence', 'observations_cliniques', 'observations_laborantin', 'sync_status',
+        'statut', 'domaine', 'urgence', 'observations_cliniques', 'observations_laborantin', 'conclusion', 'sync_status',
     ];
 
     protected function casts(): array

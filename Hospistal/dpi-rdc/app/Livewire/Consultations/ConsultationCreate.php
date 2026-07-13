@@ -8,9 +8,10 @@ use Livewire\Component;
 
 class ConsultationCreate extends Component
 {
+    public Visit $visit;
     public Patient $patient;
 
-    // Visite
+    // Visite (créée à l'accueil, payée à la caisse)
     public string $type_visite = 'consultation_externe';
     public string $motif_consultation = '';
     public string $symptomes_principaux = '';
@@ -42,16 +43,19 @@ class ConsultationCreate extends Component
 
     public int $etape = 1;
 
-    public function mount(Patient $patient): void
+    public function mount(Visit $visit): void
     {
-        $this->patient = $patient;
+        $this->visit = $visit;
+        $this->patient = $visit->patient;
+        $this->type_visite = $visit->type;
+        $this->motif_consultation = (string) ($visit->motif_consultation ?? '');
+        $this->type_consultation = $visit->type === 'urgence' ? 'urgence' : 'initiale';
     }
 
     protected function rules(): array
     {
         return [
             'motif_consultation' => 'required|string|min:3',
-            'type_visite' => 'required|in:consultation_externe,urgence,hospitalisation',
             'type_consultation' => 'required|in:initiale,suivi,urgence',
             'poids_kg' => 'nullable|numeric|min:0.5|max:300',
             'taille_cm' => 'nullable|numeric|min:20|max:250',
@@ -104,7 +108,6 @@ class ConsultationCreate extends Component
     {
         if ($this->etape === 1) {
             $this->validateOnly('motif_consultation');
-            $this->validateOnly('type_visite');
         }
         $this->etape++;
     }
@@ -116,6 +119,19 @@ class ConsultationCreate extends Component
 
     public function save(): void
     {
+        // Garde-fou métier : consultation réglée au guichet, sauf hospitalisation (crédit)
+        if (! $this->visit->consultationPayee() && ! $this->visit->serviACredit()) {
+            $this->addError('motif_consultation', 'Consultation non réglée à la caisse — le patient doit payer avant la consultation.');
+
+            return;
+        }
+
+        if ($this->visit->consultations()->exists()) {
+            $this->redirect(route('consultations.show', $this->visit->consultations()->first()));
+
+            return;
+        }
+
         $this->validate();
 
         $imc = null;
@@ -124,13 +140,8 @@ class ConsultationCreate extends Component
             $imc = round($this->poids_kg / ($taille_m * $taille_m), 1);
         }
 
-        $visit = Visit::create([
-            'patient_id' => $this->patient->id,
-            'establishment_id' => auth()->user()->establishment_id,
+        $this->visit->update([
             'user_id' => auth()->id(),
-            'type' => $this->type_visite,
-            'statut' => 'en_cours',
-            'date_entree' => now(),
             'motif_consultation' => $this->motif_consultation,
             'symptomes_principaux' => $this->symptomes_principaux ?: null,
             'poids_kg' => $this->poids_kg,
@@ -145,7 +156,7 @@ class ConsultationCreate extends Component
         ]);
 
         $consultation = Consultation::create([
-            'visit_id' => $visit->id,
+            'visit_id' => $this->visit->id,
             'user_id' => auth()->id(),
             'date_consultation' => now(),
             'type' => $this->type_consultation,

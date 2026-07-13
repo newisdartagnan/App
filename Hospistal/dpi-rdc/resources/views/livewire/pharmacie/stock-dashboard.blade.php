@@ -30,7 +30,7 @@
 
     {{-- Recherche --}}
     <div class="bg-white rounded-xl shadow p-4 mb-4">
-        <input wire:model.live.debounce.300ms="search" type="text"
+        <input id="search" name="search" wire:model.live.debounce.300ms="search" type="text"
             placeholder="Rechercher un médicament (DCI, nom commercial)..."
             class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500">
     </div>

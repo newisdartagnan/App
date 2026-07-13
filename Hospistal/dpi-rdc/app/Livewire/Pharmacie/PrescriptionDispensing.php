@@ -23,8 +23,16 @@ class PrescriptionDispensing extends Component
 
     public function dispenser(): void
     {
-        if (! in_array($this->prescription->statut, ['en_attente', 'partiellement_dispensee'], true)) {
+        // Hospitalisation : servi à crédit durant le séjour (facturé, payé avant sortie)
+        $aCredit = (bool) $this->prescription->consultation?->visit?->serviACredit();
+
+        if (! $aCredit && ! in_array($this->prescription->statut, ['en_attente', 'partiellement_dispensee'], true)) {
             $this->erreurs['general'] = 'Ordonnance non disponible pour dispensation (paiement guichet requis).';
+            return;
+        }
+
+        if ($aCredit && in_array($this->prescription->statut, ['dispensee', 'annulee'], true)) {
+            $this->erreurs['general'] = 'Ordonnance déjà dispensée ou annulée.';
             return;
         }
 
@@ -33,7 +41,7 @@ class PrescriptionDispensing extends Component
             ->where('expire_at', '>', now())
             ->exists();
 
-        if (! $bonValide) {
+        if (! $aCredit && ! $bonValide) {
             $this->erreurs['general'] = 'Bon pharmacie invalide ou expiré — vérifier le paiement au guichet.';
             return;
         }

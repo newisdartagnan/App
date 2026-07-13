@@ -11,6 +11,12 @@
         {{ session('success') }}
     </div>
     @endif
+    <div class="flex justify-end mb-3">
+        <a href="{{ route('caisse.imprimer', $facture) }}" target="_blank"
+           class="border border-blue-700 text-blue-700 hover:bg-blue-50 text-sm font-medium px-4 py-2 rounded-lg">
+            🖨️ Imprimer {{ $facture->statut === 'payee' ? 'le reçu' : 'la facture' }}
+        </a>
+    </div>
     <livewire:caisse.facture-show :facture="$facture" />
 </div>
 @endsection

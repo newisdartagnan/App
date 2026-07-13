@@ -120,25 +120,25 @@
         <h3 class="font-semibold text-gray-700 mb-4 pb-2 border-b">Encaissement</h3>
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
+                <label for="montantRecu" class="block text-sm font-medium text-gray-700 mb-1">
                     Montant reçu <span class="text-red-500">*</span>
                 </label>
-                <input wire:model="montantRecu" type="number" step="100"
+                <input id="montantRecu" name="montantRecu" wire:model="montantRecu" type="number" step="100"
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500
                     @error('montantRecu') border-red-500 @enderror">
                 @error('montantRecu')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Devise</label>
-                <select wire:model="devise"
+                <label for="devise" class="block text-sm font-medium text-gray-700 mb-1">Devise</label>
+                <select id="devise" name="devise" wire:model="devise"
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500">
                     <option value="CDF">Francs Congolais (CDF)</option>
                     <option value="USD">Dollars USD</option>
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Mode de paiement</label>
-                <select wire:model="modePaiement"
+                <label for="modePaiement" class="block text-sm font-medium text-gray-700 mb-1">Mode de paiement</label>
+                <select id="modePaiement" name="modePaiement" wire:model="modePaiement"
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500">
                     <option value="especes">Espèces</option>
                     <option value="mobile_money">Mobile Money (M-Pesa / Airtel)</option>
@@ -147,11 +147,11 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
+                <label for="reference" class="block text-sm font-medium text-gray-700 mb-1">
                     Référence transaction
                     <span class="text-gray-400 text-xs">(Mobile Money, virement...)</span>
                 </label>
-                <input wire:model="reference" type="text"
+                <input id="reference" name="reference" wire:model="reference" type="text"
                     placeholder="Ex: MP-123456789"
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500">
             </div>

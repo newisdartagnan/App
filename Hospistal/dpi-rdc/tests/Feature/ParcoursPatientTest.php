@@ -60,10 +60,37 @@ class ParcoursPatientTest extends TestCase
         $patient = Patient::where('nom', 'KASONGO')->firstOrFail();
         $this->assertNotNull($patient->dossier_number);
 
-        // ── 2. Consultation (urgences) avec signes vitaux et diagnostic ─────
-        Livewire::test(ConsultationCreate::class, ['patient' => $patient])
-            ->set('type_visite', 'urgence')
-            ->set('motif_consultation', 'Fièvre et céphalées depuis 3 jours')
+        // ── 2. Accueil : le patient est envoyé à la caisse AVANT le médecin ──
+        $this->post(route('patients.envoyer-caisse', $patient), [
+            'type' => 'urgence',
+            'motif' => 'Fièvre et céphalées depuis 3 jours',
+        ])->assertRedirect();
+
+        $visit = Visit::where('patient_id', $patient->id)->firstOrFail();
+        $this->assertSame('urgence', $visit->type);
+        $this->assertSame('en_attente', $visit->statut);
+
+        $factureConsult = Facture::where('visit_id', $visit->id)->firstOrFail();
+        $this->assertSame('emise', $factureConsult->statut);
+
+        // Le médecin ne peut PAS consulter tant que la caisse n'a pas validé
+        $this->get(route('visites.consulter', $visit))
+            ->assertRedirect(route('consultations.index'));
+
+        // ── 3. Caisse : paiement → la visite entre dans la file du médecin ──
+        Livewire::test(FactureShow::class, ['facture' => $factureConsult])
+            ->call('validerPaiement')
+            ->assertHasNoErrors();
+        $this->assertSame('payee', $factureConsult->fresh()->statut);
+
+        $visit->refresh();
+        $this->assertSame('en_cours', $visit->statut);
+        $this->assertTrue($visit->consultationPayee());
+
+        // Le wizard est maintenant accessible et la consultation s'enregistre
+        $this->get(route('visites.consulter', $visit))->assertOk();
+
+        Livewire::test(ConsultationCreate::class, ['visit' => $visit])
             ->set('temperature', 39.2)
             ->set('tension_systolique', 120)
             ->set('tension_diastolique', 80)
@@ -73,24 +100,80 @@ class ParcoursPatientTest extends TestCase
             ->call('save')
             ->assertHasNoErrors();
 
-        $visit = Visit::where('patient_id', $patient->id)->firstOrFail();
         $consultation = Consultation::where('visit_id', $visit->id)->firstOrFail();
-        $this->assertSame('urgence', $visit->type);
 
         // La page de la consultation s'affiche (régression : relation lignes_facture)
         $this->get(route('consultations.show', $consultation))->assertOk();
 
-        // ── 3. Facturation de la consultation puis paiement au guichet ──────
-        $this->post(route('consultations.facturer', $consultation))->assertRedirect();
-        $factureConsult = Facture::where('visit_id', $visit->id)->firstOrFail();
-        $this->assertSame('emise', $factureConsult->statut);
+        // ── 4. Laboratoire (ambulatoire) : paiement exigé avant réalisation ──
+        // NFS = panel CSK multi-paramètres (bornes selon sexe / âge), GE = examen simple
+        $types = TypeExamen::whereIn('code', ['GE', 'NFS'])->pluck('id')->all();
+        $this->assertCount(2, $types);
 
-        Livewire::test(FactureShow::class, ['facture' => $factureConsult])
+        $this->post(route('labo.store'), [
+            'visit_id' => $visit->id,
+            'domaine' => 'labo',
+            'types' => $types,
+            'urgence' => '1',
+        ])->assertRedirect();
+
+        $examen = ExamenLaboratoire::where('visit_id', $visit->id)->firstOrFail();
+        $factureLabo = $examen->facture;
+        $this->assertNotNull($factureLabo);
+        $this->assertNotNull($examen->numero_bon);
+        $this->assertStringStartsWith('LAB-', $examen->numero_bon);
+        // NFS (5 paramètres) + GE (1 ligne) = 6 lignes de résultats
+        $this->assertCount(6, $examen->resultats);
+
+        // Bon d'examen imprimable
+        $this->get(route('labo.bon', $examen))->assertOk()->assertSee($examen->numero_bon);
+
+        // Saisie interdite avant paiement
+        $this->post(route('labo.resultats', $examen), ['resultats' => []])
+            ->assertSessionHas('error');
+
+        Livewire::test(FactureShow::class, ['facture' => $factureLabo])
             ->call('validerPaiement')
             ->assertHasNoErrors();
-        $this->assertSame('payee', $factureConsult->fresh()->statut);
+        $this->assertSame('payee', $factureLabo->fresh()->statut);
 
-        // ── 4. Hospitalisation : service + lit ───────────────────────────────
+        // Saisie des résultats puis validation du bilan (avec conclusion)
+        $resultats = [];
+        foreach ($examen->resultats as $resultat) {
+            if ($resultat->typeExamen->code === 'GE') {
+                $resultats[$resultat->id] = ['valeur_brute' => 'positif', 'valeur_numerique' => ''];
+            } elseif ($resultat->parametre === 'Hémoglobine (Hb)') {
+                $resultats[$resultat->id] = ['valeur_brute' => '10.5', 'valeur_numerique' => '10.5'];
+            } else {
+                // valeur dans la norme : borne minimale du paramètre
+                $resultats[$resultat->id] = [
+                    'valeur_brute' => (string) $resultat->valeur_reference_min,
+                    'valeur_numerique' => (string) $resultat->valeur_reference_min,
+                ];
+            }
+        }
+        $this->post(route('labo.resultats', $examen), ['resultats' => $resultats])
+            ->assertSessionHas('success');
+        $this->post(route('labo.valider', $examen), ['conclusion' => 'Paludisme confirmé, anémie modérée.'])
+            ->assertSessionHas('success');
+
+        $examen->refresh();
+        $this->assertSame('valide', $examen->statut);
+        $this->assertSame('Paludisme confirmé, anémie modérée.', $examen->conclusion);
+
+        // Hémoglobine 10.5 < 13 (homme adulte, bornes CSK) → « bas »
+        $hb = $examen->resultats()->where('parametre', 'Hémoglobine (Hb)')->first();
+        $this->assertSame('bas', $hb->interpretation);
+        $this->assertSame(13.0, (float) $hb->valeur_reference_min);
+
+        // GE positif
+        $ge = $examen->resultats()->whereHas('typeExamen', fn ($q) => $q->where('code', 'GE'))->first();
+        $this->assertSame('positif', $ge->interpretation);
+
+        // Bulletin de résultats imprimable
+        $this->get(route('labo.bulletin', $examen))->assertOk()->assertSee('Paludisme confirmé');
+
+        // ── 5. Hospitalisation : service + lit ───────────────────────────────
         $service = Service::where('code', 'MED')->firstOrFail();
         $lit = Lit::where('service_id', $service->id)->where('statut', 'libre')->firstOrFail();
 
@@ -106,48 +189,7 @@ class ParcoursPatientTest extends TestCase
         // Le parcours patient s'affiche
         $this->get(route('visites.show', $visit))->assertOk();
 
-        // ── 5. Laboratoire : prescription, facture, paiement, résultats ─────
-        $types = TypeExamen::whereIn('code', ['GE', 'HB'])->pluck('id')->all();
-        $this->assertCount(2, $types);
-
-        $this->post(route('labo.store'), [
-            'visit_id' => $visit->id,
-            'domaine' => 'labo',
-            'types' => $types,
-            'urgence' => '1',
-        ])->assertRedirect();
-
-        $examen = ExamenLaboratoire::where('visit_id', $visit->id)->firstOrFail();
-        $factureLabo = $examen->facture;
-        $this->assertNotNull($factureLabo);
-
-        // Saisie interdite avant paiement
-        $this->post(route('labo.resultats', $examen), ['resultats' => []])
-            ->assertSessionHas('error');
-
-        Livewire::test(FactureShow::class, ['facture' => $factureLabo])
-            ->call('validerPaiement')
-            ->assertHasNoErrors();
-        $this->assertSame('payee', $factureLabo->fresh()->statut);
-
-        // Saisie des résultats puis validation du bilan
-        $resultats = [];
-        foreach ($examen->resultats as $resultat) {
-            $resultats[$resultat->id] = [
-                'valeur_brute' => $resultat->typeExamen->code === 'GE' ? 'positif' : '10.5',
-                'valeur_numerique' => $resultat->typeExamen->code === 'GE' ? '' : '10.5',
-            ];
-        }
-        $this->post(route('labo.resultats', $examen), ['resultats' => $resultats])
-            ->assertSessionHas('success');
-        $this->post(route('labo.valider', $examen))->assertSessionHas('success');
-        $this->assertSame('valide', $examen->fresh()->statut);
-
-        // Hémoglobine 10.5 < 12 → interprétation « bas »
-        $hb = $examen->resultats()->whereHas('typeExamen', fn ($q) => $q->where('code', 'HB'))->first();
-        $this->assertSame('bas', $hb->interpretation);
-
-        // ── 6. Pharmacie : ordonnance, facture, paiement, dispensation ──────
+        // ── 6. Pharmacie (hospitalisé) : servi à crédit, facturé ensuite ─────
         $medicament = Medicament::where('denomination_commune', 'Artéméther-Luméfantrine')->firstOrFail();
         $stockAvant = (float) $medicament->stock->quantite_disponible;
 
@@ -163,38 +205,22 @@ class ParcoursPatientTest extends TestCase
         $prescription = Prescription::where('consultation_id', $consultation->id)->firstOrFail();
         $this->assertSame('brouillon', $prescription->statut);
 
-        // Dispensation refusée avant paiement (pas de bon)
+        // Patient HOSPITALISÉ : servi à crédit — dispensation sans bon ni paiement
         Livewire::test(PrescriptionDispensing::class, ['prescription' => $prescription])
-            ->call('dispenser');
-        $this->assertSame('brouillon', $prescription->fresh()->statut);
-
-        // Facturation au guichet puis paiement → bon pharmacie
-        $this->post(route('caisse.facturer', $prescription))->assertRedirect();
-        $prescription->refresh();
-        $this->assertSame('en_attente_paiement', $prescription->statut);
-
-        $facturePharma = Facture::where('prescription_id', $prescription->id)->firstOrFail();
-        Livewire::test(FactureShow::class, ['facture' => $facturePharma])
-            ->call('validerPaiement')
-            ->assertHasNoErrors();
-
-        $prescription->refresh();
-        $this->assertSame('en_attente', $prescription->statut);
-        $this->assertDatabaseHas('bons_sortie', [
-            'prescription_id' => $prescription->id,
-            'statut' => 'emis',
-        ]);
-
-        // Dispensation : le stock est décrémenté, le bon consommé
-        Livewire::test(PrescriptionDispensing::class, ['prescription' => $prescription->fresh()])
             ->call('dispenser');
 
         $this->assertSame('dispensee', $prescription->fresh()->statut);
         $this->assertSame($stockAvant - 24, (float) $medicament->stock->fresh()->quantite_disponible);
-        $this->assertDatabaseHas('bons_sortie', [
-            'prescription_id' => $prescription->id,
-            'statut' => 'utilise',
-        ]);
+
+        // L'ordonnance dispensée reste facturable (règlement avant la sortie)
+        $this->post(route('caisse.facturer', $prescription))->assertRedirect();
+        $facturePharma = Facture::where('prescription_id', $prescription->id)->firstOrFail();
+        $this->assertSame('emise', $facturePharma->statut);
+
+        Livewire::test(FactureShow::class, ['facture' => $facturePharma])
+            ->call('validerPaiement')
+            ->assertHasNoErrors();
+        $this->assertSame('payee', $facturePharma->fresh()->statut);
 
         // ── 7. Sortie bloquée tant que le séjour n'est pas facturé/payé ─────
         $this->post(route('visites.facturer-sejour', $visit))->assertRedirect();

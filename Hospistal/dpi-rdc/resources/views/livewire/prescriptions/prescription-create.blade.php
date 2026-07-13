@@ -99,7 +99,7 @@
                 </div>
             </div>
 
-            <label class="flex items-center gap-2 text-sm text-gray-600">
+            <label for="observations" class="flex items-center gap-2 text-sm text-gray-600">
                 <input wire:model="lignes.{{ $i }}.est_substituable" type="checkbox" class="rounded">
                 Substituable (générique accepté)
             </label>
@@ -116,7 +116,7 @@
         {{-- Observations --}}
         <div class="bg-white rounded-xl shadow p-5">
             <label class="block text-sm font-medium text-gray-700 mb-1">Observations</label>
-            <textarea wire:model="observations" rows="2"
+            <textarea id="observations" name="observations" wire:model="observations" rows="2"
                 placeholder="Remarques pour le pharmacien..."
                 class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500"></textarea>
         </div>
