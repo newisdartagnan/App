@@ -64,8 +64,21 @@ class PrescriptionDispensing extends Component
                     'lot' => $stock->lot,
                     'prix_applique' => $stock->prix_unitaire_vente * $qte,
                 ]);
+                $avant = (float) $stock->quantite_disponible;
                 $stock->decrement('quantite_disponible', $qte);
                 $ligne->increment('quantite_dispensee', $qte);
+
+                \App\Models\MouvementStock::create([
+                    'medicament_id' => $ligne->medicament_id,
+                    'establishment_id' => $stock->establishment_id,
+                    'user_id' => auth()->id(),
+                    'type' => 'sortie_dispensation',
+                    'quantite' => $qte,
+                    'quantite_avant' => $avant,
+                    'quantite_apres' => $avant - $qte,
+                    'reference' => 'Ordonnance ' . $this->prescription->id,
+                    'created_at' => now(),
+                ]);
             }
             $this->prescription->update(['statut' => 'dispensee']);
 

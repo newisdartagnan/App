@@ -67,6 +67,12 @@
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500">
             </div>
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Quantité initiale en stock</label>
+                <input wire:model="quantite_initiale" type="number" step="0.5" min="0"
+                    class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 @error('quantite_initiale') border-red-500 @enderror">
+                @error('quantite_initiale')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
+            </div>
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Date péremption</label>
                 <input wire:model="date_peremption" type="date"
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500">

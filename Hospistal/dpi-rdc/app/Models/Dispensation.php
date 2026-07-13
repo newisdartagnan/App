@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Dispensation extends Model
 {
     use HasUuids, Syncable;
+
+    // La table dispensations n'a qu'une colonne created_at
+    public const UPDATED_AT = null;
+
     protected $fillable = [
         'ligne_prescription_id', 'pharmacien_id', 'date_dispensation',
         'quantite_dispensee', 'lot', 'prix_applique', 'observations', 'sync_status',

@@ -10,6 +10,8 @@ class LigneFacture extends Model
 {
     use HasUuids;
 
+    protected $table = 'lignes_facture';
+
     public $timestamps = false;
 
     protected $fillable = [

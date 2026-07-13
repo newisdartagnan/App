@@ -10,6 +10,12 @@ class ActeClinique extends Model
 {
     use HasUuids;
 
+    protected $table = 'actes_cliniques';
+
+    protected $attributes = [
+        'quantite' => 1,
+    ];
+
     protected $fillable = [
         'visit_id', 'patient_id', 'prescripteur_id', 'domaine', 'libelle',
         'prix', 'quantite', 'statut', 'compte_rendu', 'date_realisation', 'facture_id',
@@ -46,6 +52,6 @@ class ActeClinique extends Model
 
     public function montantTotal(): float
     {
-        return (float) ($this->prix * $this->quantite);
+        return (float) ($this->prix * ($this->quantite ?? 1));
     }
 }

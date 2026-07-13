@@ -1,4 +1,10 @@
 <div>
+    @if(session('success'))
+    <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 mb-4">
+        {{ session('success') }}
+    </div>
+    @endif
+
     {{-- Stats --}}
     <div class="grid grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-xl shadow p-4 text-center">
@@ -40,6 +46,7 @@
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Prix unitaire</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Péremption</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Statut</th>
+                    <th class="px-4 py-3"></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -84,10 +91,57 @@
                         <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">Disponible</span>
                         @endif
                     </td>
+                    <td class="px-4 py-3 text-right">
+                        <button wire:click="ouvrirEntree('{{ $med->id }}')"
+                            class="text-blue-700 hover:underline text-xs font-medium whitespace-nowrap">
+                            ± Stock
+                        </button>
+                    </td>
                 </tr>
+                @if($entreeMedicamentId === $med->id)
+                <tr class="bg-blue-50">
+                    <td colspan="7" class="px-4 py-4">
+                        <div class="flex flex-wrap items-end gap-3">
+                            <div>
+                                <label for="entree-type-{{ $med->id }}" class="block text-xs font-medium text-gray-600 mb-1">Type de mouvement</label>
+                                <select id="entree-type-{{ $med->id }}" wire:model="entreeType"
+                                    class="min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                                    <option value="entree">Entrée (réception)</option>
+                                    <option value="ajustement_inventaire">Ajustement inventaire (±)</option>
+                                    <option value="sortie_peremption">Sortie péremption</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="entree-qte-{{ $med->id }}" class="block text-xs font-medium text-gray-600 mb-1">Quantité</label>
+                                <input id="entree-qte-{{ $med->id }}" wire:model="entreeQuantite" type="number" step="0.5"
+                                    class="w-32 min-h-[44px] rounded-lg border border-gray-300 px-3 py-2 @error('entreeQuantite') border-red-500 @enderror">
+                            </div>
+                            <div>
+                                <label for="entree-lot-{{ $med->id }}" class="block text-xs font-medium text-gray-600 mb-1">N° lot</label>
+                                <input id="entree-lot-{{ $med->id }}" wire:model="entreeLot" type="text"
+                                    class="w-36 min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                            </div>
+                            <div class="flex-1 min-w-[160px]">
+                                <label for="entree-ref-{{ $med->id }}" class="block text-xs font-medium text-gray-600 mb-1">Référence (bon de commande…)</label>
+                                <input id="entree-ref-{{ $med->id }}" wire:model="entreeReference" type="text"
+                                    class="w-full min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                            </div>
+                            <button wire:click="enregistrerEntree"
+                                class="min-h-[44px] px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold rounded-lg">
+                                Valider
+                            </button>
+                            <button wire:click="annulerEntree"
+                                class="min-h-[44px] px-4 py-2 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50">
+                                Annuler
+                            </button>
+                        </div>
+                        @error('entreeQuantite')<p class="text-red-600 text-xs mt-2">{{ $message }}</p>@enderror
+                    </td>
+                </tr>
+                @endif
                 @empty
                 <tr>
-                    <td colspan="6" class="px-4 py-8 text-center text-gray-400">
+                    <td colspan="7" class="px-4 py-8 text-center text-gray-400">
                         {{ $search ? 'Aucun médicament trouvé' : 'Stock vide — ajoutez des médicaments' }}
                     </td>
                 </tr>
