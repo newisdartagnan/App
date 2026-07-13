@@ -180,7 +180,7 @@
         @foreach($facture->paiements as $paiement)
         <div class="flex justify-between items-center text-sm py-1 border-b last:border-0">
             <span class="text-gray-600">
-                {{ $paiement->created_at->format('d/m/Y H:i') }} —
+                {{ $paiement->date_paiement?->format('d/m/Y H:i') ?? '—' }} —
                 {{ ucfirst(str_replace('_', ' ', $paiement->mode_paiement)) }}
                 @if($paiement->reference_paiement)
                 <span class="text-gray-400 text-xs">({{ $paiement->reference_paiement }})</span>
