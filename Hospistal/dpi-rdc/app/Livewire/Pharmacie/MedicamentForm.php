@@ -1,6 +1,7 @@
 <?php
 namespace App\Livewire\Pharmacie;
 use App\Models\Medicament;
+use App\Models\MouvementStock;
 use App\Models\StockMedicament;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -17,6 +18,7 @@ class MedicamentForm extends Component
     public float $prix_unitaire_vente = 0;
     public float $prix_unitaire_achat = 0;
     public int $quantite_alerte = 10;
+    public float $quantite_initiale = 0;
     public ?string $date_peremption = null;
     public string $lot = '';
 
@@ -29,6 +31,7 @@ class MedicamentForm extends Component
             'unite_dispensation' => 'required|string|max:50',
             'prix_unitaire_vente' => 'required|numeric|min:0',
             'quantite_alerte' => 'required|integer|min:0',
+            'quantite_initiale' => 'required|numeric|min:0',
         ];
     }
 
@@ -49,17 +52,31 @@ class MedicamentForm extends Component
             StockMedicament::create([
                 'medicament_id' => $medicament->id,
                 'establishment_id' => auth()->user()->establishment_id,
-                'quantite_disponible' => 0,
+                'quantite_disponible' => $this->quantite_initiale,
                 'quantite_alerte' => $this->quantite_alerte,
                 'prix_unitaire_vente' => $this->prix_unitaire_vente,
                 'prix_unitaire_achat' => $this->prix_unitaire_achat,
                 'date_peremption' => $this->date_peremption ?: null,
                 'lot' => $this->lot ?: null,
             ]);
+
+            if ($this->quantite_initiale > 0) {
+                MouvementStock::create([
+                    'medicament_id' => $medicament->id,
+                    'establishment_id' => auth()->user()->establishment_id,
+                    'user_id' => auth()->id(),
+                    'type' => 'entree',
+                    'quantite' => $this->quantite_initiale,
+                    'quantite_avant' => 0,
+                    'quantite_apres' => $this->quantite_initiale,
+                    'reference' => 'Stock initial' . ($this->lot ? " — lot {$this->lot}" : ''),
+                    'created_at' => now(),
+                ]);
+            }
         });
         $this->reset(['denomination_commune', 'nom_commercial', 'dosage',
                       'classe_therapeutique', 'prix_unitaire_vente', 'prix_unitaire_achat',
-                      'date_peremption', 'lot']);
+                      'date_peremption', 'lot', 'quantite_initiale']);
         $this->showForm = false;
         session()->flash('success', 'Médicament ajouté au stock.');
         $this->dispatch('medicament-ajout');
