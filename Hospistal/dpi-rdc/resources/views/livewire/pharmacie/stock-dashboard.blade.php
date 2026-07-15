@@ -94,7 +94,7 @@
                     <td class="px-4 py-3 text-right">
                         <button wire:click="ouvrirEntree('{{ $med->id }}')"
                             class="text-blue-700 hover:underline text-xs font-medium whitespace-nowrap">
-                            ± Stock
+                            📥 Entrée stock
                         </button>
                     </td>
                 </tr>
