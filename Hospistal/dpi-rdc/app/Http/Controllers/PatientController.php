@@ -13,10 +13,64 @@ use Illuminate\View\View;
 
 class PatientController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        // Liste et recherche live via le composant Livewire Patients\PatientList
-        return view('patients.index');
+        $search = trim((string) $request->query('search', ''));
+        $sexe = (string) $request->query('sexe', '');
+
+        $patients = Patient::query()
+            ->when($search !== '', fn ($q) => $this->appliquerRecherche($q, $search))
+            ->when($sexe !== '', fn ($q) => $q->where('sexe', $sexe))
+            ->where(function ($q) {
+                $q->where('merge_status', '!=', 'merged')->orWhereNull('merge_status');
+            })
+            ->orderBy('nom')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('patients.index', compact('patients', 'search', 'sexe'));
+    }
+
+    /**
+     * Recherche au fil de la frappe (fetch JSON, indépendante de Livewire).
+     */
+    public function recherche(Request $request)
+    {
+        $terme = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($terme) < 2) {
+            return response()->json(['patients' => []]);
+        }
+
+        $patients = $this->appliquerRecherche(Patient::query(), $terme)
+            ->where(function ($q) {
+                $q->where('merge_status', '!=', 'merged')->orWhereNull('merge_status');
+            })
+            ->orderBy('nom')
+            ->limit(15)
+            ->get()
+            ->map(fn (Patient $p) => [
+                'id' => $p->id,
+                'nom_complet' => $p->nom . ' ' . $p->prenom,
+                'dossier' => $p->dossier_number,
+                'date_naissance' => $p->date_naissance?->format('d/m/Y'),
+                'telephone' => $p->telephone,
+                'url' => route('patients.show', $p),
+            ]);
+
+        return response()->json(['patients' => $patients]);
+    }
+
+    protected function appliquerRecherche($query, string $terme)
+    {
+        return $query->where(function ($q) use ($terme) {
+            $like = '%' . strtolower($terme) . '%';
+            $q->whereRaw('LOWER(nom) LIKE ?', [$like])
+                ->orWhereRaw('LOWER(prenom) LIKE ?', [$like])
+                ->orWhereRaw("LOWER(nom || ' ' || prenom) LIKE ?", [$like])
+                ->orWhereRaw('LOWER(dossier_number) LIKE ?', [$like])
+                ->orWhereRaw("LOWER(COALESCE(telephone, '')) LIKE ?", [$like]);
+        });
     }
 
     /**

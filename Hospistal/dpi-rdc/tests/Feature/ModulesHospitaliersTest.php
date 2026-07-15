@@ -174,6 +174,54 @@ class ModulesHospitaliersTest extends TestCase
             ->assertSee('TST-2026-000800');
     }
 
+    public function test_tiers_payant_applique_automatiquement_pour_patient_assure(): void
+    {
+        // Patient enregistré avec type assurance + nom d'assurance (comme au
+        // formulaire d'accueil) mais sans lien patient_assurances préexistant
+        $this->patient->update([
+            'type_prise_en_charge' => 'assurance',
+            'assurance_nom' => 'SONAS',
+            'assurance_numero' => 'POL-12345',
+        ]);
+
+        $facture = app(\App\Services\FacturationService::class)
+            ->creerFactureConsultation($this->visit->fresh());
+
+        // L'assureur est créé, le lien établi, et 80 % pris en charge
+        $this->assertDatabaseHas('assurances', ['nom' => 'SONAS']);
+        $this->assertDatabaseHas('patient_assurances', [
+            'patient_id' => $this->patient->id,
+            'numero_police' => 'POL-12345',
+            'est_actif' => true,
+        ]);
+
+        $facture->refresh();
+        $this->assertSame(1, $facture->lignesTiersPayant()->count());
+        $tp = $facture->lignesTiersPayant()->first();
+        $this->assertSame(80.0, (float) $tp->taux_applique);
+        $this->assertSame(12000.0, (float) $tp->part_assurance);
+        $this->assertSame(3000.0, (float) $tp->part_patient);
+
+        // Les totaux de la facture reflètent la prise en charge :
+        // le patient assuré ne paie que sa part au guichet
+        $this->assertSame(12000.0, (float) $facture->assurance_part);
+        $this->assertSame(3000.0, (float) $facture->patient_part);
+        $this->assertSame(3000.0, $facture->soldeRestant());
+    }
+
+    public function test_recherche_patient_json(): void
+    {
+        $this->getJson(route('patients.recherche', ['q' => 'ilu']))
+            ->assertOk()
+            ->assertJsonPath('patients.0.dossier', 'TST-2026-000800')
+            ->assertJsonPath('patients.0.nom_complet', 'ILUNGA Sarah');
+
+        // Moins de 2 caractères : pas de résultats
+        $this->getJson(route('patients.recherche', ['q' => 'i']))
+            ->assertOk()
+            ->assertJsonCount(0, 'patients');
+    }
+
     public function test_facturation_patient_type_autre(): void
     {
         $this->patient->update(['type_prise_en_charge' => 'autre']);

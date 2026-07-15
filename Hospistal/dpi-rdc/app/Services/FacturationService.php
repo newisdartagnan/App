@@ -59,9 +59,19 @@ class FacturationService
                 'total_ligne' => $montant,
             ]);
 
-            // Calcul tiers payant si assurance
+            // Calcul tiers payant si assurance — puis report sur les totaux
+            // de la facture (part assurance / part patient au guichet)
             if ($patient->type_prise_en_charge === 'assurance') {
                 $this->appliquerTiersPayant($facture, $ligne, $patient, $devise);
+
+                $facture->refresh();
+                $totalAssurance = (float) $facture->lignesTiersPayant->sum('part_assurance');
+                if ($totalAssurance > 0) {
+                    $facture->update([
+                        'assurance_part' => $totalAssurance,
+                        'patient_part' => $montant - $totalAssurance,
+                    ]);
+                }
             }
 
             return $facture->fresh();
@@ -141,10 +151,7 @@ class FacturationService
         string $typeActe = 'consultation',
         ?string $referenceId = null
     ): void {
-        $patientAssurance = PatientAssurance::where('patient_id', $patient->id)
-            ->where('est_actif', true)
-            ->with('assurance')
-            ->first();
+        $patientAssurance = $this->resolvePatientAssurance($patient);
 
         if (!$patientAssurance || !$patientAssurance->assurance->est_actif) return;
 
@@ -197,6 +204,44 @@ class FacturationService
             'plafond_atteint' => $plafondAtteint,
             'devise' => $devise,
         ]);
+    }
+
+    /**
+     * Lien patient ↔ assurance pour le tiers payant.
+     *
+     * Si aucun lien actif n'existe mais que le patient a été enregistré avec
+     * un nom d'assurance, l'assureur est créé (taux par défaut 80 %) et le
+     * lien établi automatiquement — sinon la part patient reste à 100 %.
+     */
+    public function resolvePatientAssurance(Patient $patient): ?PatientAssurance
+    {
+        $lien = PatientAssurance::where('patient_id', $patient->id)
+            ->where('est_actif', true)
+            ->with('assurance')
+            ->first();
+
+        if ($lien) {
+            return $lien;
+        }
+
+        if ($patient->type_prise_en_charge !== 'assurance' || blank($patient->assurance_nom)) {
+            return null;
+        }
+
+        $assurance = Assurance::firstOrCreate(
+            ['code' => strtoupper(\Illuminate\Support\Str::slug($patient->assurance_nom, '_')) ?: 'ASSURANCE'],
+            ['nom' => $patient->assurance_nom, 'taux_couverture' => 80, 'est_actif' => true]
+        );
+
+        return PatientAssurance::create([
+            'patient_id' => $patient->id,
+            'assurance_id' => $assurance->id,
+            'numero_police' => $patient->assurance_numero ?: 'N/A',
+            'nom_beneficiaire' => trim($patient->nom . ' ' . $patient->prenom),
+            'date_debut' => now()->toDateString(),
+            'annee_courante' => (int) now()->format('Y'),
+            'est_actif' => true,
+        ])->load('assurance');
     }
 
     /**
@@ -270,7 +315,7 @@ class FacturationService
             ]);
 
             foreach ($lignes as $ligne) {
-                LigneFacture::create([
+                $ligneFacture = LigneFacture::create([
                     'facture_id' => $facture->id,
                     'type' => $ligne['type'],
                     'libelle' => $ligne['libelle'],
@@ -279,6 +324,22 @@ class FacturationService
                     'prix_unitaire' => $ligne['prix'],
                     'total_ligne' => $ligne['prix'],
                 ]);
+
+                if ($patient->type_prise_en_charge === 'assurance') {
+                    $this->appliquerTiersPayant($facture, $ligneFacture, $patient, 'CDF', $ligne['type'], $ligne['reference_id']);
+                }
+            }
+
+            // Report du tiers payant sur les totaux de la facture
+            if ($patient->type_prise_en_charge === 'assurance') {
+                $facture->refresh();
+                $totalAssurance = (float) $facture->lignesTiersPayant->sum('part_assurance');
+                if ($totalAssurance > 0) {
+                    $facture->update([
+                        'assurance_part' => $totalAssurance,
+                        'patient_part' => $total - $totalAssurance,
+                    ]);
+                }
             }
 
             $examen->update(['facture_id' => $facture->id]);

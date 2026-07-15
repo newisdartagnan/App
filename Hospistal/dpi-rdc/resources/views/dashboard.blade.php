@@ -23,7 +23,7 @@
 
     <div class="bg-white border rounded-xl p-6 shadow-sm">
         <h3 class="text-lg font-semibold mb-4">Recherche patient</h3>
-        <livewire:patient-search />
+        @include('partials.recherche-patient')
     </div>
 
     <div class="bg-white border rounded-xl p-6 shadow-sm">
