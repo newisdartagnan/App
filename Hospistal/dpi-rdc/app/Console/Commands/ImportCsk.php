@@ -29,14 +29,29 @@ class ImportCsk extends Command
 
     public function handle(): int
     {
-        $chemin = $this->option('base')
-            ?: base_path('../CSK_docker/csk_base_20260309.sql');
+        $candidats = array_filter([
+            $this->option('base'),
+            base_path('csk_base_20260309.sql'),
+            base_path('backups/csk_base_20260309.sql'),
+            '/backups/csk_base_20260309.sql',
+            base_path('../CSK_docker/csk_base_20260309.sql'),
+        ]);
 
-        if (! is_file($chemin)) {
-            $this->error("Dump introuvable : {$chemin}");
+        $chemin = null;
+        foreach ($candidats as $candidat) {
+            if (is_file($candidat)) {
+                $chemin = $candidat;
+                break;
+            }
+        }
+
+        if (! $chemin) {
+            $this->error('Dump csk_base_20260309.sql introuvable. Placez-le dans dpi-rdc/backups/ ou passez --base=/chemin/du/fichier');
 
             return self::FAILURE;
         }
+
+        $this->line("Dump : {$chemin}");
 
         $this->sql = file_get_contents($chemin);
         $etabId = auth()->user()->establishment_id

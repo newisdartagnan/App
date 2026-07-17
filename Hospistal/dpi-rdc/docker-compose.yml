@@ -31,7 +31,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      adminer:
+      redis:
+        condition: service_started
+
+  adminer:
     image: adminer:latest
     restart: unless-stopped
     ports:
@@ -40,9 +43,6 @@ services:
       ADMINER_DEFAULT_SERVER: db
     depends_on:
       - db
-
-  redis:
-        condition: service_started
 
   db:
     image: postgres:16-alpine
