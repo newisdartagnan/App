@@ -1,0 +1,1 @@
+function e(){let e=document.getElementById(`offline-banner`);e&&e.classList.toggle(`hidden`,navigator.onLine)}window.addEventListener(`online`,e),window.addEventListener(`offline`,e),e(),`serviceWorker`in navigator&&navigator.serviceWorker.getRegistrations().then(e=>{e.forEach(e=>e.unregister())});
