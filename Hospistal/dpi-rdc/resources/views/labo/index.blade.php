@@ -4,9 +4,12 @@
 <div class="max-w-6xl mx-auto px-4 py-6">
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-gray-800">{{ $domaine === 'imagerie' ? 'Imagerie médicale' : 'Laboratoire' }}</h2>
-        <a href="{{ $domaine === 'imagerie' ? route('imagerie.index') : route('labo.index') }}" class="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
-            Liste des examens
-        </a>
+        <div class="flex items-center gap-3">
+            <a href="{{ $domaine === 'imagerie' ? route('labo.index') : route('imagerie.index') }}" class="text-blue-700 hover:underline text-sm">
+                → {{ $domaine === 'imagerie' ? 'Laboratoire' : 'Imagerie' }}
+            </a>
+            <span class="text-xs text-gray-400">Prescription d'examens : depuis le parcours patient (Consultations → visite → Prescrire)</span>
+        </div>
     </div>
 
     @if(session('success'))

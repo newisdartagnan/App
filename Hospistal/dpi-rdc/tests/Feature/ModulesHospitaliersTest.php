@@ -2,10 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Caisse\FactureShow;
-use App\Livewire\PatientSearch;
-use App\Livewire\Pharmacie\MedicamentForm;
-use App\Livewire\Pharmacie\StockDashboard;
 use App\Models\ActeClinique;
 use App\Models\Establishment;
 use App\Models\ExamenLaboratoire;
@@ -76,10 +72,13 @@ class ModulesHospitaliersTest extends TestCase
         $this->assertSame('facture', $acte->statut);
         $this->assertNotNull($acte->facture_id);
 
-        // Paiement au guichet puis compte-rendu
-        Livewire::test(FactureShow::class, ['facture' => $acte->facture])
-            ->call('validerPaiement')
-            ->assertHasNoErrors();
+        // Paiement au guichet (formulaire classique) puis compte-rendu
+        $this->post(route('caisse.encaisser', $acte->facture), [
+            'montant' => 200000,
+            'devise' => 'CDF',
+            'mode_paiement' => 'especes',
+        ])->assertSessionHas('success');
+        $this->assertSame('payee', $acte->facture->fresh()->statut);
 
         $this->post(route('actes.realiser', $acte), [
             'compte_rendu' => 'Accouchement eutocique, nouveau-né bien portant.',
@@ -126,16 +125,17 @@ class ModulesHospitaliersTest extends TestCase
 
     public function test_ajout_medicament_avec_stock_initial(): void
     {
-        Livewire::test(MedicamentForm::class)
-            ->set('showForm', true)
-            ->set('denomination_commune', 'Ibuprofène')
-            ->set('dosage', '400 mg')
-            ->set('unite_dispensation', 'comprimé')
-            ->set('prix_unitaire_vente', 700)
-            ->set('quantite_initiale', 300)
-            ->set('lot', 'LOT-TEST-01')
-            ->call('save')
-            ->assertHasNoErrors();
+        // Formulaire classique (POST) — indépendant de Livewire/JavaScript
+        $this->post(route('pharmacie.medicaments.store'), [
+            'denomination_commune' => 'Ibuprofène',
+            'forme' => 'comprime',
+            'dosage' => '400 mg',
+            'unite_dispensation' => 'comprimé',
+            'prix_unitaire_vente' => 700,
+            'quantite_alerte' => 10,
+            'quantite_initiale' => 300,
+            'lot' => 'LOT-TEST-01',
+        ])->assertSessionHas('success');
 
         $med = Medicament::where('denomination_commune', 'Ibuprofène')->firstOrFail();
         $this->assertSame(300.0, (float) $med->stock->quantite_disponible);
@@ -150,12 +150,12 @@ class ModulesHospitaliersTest extends TestCase
         $med = Medicament::where('denomination_commune', 'Paracétamol')->firstOrFail();
         $avant = (float) $med->stock->quantite_disponible;
 
-        Livewire::test(StockDashboard::class)
-            ->call('ouvrirEntree', $med->id)
-            ->set('entreeQuantite', 500)
-            ->set('entreeLot', 'LOT-2026-02')
-            ->call('enregistrerEntree')
-            ->assertHasNoErrors();
+        // Entrée de stock par formulaire classique (POST)
+        $this->post(route('pharmacie.stock.mouvement', $med), [
+            'type' => 'entree',
+            'quantite' => 500,
+            'lot' => 'LOT-2026-02',
+        ])->assertSessionHas('success');
 
         $this->assertSame($avant + 500, (float) $med->stock->fresh()->quantite_disponible);
         $this->assertDatabaseHas('mouvements_stock', [
@@ -164,14 +164,6 @@ class ModulesHospitaliersTest extends TestCase
             'quantite_avant' => $avant,
             'quantite_apres' => $avant + 500,
         ]);
-    }
-
-    public function test_recherche_patient_livewire(): void
-    {
-        Livewire::test(PatientSearch::class)
-            ->set('query', 'ILUNGA')
-            ->assertSee('ILUNGA')
-            ->assertSee('TST-2026-000800');
     }
 
     public function test_tiers_payant_applique_automatiquement_pour_patient_assure(): void
@@ -220,6 +212,28 @@ class ModulesHospitaliersTest extends TestCase
         $this->getJson(route('patients.recherche', ['q' => 'i']))
             ->assertOk()
             ->assertJsonCount(0, 'patients');
+    }
+
+    public function test_maj_assurance_depuis_fiche_patient(): void
+    {
+        // L'agent renseigne l'assurance sur la fiche patient (formulaire POST)
+        $this->post(route('patients.assurance', $this->patient), [
+            'assurance_nom' => 'Rawsur',
+            'assurance_numero' => 'RW-889',
+        ])->assertSessionHas('success');
+
+        $this->patient->refresh();
+        $this->assertSame('assurance', $this->patient->type_prise_en_charge);
+        $this->assertSame('Rawsur', $this->patient->assurance_nom);
+        $this->assertDatabaseHas('patient_assurances', [
+            'patient_id' => $this->patient->id,
+            'est_actif' => true,
+        ]);
+
+        // La facture suivante applique bien la prise en charge
+        $facture = app(\App\Services\FacturationService::class)
+            ->creerFactureConsultation($this->visit->fresh());
+        $this->assertSame(12000.0, (float) $facture->assurance_part);
     }
 
     public function test_facturation_patient_type_autre(): void

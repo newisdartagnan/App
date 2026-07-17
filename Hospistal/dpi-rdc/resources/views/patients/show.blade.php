@@ -69,6 +69,39 @@
     </form>
     @endif
 
+    {{-- Assurance / prise en charge --}}
+    @php $lienAssurance = \App\Models\PatientAssurance::where('patient_id', $patient->id)->where('est_actif', true)->with('assurance')->first(); @endphp
+    <details class="bg-white rounded-xl shadow mb-6" {{ $patient->type_prise_en_charge === 'assurance' && ! $lienAssurance ? 'open' : '' }}>
+        <summary class="cursor-pointer select-none px-5 py-3 font-semibold text-gray-700 hover:bg-gray-50 rounded-xl flex items-center justify-between">
+            <span>🛡️ Assurance / prise en charge
+                @if($lienAssurance)
+                <span class="ml-2 text-sm font-normal text-green-700">{{ $lienAssurance->assurance->nom }} — {{ $lienAssurance->assurance->taux_couverture + 0 }} % (police {{ $lienAssurance->numero_police }})</span>
+                @elseif($patient->type_prise_en_charge === 'assurance')
+                <span class="ml-2 text-sm font-normal text-amber-700">⚠️ aucune assurance liée — le patient paie 100 %</span>
+                @endif
+            </span>
+        </summary>
+        <form method="POST" action="{{ route('patients.assurance', $patient) }}" class="px-5 pb-5 pt-2 border-t flex flex-wrap items-end gap-3">
+            @csrf
+            <div class="flex-1 min-w-[200px]">
+                <label for="assurance-nom" class="block text-sm font-medium text-gray-700 mb-1">Nom de l'assurance <span class="text-red-500">*</span></label>
+                <input id="assurance-nom" name="assurance_nom" type="text" required
+                    value="{{ old('assurance_nom', $patient->assurance_nom) }}" placeholder="Ex: SONAS, Rawsur…"
+                    class="w-full min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+            </div>
+            <div>
+                <label for="assurance-numero" class="block text-sm font-medium text-gray-700 mb-1">N° police / carte</label>
+                <input id="assurance-numero" name="assurance_numero" type="text"
+                    value="{{ old('assurance_numero', $patient->assurance_numero) }}"
+                    class="min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+            </div>
+            <button type="submit" class="min-h-[44px] bg-blue-700 hover:bg-blue-800 text-white font-semibold px-5 py-2 rounded-lg">
+                {{ $lienAssurance ? 'Mettre à jour' : 'Activer la prise en charge' }}
+            </button>
+            <p class="w-full text-xs text-gray-400 -mt-1">La couverture (80 % par défaut) s'applique aux prochaines factures : consultation, examens, pharmacie.</p>
+        </form>
+    </details>
+
     {{-- Données patient --}}
     <div class="bg-white rounded-xl shadow p-6 grid grid-cols-2 gap-4 text-sm mb-6">
         <div><span class="font-medium text-gray-600">Sexe :</span> {{ $patient->sexe }}</div>

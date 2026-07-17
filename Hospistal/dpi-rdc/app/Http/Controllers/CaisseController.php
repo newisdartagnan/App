@@ -7,6 +7,7 @@ use App\Models\Facture;
 use App\Models\Prescription;
 use App\Services\FacturationService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CaisseController extends Controller
@@ -23,9 +24,50 @@ class CaisseController extends Controller
 
     public function show(Facture $facture): View
     {
-        $facture->load(['patient', 'lignes', 'lignesTiersPayant.assurance', 'prescription.lignes.medicament']);
+        $facture->load(['patient', 'lignes', 'lignesTiersPayant.assurance', 'prescription.lignes.medicament', 'paiements', 'bonsSortie']);
 
         return view('caisse.show', compact('facture'));
+    }
+
+    /**
+     * Encaissement par formulaire classique (aucune dépendance JavaScript).
+     * Émet le bon pharmacie / labo / imagerie et débloque la file du médecin.
+     */
+    public function encaisser(Request $request, Facture $facture): RedirectResponse
+    {
+        $request->validate([
+            'montant' => 'required|numeric|min:0.01',
+            'devise' => 'required|in:CDF,USD',
+            'mode_paiement' => 'required|in:especes,mobile_money,virement,cheque',
+            'reference' => 'nullable|string|max:200',
+        ], [
+            'montant.required' => 'Indiquez le montant reçu.',
+            'montant.min' => 'Le montant doit être positif.',
+        ]);
+
+        if ($facture->statut === 'payee') {
+            return redirect()->route('caisse.show', $facture)->with('info', 'Cette facture est déjà payée.');
+        }
+
+        $prescription = $facture->prescription_id ? Prescription::find($facture->prescription_id) : null;
+        $examen = $prescription ? null : ExamenLaboratoire::where('facture_id', $facture->id)->first();
+
+        $resultat = app(FacturationService::class)->validerPaiement(
+            $facture,
+            (float) $request->input('montant'),
+            $request->input('devise'),
+            $request->input('mode_paiement'),
+            $request->input('reference') ?: null,
+            $prescription,
+            $examen,
+        );
+
+        $message = 'Paiement enregistré.';
+        if ($resultat['bon_sortie']) {
+            $message .= ' Bon ' . $resultat['bon_sortie']->type . ' émis : ' . $resultat['bon_sortie']->numero . '.';
+        }
+
+        return redirect()->route('caisse.show', $facture)->with('success', $message);
     }
 
     /**

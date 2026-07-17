@@ -33,6 +33,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/patients', [PatientController::class, 'store'])->name('patients.store');
     Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('patients.show');
     Route::post('/patients/{patient}/envoyer-caisse', [PatientController::class, 'envoyerCaisse'])->name('patients.envoyer-caisse');
+    Route::post('/patients/{patient}/assurance', [PatientController::class, 'majAssurance'])->name('patients.assurance');
 
     // Consultations — workflow caisse-first : le médecin consulte une visite payée
     Route::get('/patients/{patient}/consultation', [ConsultationController::class, 'create'])->name('consultations.create');
@@ -84,11 +85,15 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/pharmacie/prescriptions', [PharmacieController::class, 'prescriptions'])->name('pharmacie.prescriptions');
     Route::get('/pharmacie/prescriptions/{prescription}', [PharmacieController::class, 'showPrescription'])->name('pharmacie.prescription');
     Route::get('/pharmacie/medicaments', [PharmacieController::class, 'medicaments'])->name('pharmacie.medicaments');
+    Route::post('/pharmacie/medicaments', [PharmacieController::class, 'storeMedicament'])->name('pharmacie.medicaments.store');
+    Route::post('/pharmacie/prescriptions/{prescription}/dispenser', [PharmacieController::class, 'dispenser'])->name('pharmacie.dispenser');
+    Route::post('/pharmacie/stock/{medicament}/mouvement', [PharmacieController::class, 'mouvementStock'])->name('pharmacie.stock.mouvement');
 
     // Caisse
     Route::get('/caisse', [CaisseController::class, 'index'])->name('caisse.index');
     Route::get('/caisse/{facture}', [CaisseController::class, 'show'])->name('caisse.show');
     Route::get('/caisse/{facture}/imprimer', [CaisseController::class, 'imprimer'])->name('caisse.imprimer');
+    Route::post('/caisse/{facture}/encaisser', [CaisseController::class, 'encaisser'])->name('caisse.encaisser');
     Route::post('/caisse/facturer/{prescription}', [CaisseController::class, 'facturer'])->name('caisse.facturer');
     Route::post('/caisse/prescription/{prescription}', [CaisseController::class, 'creerDepuisPrescription'])->name('caisse.prescription');
 });

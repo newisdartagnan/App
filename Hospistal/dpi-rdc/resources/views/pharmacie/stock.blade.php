@@ -8,12 +8,9 @@
             <h2 class="text-2xl font-bold text-gray-800">Stock & médicaments</h2>
         </div>
     </div>
-    @if(session('success'))
-    <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 mb-4">{{ session('success') }}</div>
-    @endif
-    <livewire:pharmacie.medicament-form />
-    <div class="mt-4">
-        <livewire:pharmacie.stock-dashboard />
-    </div>
+    @if(session('success'))<div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 mb-4">{{ session('success') }}</div>@endif
+    @if(session('error'))<div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 mb-4">{{ session('error') }}</div>@endif
+    @include('pharmacie._medicament-form')
+    @include('pharmacie._stock-table')
 </div>
 @endsection
