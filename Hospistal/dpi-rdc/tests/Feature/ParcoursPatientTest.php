@@ -2,10 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Caisse\FactureShow;
 use App\Livewire\Consultations\ConsultationCreate;
 use App\Livewire\Patients\PatientCreate;
-use App\Livewire\Pharmacie\PrescriptionDispensing;
 use App\Livewire\Prescriptions\PrescriptionCreate;
 use App\Models\Consultation;
 use App\Models\Establishment;
@@ -34,6 +32,16 @@ class ParcoursPatientTest extends TestCase
     use RefreshDatabase;
 
     protected User $medecin;
+
+    /** Encaissement au guichet par le formulaire classique (POST). */
+    protected function payer(Facture $facture): void
+    {
+        $this->post(route('caisse.encaisser', $facture), [
+            'montant' => max(1, $facture->fresh()->soldeRestant()),
+            'devise' => 'CDF',
+            'mode_paiement' => 'especes',
+        ])->assertSessionHas('success');
+    }
 
     protected function setUp(): void
     {
@@ -78,9 +86,7 @@ class ParcoursPatientTest extends TestCase
             ->assertRedirect(route('consultations.index'));
 
         // ── 3. Caisse : paiement → la visite entre dans la file du médecin ──
-        Livewire::test(FactureShow::class, ['facture' => $factureConsult])
-            ->call('validerPaiement')
-            ->assertHasNoErrors();
+        $this->payer($factureConsult);
         $this->assertSame('payee', $factureConsult->fresh()->statut);
 
         $visit->refresh();
@@ -132,9 +138,7 @@ class ParcoursPatientTest extends TestCase
         $this->post(route('labo.resultats', $examen), ['resultats' => []])
             ->assertSessionHas('error');
 
-        Livewire::test(FactureShow::class, ['facture' => $factureLabo])
-            ->call('validerPaiement')
-            ->assertHasNoErrors();
+        $this->payer($factureLabo);
         $this->assertSame('payee', $factureLabo->fresh()->statut);
 
         // Saisie des résultats puis validation du bilan (avec conclusion)
@@ -206,8 +210,9 @@ class ParcoursPatientTest extends TestCase
         $this->assertSame('brouillon', $prescription->statut);
 
         // Patient HOSPITALISÉ : servi à crédit — dispensation sans bon ni paiement
-        Livewire::test(PrescriptionDispensing::class, ['prescription' => $prescription])
-            ->call('dispenser');
+        $quantites = $prescription->lignes->mapWithKeys(fn ($l) => [$l->id => $l->quantite_totale])->all();
+        $this->post(route('pharmacie.dispenser', $prescription), ['quantites' => $quantites])
+            ->assertSessionHas('success');
 
         $this->assertSame('dispensee', $prescription->fresh()->statut);
         $this->assertSame($stockAvant - 24, (float) $medicament->stock->fresh()->quantite_disponible);
@@ -217,9 +222,7 @@ class ParcoursPatientTest extends TestCase
         $facturePharma = Facture::where('prescription_id', $prescription->id)->firstOrFail();
         $this->assertSame('emise', $facturePharma->statut);
 
-        Livewire::test(FactureShow::class, ['facture' => $facturePharma])
-            ->call('validerPaiement')
-            ->assertHasNoErrors();
+        $this->payer($facturePharma);
         $this->assertSame('payee', $facturePharma->fresh()->statut);
 
         // ── 7. Sortie bloquée tant que le séjour n'est pas facturé/payé ─────
@@ -231,9 +234,7 @@ class ParcoursPatientTest extends TestCase
             ->assertSessionHas('error');
         $this->assertSame('en_cours', $visit->fresh()->statut);
 
-        Livewire::test(FactureShow::class, ['facture' => $factureSejour])
-            ->call('validerPaiement')
-            ->assertHasNoErrors();
+        $this->payer($factureSejour);
 
         // ── 8. Sortie : lit libéré, visite terminée ──────────────────────────
         $this->post(route('visites.sortir', $visit), ['mode_sortie' => 'gueri'])

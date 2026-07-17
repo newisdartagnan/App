@@ -74,6 +74,34 @@ class PatientController extends Controller
     }
 
     /**
+     * Renseigne / met à jour l'assurance d'un patient et active le tiers payant.
+     */
+    public function majAssurance(Request $request, Patient $patient): RedirectResponse
+    {
+        $donnees = $request->validate([
+            'assurance_nom' => 'required|string|max:100',
+            'assurance_numero' => 'nullable|string|max:100',
+        ], [
+            'assurance_nom.required' => 'Le nom de l\'assurance est obligatoire.',
+        ]);
+
+        // Désactiver un éventuel ancien lien avant de re-résoudre
+        \App\Models\PatientAssurance::where('patient_id', $patient->id)->update(['est_actif' => false]);
+
+        $patient->update([
+            'type_prise_en_charge' => 'assurance',
+            'assurance_nom' => $donnees['assurance_nom'],
+            'assurance_numero' => $donnees['assurance_numero'] ?? null,
+        ]);
+
+        $lien = app(\App\Services\FacturationService::class)->resolvePatientAssurance($patient->fresh());
+
+        return back()->with('success', $lien
+            ? "Assurance « {$lien->assurance->nom} » liée — prise en charge à {$lien->assurance->taux_couverture} % appliquée aux prochaines factures."
+            : 'Assurance enregistrée.');
+    }
+
+    /**
      * Workflow accueil : envoi du patient à la caisse pour régler la
      * consultation avant de voir le médecin.
      */

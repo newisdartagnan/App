@@ -14,7 +14,7 @@
             'en_attente' => ['label' => 'Payées — à dispenser', 'badge' => 'bg-green-100 text-green-800'],
             'dispensee' => ['label' => 'Dispensées', 'badge' => 'bg-blue-100 text-blue-800'],
         ];
-        $prescriptions = \App\Models\Prescription::with(['patient', 'prescripteur', 'lignes', 'factures'])
+        $prescriptions = \App\Models\Prescription::with(['patient', 'prescripteur', 'lignes', 'factures', 'consultation.visit'])
             ->whereIn('statut', array_keys($statuts))
             ->orderByDesc('date_prescription')
             ->get()
@@ -63,7 +63,14 @@
                                     @php
                                         $factureEnAttente = $prescription->factures
                                             ->whereIn('statut', ['emise', 'partiellement_payee'])->first();
+                                        $aCredit = $prescription->consultation?->visit?->serviACredit();
                                     @endphp
+                                    @if($aCredit)
+                                        <a href="{{ route('pharmacie.prescription', $prescription) }}"
+                                           class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+                                            🛏️ Dispenser (hospitalisé)
+                                        </a>
+                                    @endif
                                     @if($factureEnAttente)
                                         <a href="{{ route('caisse.show', $factureEnAttente) }}"
                                            class="inline-block bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">

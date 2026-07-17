@@ -15,6 +15,8 @@
             </a>
         </div>
     </div>
-    <livewire:pharmacie.stock-dashboard />
+    @if(session('success'))<div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 mb-4">{{ session('success') }}</div>@endif
+    @if(session('error'))<div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 mb-4">{{ session('error') }}</div>@endif
+    @include('pharmacie._stock-table')
 </div>
 @endsection
