@@ -17,7 +17,7 @@ class ConsultationList extends Component
 
     public function render()
     {
-        $base = fn () => Visit::with(['patient', 'user', 'consultations'])
+        $base = fn () => Visit::with(['patient', 'user', 'consultations', 'typeConsultation'])
             ->when($this->search, function ($q) {
                 $q->whereHas('patient', function ($q) {
                     $q->whereRaw('LOWER(nom) LIKE ?', ['%' . strtolower($this->search) . '%'])
@@ -27,13 +27,26 @@ class ConsultationList extends Component
             })
             ->whereIn('type', ['consultation_externe', 'urgence']);
 
-        // File d'attente du médecin : visites payées, pas encore consultées
+        // File d'attente : visites payées (ou contrôles gratuits), pas encore
+        // consultées — groupée par spécialité, la spécialité du médecin connecté
+        // en premier, urgences toujours en tête.
+        $maSpecialite = auth()->user()->specialite;
+
         $fileAttente = $base()
             ->where('statut', 'en_cours')
             ->whereDoesntHave('consultations')
             ->orderByRaw("CASE WHEN type = 'urgence' THEN 0 ELSE 1 END")
             ->orderBy('date_entree')
             ->get();
+
+        $fileParSpecialite = $fileAttente
+            ->groupBy(fn ($v) => $v->type === 'urgence' ? '🚨 Urgences'
+                : ($v->typeConsultation?->specialite ?: 'Médecine générale'))
+            ->sortBy(function ($groupe, $cle) use ($maSpecialite) {
+                if ($cle === '🚨 Urgences') return 0;
+                if ($maSpecialite && $cle === $maSpecialite) return 1;
+                return 2;
+            });
 
         // Envoyés à la caisse, paiement non encore validé
         $enAttentePaiement = $base()
@@ -51,6 +64,6 @@ class ConsultationList extends Component
             ->paginate(20);
 
         return view('livewire.consultations.consultation-list',
-            compact('visits', 'fileAttente', 'enAttentePaiement'));
+            compact('visits', 'fileAttente', 'fileParSpecialite', 'enAttentePaiement', 'maSpecialite'));
     }
 }

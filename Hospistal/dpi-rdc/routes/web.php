@@ -38,6 +38,9 @@ Route::middleware(['auth'])->group(function () {
     // Consultations — workflow caisse-first : le médecin consulte une visite payée
     Route::get('/patients/{patient}/consultation', [ConsultationController::class, 'create'])->name('consultations.create');
     Route::get('/visites/{visit}/consulter', [ConsultationController::class, 'consulter'])->name('visites.consulter');
+    Route::post('/visites/{visit}/consultation', [ConsultationController::class, 'store'])->name('visites.consultation.store');
+    Route::get('/visites/{visit}/triage', [VisitController::class, 'triage'])->name('visites.triage');
+    Route::post('/visites/{visit}/triage', [VisitController::class, 'triageStore'])->name('visites.triage.store');
     Route::get('/consultations', [ConsultationController::class, 'index'])->name('consultations.index');
     Route::get('/consultations/{consultation}', [ConsultationController::class, 'show'])->name('consultations.show');
     Route::post('/consultations/{consultation}/facturer', [ConsultationController::class, 'facturer'])->name('consultations.facturer');
@@ -78,6 +81,11 @@ Route::middleware(['auth'])->group(function () {
 
     // Prescriptions
     Route::get('/consultations/{consultation}/prescrire', [PrescriptionController::class, 'create'])->name('prescriptions.create');
+    Route::post('/consultations/{consultation}/prescrire', [PrescriptionController::class, 'store'])->name('prescriptions.store');
+
+    // Équipements (machines labo / imagerie)
+    Route::get('/equipements', [\App\Http\Controllers\EquipementController::class, 'index'])->name('equipements.index');
+    Route::post('/equipements', [\App\Http\Controllers\EquipementController::class, 'store'])->name('equipements.store');
 
     // Pharmacie
     Route::get('/pharmacie', [PharmacieController::class, 'dashboard'])->name('pharmacie.dashboard');

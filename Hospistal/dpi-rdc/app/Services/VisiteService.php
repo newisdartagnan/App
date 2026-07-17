@@ -15,20 +15,41 @@ class VisiteService
      * Accueil : le patient est envoyé à la caisse AVANT de voir le médecin.
      * Crée la visite (en_attente) et la facture de consultation à régler.
      */
-    public function envoyerEnConsultation(Patient $patient, string $type, ?string $motif = null): Facture
-    {
-        return DB::transaction(function () use ($patient, $type, $motif) {
+    public function envoyerEnConsultation(
+        Patient $patient,
+        string $type,
+        ?string $motif = null,
+        ?string $typeConsultationId = null
+    ): Visit {
+        return DB::transaction(function () use ($patient, $type, $motif, $typeConsultationId) {
+            // Contrôle de résultat gratuit : même type de consultation
+            // dans les 7 derniers jours → pas de nouvelle facture.
+            $gratuite = $typeConsultationId
+                && Visit::where('patient_id', $patient->id)
+                    ->where('type_consultation_id', $typeConsultationId)
+                    ->where('date_entree', '>=', now()->subDays(7))
+                    ->whereHas('consultations')
+                    ->exists();
+
             $visit = Visit::create([
                 'patient_id' => $patient->id,
                 'establishment_id' => auth()->user()->establishment_id,
                 'user_id' => auth()->id(),
                 'type' => $type,
-                'statut' => 'en_attente',
+                'type_consultation_id' => $typeConsultationId,
+                // Gratuite : directement dans la file du médecin, sans caisse
+                'statut' => $gratuite ? 'en_cours' : 'en_attente',
+                'gratuite' => $gratuite,
+                'est_payant' => ! $gratuite,
                 'date_entree' => now(),
                 'motif_consultation' => $motif,
             ]);
 
-            return app(FacturationService::class)->creerFactureConsultation($visit);
+            if (! $gratuite) {
+                app(FacturationService::class)->creerFactureConsultation($visit);
+            }
+
+            return $visit->fresh(['typeConsultation', 'factures']);
         });
     }
 

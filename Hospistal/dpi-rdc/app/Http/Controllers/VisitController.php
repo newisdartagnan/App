@@ -52,6 +52,49 @@ class VisitController extends Controller
         return view('visites.show', compact('visit', 'services', 'impayees'));
     }
 
+    /**
+     * Triage infirmier : motif + constantes vitales avant le médecin.
+     */
+    public function triage(Visit $visit): \Illuminate\View\View
+    {
+        $visit->load(['patient', 'typeConsultation']);
+
+        return view('visites.triage', compact('visit'));
+    }
+
+    public function triageStore(Request $request, Visit $visit): RedirectResponse
+    {
+        $donnees = $request->validate([
+            'motif_consultation' => 'required|string|max:500',
+            'symptomes_principaux' => 'nullable|string|max:1000',
+            'poids_kg' => 'nullable|numeric|min:0.5|max:300',
+            'taille_cm' => 'nullable|numeric|min:20|max:250',
+            'temperature' => 'nullable|numeric|min:30|max:45',
+            'tension_systolique' => 'nullable|integer|min:50|max:300',
+            'tension_diastolique' => 'nullable|integer|min:30|max:200',
+            'frequence_cardiaque' => 'nullable|integer|min:20|max:300',
+            'frequence_respiratoire' => 'nullable|integer|min:5|max:90',
+            'saturation_o2' => 'nullable|numeric|min:50|max:100',
+        ], [
+            'motif_consultation.required' => 'Le motif est obligatoire.',
+        ]);
+
+        $imc = null;
+        if (! empty($donnees['poids_kg']) && ! empty($donnees['taille_cm'])) {
+            $m = $donnees['taille_cm'] / 100;
+            $imc = round($donnees['poids_kg'] / ($m * $m), 1);
+        }
+
+        $visit->update($donnees + [
+            'imc' => $imc,
+            'triage_fait_at' => now(),
+            'triage_par' => auth()->id(),
+        ]);
+
+        return redirect()->route('consultations.index')
+            ->with('success', 'Triage enregistré — le patient est prêt pour le médecin.');
+    }
+
     public function hospitaliser(Request $request, Visit $visit): RedirectResponse
     {
         $request->validate([

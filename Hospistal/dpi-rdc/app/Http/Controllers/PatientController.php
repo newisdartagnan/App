@@ -109,7 +109,10 @@ class PatientController extends Controller
     {
         $request->validate([
             'type' => 'required|in:consultation_externe,urgence',
+            'type_consultation_id' => 'required_if:type,consultation_externe|nullable|uuid|exists:types_consultation,id',
             'motif' => 'nullable|string|max:500',
+        ], [
+            'type_consultation_id.required_if' => 'Choisissez le type de consultation (générale ou spécialisée).',
         ]);
 
         $service = app(VisiteService::class);
@@ -119,10 +122,23 @@ class PatientController extends Controller
                 ->with('info', 'Ce patient a déjà une visite en cours.');
         }
 
-        $facture = $service->envoyerEnConsultation($patient, $request->type, $request->motif);
+        $visit = $service->envoyerEnConsultation(
+            $patient,
+            $request->type,
+            $request->motif,
+            $request->type === 'urgence' ? null : $request->type_consultation_id,
+        );
+
+        if ($visit->gratuite) {
+            return redirect()->route('patients.show', $patient)
+                ->with('success', 'Contrôle gratuit (résultats < 7 jours) — le patient est directement dans la file d\'attente, sans passage en caisse.');
+        }
+
+        $facture = $visit->factures->first();
 
         return redirect()->route('caisse.show', $facture)
-            ->with('success', 'Patient envoyé à la caisse — la consultation sera accessible au médecin après paiement.');
+            ->with('success', 'Patient envoyé à la caisse — après paiement il entrera dans la file d\'attente '
+                . ($visit->typeConsultation?->specialite ? 'de ' . $visit->typeConsultation->specialite : 'du médecin') . '.');
     }
 
     public function create(): View
