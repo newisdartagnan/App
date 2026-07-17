@@ -116,11 +116,11 @@ class PharmacieService
             $medicament = Medicament::create([
                 'establishment_id' => auth()->user()->establishment_id,
                 'denomination_commune' => $donnees['denomination_commune'],
-                'nom_commercial' => $donnees['nom_commercial'] ?: null,
+                'nom_commercial' => ($donnees['nom_commercial'] ?? null) ?: null,
                 'forme' => $donnees['forme'],
                 'dosage' => $donnees['dosage'],
                 'unite_dispensation' => $donnees['unite_dispensation'],
-                'classe_therapeutique' => $donnees['classe_therapeutique'] ?: null,
+                'classe_therapeutique' => ($donnees['classe_therapeutique'] ?? null) ?: null,
                 'necessite_ordonnance' => (bool) ($donnees['necessite_ordonnance'] ?? true),
             ]);
 
@@ -132,9 +132,9 @@ class PharmacieService
                 'quantite_disponible' => $quantiteInitiale,
                 'quantite_alerte' => (int) ($donnees['quantite_alerte'] ?? 10),
                 'prix_unitaire_vente' => $donnees['prix_unitaire_vente'],
-                'prix_unitaire_achat' => $donnees['prix_unitaire_achat'] ?: null,
-                'date_peremption' => $donnees['date_peremption'] ?: null,
-                'lot' => $donnees['lot'] ?: null,
+                'prix_unitaire_achat' => ($donnees['prix_unitaire_achat'] ?? null) ?: null,
+                'date_peremption' => ($donnees['date_peremption'] ?? null) ?: null,
+                'lot' => ($donnees['lot'] ?? null) ?: null,
             ]);
 
             if ($quantiteInitiale > 0) {
