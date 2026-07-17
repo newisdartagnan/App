@@ -20,6 +20,7 @@ class HospitalReferenceSeeder extends Seeder
         }
 
         $this->seedServices($establishment);
+        $this->seedTypesConsultation();
         $this->seedMedicaments($establishment);
         $this->seedExamens();
     }
@@ -85,6 +86,34 @@ class HospitalReferenceSeeder extends Seeder
                     'prix_unitaire_achat' => $m['prix'] * 0.7,
                     'quantite_alerte' => 50,
                 ]
+            );
+        }
+    }
+
+    protected function seedTypesConsultation(): void
+    {
+        // Générales 20 $ — spécialisées 24 $ (règle tarifaire de l'établissement)
+        $types = [
+            ['code' => 'CONS-MG', 'libelle' => 'Médecine générale / famille', 'categorie' => 'generale', 'specialite' => null, 'prix_usd' => 20],
+            ['code' => 'CONS-APT', 'libelle' => 'Aptitude physique', 'categorie' => 'generale', 'specialite' => null, 'prix_usd' => 20],
+            ['code' => 'CONS-PED', 'libelle' => 'Pédiatrie générale', 'categorie' => 'generale', 'specialite' => 'Pédiatrie', 'prix_usd' => 20],
+            ['code' => 'CONS-OPH', 'libelle' => 'Ophtalmologie', 'categorie' => 'specialisee', 'specialite' => 'Ophtalmologie', 'prix_usd' => 24],
+            ['code' => 'CONS-DENT', 'libelle' => 'Dentisterie', 'categorie' => 'specialisee', 'specialite' => 'Dentisterie', 'prix_usd' => 24],
+            ['code' => 'CONS-NEPH', 'libelle' => 'Néphrologie', 'categorie' => 'specialisee', 'specialite' => 'Néphrologie', 'prix_usd' => 24],
+            ['code' => 'CONS-GYN', 'libelle' => 'Gynécologie', 'categorie' => 'specialisee', 'specialite' => 'Gynécologie', 'prix_usd' => 24],
+            ['code' => 'CONS-OBST', 'libelle' => 'Obstétrique', 'categorie' => 'specialisee', 'specialite' => 'Gynécologie', 'prix_usd' => 24],
+            ['code' => 'CONS-CARDIO', 'libelle' => 'Cardiologie', 'categorie' => 'specialisee', 'specialite' => 'Cardiologie', 'prix_usd' => 24],
+            ['code' => 'CONS-DERM', 'libelle' => 'Dermatologie', 'categorie' => 'specialisee', 'specialite' => 'Dermatologie', 'prix_usd' => 24],
+            ['code' => 'CONS-URO', 'libelle' => 'Urologie', 'categorie' => 'specialisee', 'specialite' => 'Urologie', 'prix_usd' => 24],
+            ['code' => 'CONS-ORL', 'libelle' => 'ORL', 'categorie' => 'specialisee', 'specialite' => 'ORL', 'prix_usd' => 24],
+            ['code' => 'CONS-NEURO', 'libelle' => 'Neurologie', 'categorie' => 'specialisee', 'specialite' => 'Neurologie', 'prix_usd' => 24],
+            ['code' => 'CONS-GASTRO', 'libelle' => 'Gastro-entérologie', 'categorie' => 'specialisee', 'specialite' => 'Gastro-entérologie', 'prix_usd' => 24],
+        ];
+
+        foreach ($types as $type) {
+            \App\Models\TypeConsultation::updateOrCreate(
+                ['code' => $type['code']],
+                $type + ['est_actif' => true]
             );
         }
     }

@@ -5,26 +5,44 @@
             <h3 class="font-semibold text-green-800 text-sm">🩺 File d'attente — consultations payées ({{ $fileAttente->count() }})</h3>
             <span class="text-xs text-green-700">Urgences en premier</span>
         </div>
-        @forelse($fileAttente as $visit)
+        @forelse($fileParSpecialite as $specialite => $groupe)
+        <div class="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-wide {{ $specialite === '🚨 Urgences' ? 'text-red-700' : ($maSpecialite && $specialite === $maSpecialite ? 'text-green-700' : 'text-gray-500') }}">
+            {{ $specialite }} ({{ $groupe->count() }})
+            @if($maSpecialite && $specialite === $maSpecialite) — votre spécialité @endif
+        </div>
+        @foreach($groupe as $visit)
         <div class="px-4 py-3 border-b last:border-0 flex items-center justify-between hover:bg-gray-50">
             <div>
                 <p class="font-medium text-sm">
                     {{ $visit->patient->nom_complet }}
                     <span class="text-xs text-gray-400 font-normal">— {{ $visit->patient->dossier_number }}</span>
-                    @if($visit->type === 'urgence')
-                    <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">🚨 Urgence</span>
+                    @if($visit->typeConsultation)
+                    <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">{{ $visit->typeConsultation->libelle }} · {{ $visit->typeConsultation->prix_usd + 0 }} $</span>
+                    @endif
+                    @if($visit->gratuite)
+                    <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">🆓 Contrôle gratuit</span>
                     @endif
                 </p>
                 <p class="text-xs text-gray-500 mt-0.5">
                     Arrivé à {{ $visit->date_entree->format('H:i') }}
-                    @if($visit->motif_consultation) — {{ \Illuminate\Support\Str::limit($visit->motif_consultation, 60) }} @endif
+                    — {{ $visit->estTriee() ? '✓ trié' : '⏳ à trier (infirmier)' }}
+                    @if($visit->motif_consultation) — {{ \Illuminate\Support\Str::limit($visit->motif_consultation, 45) }} @endif
                 </p>
             </div>
-            <a href="{{ route('visites.consulter', $visit) }}"
-               class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg whitespace-nowrap">
-                Commencer la consultation →
-            </a>
+            <div class="flex gap-2">
+                @if(! $visit->estTriee())
+                <a href="{{ route('visites.triage', $visit) }}"
+                   class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap">
+                    🩹 Trier
+                </a>
+                @endif
+                <a href="{{ route('visites.consulter', $visit) }}"
+                   class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap">
+                    Consulter →
+                </a>
+            </div>
         </div>
+        @endforeach
         @empty
         <div class="px-4 py-6 text-center text-gray-400 text-sm">Aucun patient en attente — la file se remplit dès que la caisse valide un paiement de consultation.</div>
         @endforelse

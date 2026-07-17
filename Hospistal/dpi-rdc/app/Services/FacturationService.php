@@ -249,13 +249,21 @@ class FacturationService
      */
     public function creerFactureConsultation(Visit $visit): Facture
     {
-        $visit->load('patient');
+        $visit->load(['patient', 'typeConsultation']);
         $tarifs = config('dpi.tarifs_cdf', []);
-        $montant = match ($visit->type) {
-            'urgence' => $tarifs['urgence'] ?? 25000,
-            default => $tarifs['consultation_externe'] ?? 15000,
-        };
-        $libelle = $visit->type === 'urgence' ? 'Consultation urgences' : 'Consultation ambulatoire';
+
+        if ($visit->type !== 'urgence' && $visit->typeConsultation) {
+            // Tarif du type choisi à l'accueil : générale 20 $, spécialisée 24 $
+            $tc = $visit->typeConsultation;
+            $montant = $tc->prixCdf();
+            $libelle = 'Consultation ' . $tc->libelle . ' (' . ($tc->prix_usd + 0) . ' $)';
+        } else {
+            $montant = match ($visit->type) {
+                'urgence' => $tarifs['urgence'] ?? 25000,
+                default => $tarifs['consultation_externe'] ?? 15000,
+            };
+            $libelle = $visit->type === 'urgence' ? 'Consultation urgences' : 'Consultation ambulatoire';
+        }
 
         $facture = $this->creerFactureAmbulatoire(
             $visit->patient,

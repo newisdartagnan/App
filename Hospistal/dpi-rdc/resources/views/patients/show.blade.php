@@ -56,6 +56,19 @@
                 <option value="urgence">🚨 Urgence</option>
             </select>
         </div>
+        <div>
+            <label for="type-consultation" class="block text-sm font-medium text-gray-700 mb-1">Type de consultation <span class="text-xs text-gray-400">(ambulatoire)</span></label>
+            <select id="type-consultation" name="type_consultation_id" class="min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                <option value="">— Choisir —</option>
+                @foreach(\App\Models\TypeConsultation::where('est_actif', true)->orderBy('categorie')->orderBy('libelle')->get()->groupBy('categorie') as $cat => $types)
+                <optgroup label="{{ $cat === 'generale' ? 'Consultations générales (20 $)' : 'Consultations spécialisées (24 $)' }}">
+                    @foreach($types as $tc)
+                    <option value="{{ $tc->id }}">{{ $tc->libelle }} — {{ $tc->prix_usd + 0 }} $</option>
+                    @endforeach
+                </optgroup>
+                @endforeach
+            </select>
+        </div>
         <div class="flex-1 min-w-[220px]">
             <label for="motif-visite" class="block text-sm font-medium text-gray-700 mb-1">Motif (optionnel)</label>
             <input id="motif-visite" name="motif" type="text" placeholder="Ex: fièvre, contrôle..."
@@ -65,7 +78,8 @@
             class="min-h-[44px] bg-blue-700 hover:bg-blue-800 text-white font-semibold px-5 py-2 rounded-lg transition">
             💰 Envoyer à la caisse
         </button>
-        <p class="w-full text-xs text-gray-400 -mt-1">Le patient règle la consultation au guichet, puis apparaît dans la file d'attente du médecin.</p>
+        <p class="w-full text-xs text-gray-400 -mt-1">Le patient règle la consultation au guichet, puis entre dans la file d'attente de la spécialité choisie. Un contrôle du même type dans les 7 jours est gratuit (retour de résultats).</p>
+        @error('type_consultation_id')<p class="w-full text-red-600 text-xs">{{ $message }}</p>@enderror
     </form>
     @endif
 

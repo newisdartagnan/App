@@ -11,5 +11,6 @@
         <a href="{{ route('maternite.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('maternite.*') ? 'bg-blue-700 font-semibold' : '' }}">Maternité</a>
         <a href="{{ route('pharmacie.dashboard') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('pharmacie.*') ? 'bg-blue-700 font-semibold' : '' }}">Pharmacie</a>
         <a href="{{ route('caisse.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('caisse.*') ? 'bg-blue-700 font-semibold' : '' }}">Caisse</a>
+        <a href="{{ route('equipements.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('equipements.*') ? 'bg-blue-700 font-semibold' : '' }}">Équipements</a>
     </div>
 </nav>

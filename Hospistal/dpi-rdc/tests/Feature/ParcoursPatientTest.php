@@ -2,9 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Consultations\ConsultationCreate;
 use App\Livewire\Patients\PatientCreate;
-use App\Livewire\Prescriptions\PrescriptionCreate;
 use App\Models\Consultation;
 use App\Models\Establishment;
 use App\Models\ExamenLaboratoire;
@@ -93,20 +91,33 @@ class ParcoursPatientTest extends TestCase
         $this->assertSame('en_cours', $visit->statut);
         $this->assertTrue($visit->consultationPayee());
 
-        // Le wizard est maintenant accessible et la consultation s'enregistre
+        // Triage infirmier : motif + constantes avant le médecin
+        $this->get(route('visites.triage', $visit))->assertOk();
+        $this->post(route('visites.triage.store', $visit), [
+            'motif_consultation' => 'Fièvre et céphalées depuis 3 jours',
+            'temperature' => 39.2,
+            'tension_systolique' => 120,
+            'tension_diastolique' => 80,
+        ])->assertRedirect(route('consultations.index'));
+
+        $visit->refresh();
+        $this->assertTrue($visit->estTriee());
+        $this->assertSame(39.2, (float) $visit->temperature);
+
+        // Consultation du médecin : formulaire classique (POST, sans JavaScript)
         $this->get(route('visites.consulter', $visit))->assertOk();
 
-        Livewire::test(ConsultationCreate::class, ['visit' => $visit])
-            ->set('temperature', 39.2)
-            ->set('tension_systolique', 120)
-            ->set('tension_diastolique', 80)
-            ->set('nouveau_diagnostic_libelle', 'Paludisme simple')
-            ->set('nouveau_diagnostic_code', 'B50')
-            ->call('ajouterDiagnostic')
-            ->call('save')
-            ->assertHasNoErrors();
+        $this->post(route('visites.consultation.store', $visit), [
+            'histoire_maladie' => 'Fièvre depuis 3 jours, frissons.',
+            'examen_general' => 'Patient fébrile, conscient.',
+            'diagnostics' => [
+                ['libelle' => 'Paludisme simple', 'code_cim10' => 'B50'],
+            ],
+            'conclusion' => 'Paludisme probable, bilan demandé.',
+        ])->assertRedirect();
 
         $consultation = Consultation::where('visit_id', $visit->id)->firstOrFail();
+        $this->assertSame('principal', $consultation->diagnostics[0]['type']);
 
         // La page de la consultation s'affiche (régression : relation lignes_facture)
         $this->get(route('consultations.show', $consultation))->assertOk();
@@ -197,14 +208,12 @@ class ParcoursPatientTest extends TestCase
         $medicament = Medicament::where('denomination_commune', 'Artéméther-Luméfantrine')->firstOrFail();
         $stockAvant = (float) $medicament->stock->quantite_disponible;
 
-        Livewire::test(PrescriptionCreate::class, ['consultation' => $consultation])
-            ->set('lignes.0.medicament_id', $medicament->id)
-            ->set('lignes.0.dose', '4 comprimés')
-            ->set('lignes.0.frequence', '2 fois/jour')
-            ->set('lignes.0.duree_jours', 3)
-            ->set('lignes.0.quantite_totale', 24)
-            ->call('save')
-            ->assertHasNoErrors();
+        $this->post(route('prescriptions.store', $consultation), [
+            'lignes' => [
+                ['medicament_id' => $medicament->id, 'dose' => '4 comprimés', 'frequence' => '2 fois/jour', 'duree_jours' => 3, 'quantite_totale' => 24],
+                ['medicament_id' => '', 'dose' => '', 'frequence' => '', 'duree_jours' => '', 'quantite_totale' => ''],
+            ],
+        ])->assertRedirect(route('consultations.show', $consultation));
 
         $prescription = Prescription::where('consultation_id', $consultation->id)->firstOrFail();
         $this->assertSame('brouillon', $prescription->statut);
@@ -247,6 +256,71 @@ class ParcoursPatientTest extends TestCase
         $this->assertSame('libre', $lit->fresh()->statut);
     }
 
+    public function test_consultation_specialisee_tarif_usd_et_controle_gratuit_7_jours(): void
+    {
+        config(['dpi.taux_usd_cdf' => 2800]);
+
+        $etab = Establishment::firstOrFail();
+        $patient = Patient::create([
+            'establishment_id' => $etab->id,
+            'dossier_number' => 'TST-2026-000950',
+            'nom' => 'TSHIBANGU',
+            'prenom' => 'Alain',
+            'sexe' => 'M',
+            'type_prise_en_charge' => 'prive',
+        ]);
+
+        $ophtalmo = \App\Models\TypeConsultation::where('code', 'CONS-OPH')->firstOrFail();
+        $this->assertSame(24.0, (float) $ophtalmo->prix_usd);
+
+        // 1. Envoi en caisse : consultation spécialisée 24 $ → 67 200 CDF
+        $this->post(route('patients.envoyer-caisse', $patient), [
+            'type' => 'consultation_externe',
+            'type_consultation_id' => $ophtalmo->id,
+            'motif' => 'Baisse de vision',
+        ])->assertRedirect();
+
+        $visit = Visit::where('patient_id', $patient->id)->firstOrFail();
+        $facture = $visit->factures()->firstOrFail();
+        $this->assertSame(67200.0, (float) $facture->total_ttc);
+        $this->assertStringContainsString('Ophtalmologie', $facture->lignes->first()->libelle);
+
+        // Sans type de consultation, l'ambulatoire est refusé à l'accueil
+        $patient2 = Patient::create([
+            'establishment_id' => $etab->id,
+            'dossier_number' => 'TST-2026-000951',
+            'nom' => 'MUKENDI', 'prenom' => 'Rose', 'sexe' => 'F',
+            'type_prise_en_charge' => 'prive',
+        ]);
+        $this->post(route('patients.envoyer-caisse', $patient2), [
+            'type' => 'consultation_externe',
+        ])->assertSessionHasErrors('type_consultation_id');
+
+        // 2. Paiement + consultation réalisée
+        $this->payer($facture);
+        $this->post(route('visites.consultation.store', $visit->fresh()), [
+            'diagnostics' => [['libelle' => 'Presbytie', 'code_cim10' => 'H52']],
+        ])->assertRedirect();
+
+        // 3. Retour à J+3 pour les résultats : GRATUIT, direct dans la file
+        $visit->update(['statut' => 'termine', 'date_sortie' => now()]);
+
+        $this->post(route('patients.envoyer-caisse', $patient), [
+            'type' => 'consultation_externe',
+            'type_consultation_id' => $ophtalmo->id,
+            'motif' => 'Retour résultats',
+        ])->assertRedirect(route('patients.show', $patient));
+
+        $controle = Visit::where('patient_id', $patient->id)->orderByDesc('date_entree')->first();
+        $this->assertTrue($controle->gratuite);
+        $this->assertSame('en_cours', $controle->statut);
+        $this->assertCount(0, $controle->factures);
+        $this->assertTrue($controle->consultationPayee());
+
+        // Le médecin peut consulter directement (suivi gratuit)
+        $this->get(route('visites.consulter', $controle))->assertOk();
+    }
+
     public function test_pages_metier_accessibles(): void
     {
         foreach ([
@@ -254,6 +328,7 @@ class ParcoursPatientTest extends TestCase
             'visites.index', 'labo.index', 'imagerie.index', 'bloc.index',
             'maternite.index', 'pharmacie.dashboard', 'pharmacie.stock',
             'pharmacie.prescriptions', 'pharmacie.medicaments', 'caisse.index',
+            'equipements.index',
         ] as $route) {
             $this->get(route($route))->assertOk();
         }

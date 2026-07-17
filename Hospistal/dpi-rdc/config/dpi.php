@@ -10,6 +10,9 @@ return [
     'sync_interval_minutes' => 15,
     'backup_retention_days' => 7,
 
+    // Taux appliqué aux tarifs exprimés en dollars (consultations 20 $/24 $)
+    'taux_usd_cdf' => env('DPI_TAUX_USD_CDF', 2800),
+
     'tarifs_cdf' => [
         'consultation_externe' => 15000,
         'urgence' => 25000,

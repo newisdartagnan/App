@@ -9,12 +9,13 @@ class Visit extends Model
 {
     use HasUuids, Syncable;
     protected $fillable = [
-        'patient_id', 'establishment_id', 'user_id', 'type', 'statut',
+        'patient_id', 'establishment_id', 'user_id', 'type', 'type_consultation_id', 'statut',
         'date_entree', 'date_sortie', 'duree_sejour_jours',
         'service_id', 'lit_id', 'mode_entree', 'provenance', 'mode_sortie', 'transfert_vers',
         'poids_kg', 'taille_cm', 'imc', 'tension_systolique', 'tension_diastolique',
         'temperature', 'frequence_cardiaque', 'frequence_respiratoire', 'saturation_o2', 'glasgow',
-        'motif_consultation', 'symptomes_principaux', 'tarif_consultation', 'est_payant', 'sync_status',
+        'motif_consultation', 'symptomes_principaux', 'tarif_consultation', 'est_payant', 'gratuite',
+        'triage_fait_at', 'triage_par', 'sync_status',
     ];
     protected function casts(): array
     {
@@ -22,6 +23,8 @@ class Visit extends Model
             'date_entree' => 'datetime',
             'date_sortie' => 'datetime',
             'est_payant' => 'boolean',
+            'gratuite' => 'boolean',
+            'triage_fait_at' => 'datetime',
         ];
     }
     public function patient(): BelongsTo
@@ -66,6 +69,45 @@ class Visit extends Model
         return $this->hasMany(ActeClinique::class);
     }
 
+    public function typeConsultation(): BelongsTo
+    {
+        return $this->belongsTo(TypeConsultation::class, 'type_consultation_id');
+    }
+
+    public function triagePar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'triage_par');
+    }
+
+    public function estTriee(): bool
+    {
+        return $this->triage_fait_at !== null;
+    }
+
+    /**
+     * Alertes sur les constantes vitales saisies au triage.
+     *
+     * @return array<int, string>
+     */
+    public function alertesVitales(): array
+    {
+        $alertes = [];
+        if ($this->tension_systolique && $this->tension_systolique > 180) {
+            $alertes[] = "Tension systolique critique : {$this->tension_systolique} mmHg";
+        }
+        if ($this->temperature && $this->temperature > 40) {
+            $alertes[] = "Fièvre critique : {$this->temperature} °C";
+        }
+        if ($this->saturation_o2 && $this->saturation_o2 < 90) {
+            $alertes[] = "Saturation O₂ critique : {$this->saturation_o2} %";
+        }
+        if ($this->frequence_cardiaque && ($this->frequence_cardiaque > 150 || $this->frequence_cardiaque < 40)) {
+            $alertes[] = "Fréquence cardiaque anormale : {$this->frequence_cardiaque} bpm";
+        }
+
+        return $alertes;
+    }
+
     public function estHospitalise(): bool
     {
         return $this->type === 'hospitalisation' && $this->statut === 'en_cours';
@@ -76,6 +118,10 @@ class Visit extends Model
      */
     public function consultationPayee(): bool
     {
+        if ($this->gratuite) {
+            return true;
+        }
+
         return $this->factures()
             ->where('statut', 'payee')
             ->whereHas('lignes', fn ($q) => $q->where('type', 'consultation'))
