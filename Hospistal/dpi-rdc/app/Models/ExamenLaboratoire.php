@@ -17,7 +17,7 @@ class ExamenLaboratoire extends Model
     protected $fillable = [
         'numero_bon', 'visit_id', 'patient_id', 'prescripteur_id', 'laborantin_id', 'facture_id',
         'date_prescription', 'date_prelevement', 'date_resultat',
-        'statut', 'domaine', 'urgence', 'observations_cliniques', 'observations_laborantin', 'conclusion', 'sync_status',
+        'statut', 'domaine', 'urgence', 'observations_cliniques', 'observations_laborantin', 'technique', 'conclusion', 'recommandations', 'sync_status',
     ];
 
     protected function casts(): array
@@ -53,6 +53,11 @@ class ExamenLaboratoire extends Model
     public function resultats(): HasMany
     {
         return $this->hasMany(ResultatExamen::class, 'examen_id');
+    }
+
+    public function fichiers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ExamenFichier::class, 'examen_id');
     }
 
     public function facture(): BelongsTo

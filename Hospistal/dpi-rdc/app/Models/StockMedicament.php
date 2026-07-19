@@ -9,6 +9,7 @@ class StockMedicament extends Model
     public $timestamps = false;
     protected $table = 'stock_medicaments';
     protected $fillable = [
+        'officine_id',
         'medicament_id', 'establishment_id', 'quantite_disponible',
         'quantite_alerte', 'quantite_commande', 'prix_unitaire_vente',
         'prix_unitaire_achat', 'date_peremption', 'lot', 'emplacement',
@@ -21,6 +22,11 @@ class StockMedicament extends Model
             'updated_at' => 'datetime',
         ];
     }
+    public function officine(): BelongsTo
+    {
+        return $this->belongsTo(Officine::class);
+    }
+
     public function medicament(): BelongsTo
     {
         return $this->belongsTo(Medicament::class);

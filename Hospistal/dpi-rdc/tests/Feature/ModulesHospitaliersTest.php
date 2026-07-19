@@ -236,6 +236,73 @@ class ModulesHospitaliersTest extends TestCase
         $this->assertSame(12000.0, (float) $facture->assurance_part);
     }
 
+    public function test_postnom_et_numerotation_pat(): void
+    {
+        $this->post(route('patients.store'), [
+            'nom' => 'KABEYA', 'postnom' => 'TSHIMANGA', 'prenom' => 'Didier',
+            'sexe' => 'M', 'type_prise_en_charge' => 'prive',
+        ])->assertRedirect();
+
+        $p = Patient::where('nom', 'KABEYA')->firstOrFail();
+        $this->assertSame('TSHIMANGA', $p->postnom);
+        $this->assertSame('KABEYA TSHIMANGA Didier', $p->nom_complet);
+        $this->assertStringStartsWith('PAT-' . now()->format('Y') . '-', $p->dossier_number);
+    }
+
+    public function test_panel_partiel_sous_examens_coches(): void
+    {
+        // Bilan hépatique élargi (5 paramètres) : n'en prescrire que 2
+        $type = TypeExamen::where('code', 'HEPAT')->firstOrFail();
+        $noms = array_column($type->valeurs_reference['parametres'], 'nom');
+
+        $this->post(route('labo.store'), [
+            'visit_id' => $this->visit->id,
+            'domaine' => 'labo',
+            'types' => [$type->id],
+            'parametres' => [$type->id => array_slice($noms, 0, 2)],
+        ])->assertRedirect();
+
+        $examen = ExamenLaboratoire::where('visit_id', $this->visit->id)->firstOrFail();
+        $this->assertCount(2, $examen->resultats);
+        $this->assertSame(array_slice($noms, 0, 2), $examen->resultats->pluck('parametre')->all());
+    }
+
+    public function test_rouvrir_bilan_valide_et_rapport_et_bulletin_jour(): void
+    {
+        $type = TypeExamen::where('code', 'GLYC-JEUN')->firstOrFail();
+        $this->post(route('labo.store'), [
+            'visit_id' => $this->visit->id, 'domaine' => 'labo', 'types' => [$type->id],
+        ]);
+        $examen = ExamenLaboratoire::where('visit_id', $this->visit->id)->firstOrFail();
+        $this->post(route('caisse.encaisser', $examen->facture), [
+            'montant' => $examen->facture->patient_part, 'devise' => 'CDF', 'mode_paiement' => 'especes',
+        ]);
+        $r = $examen->resultats->first();
+        $this->post(route('labo.resultats', $examen), ['resultats' => [$r->id => ['valeur_brute' => '1.0', 'valeur_numerique' => '1.0']]]);
+        $this->post(route('labo.valider', $examen), ['conclusion' => 'Normal.']);
+        $this->assertSame('valide', $examen->fresh()->statut);
+
+        // Réouverture pour modification
+        $this->post(route('labo.rouvrir', $examen))->assertSessionHas('success');
+        $this->assertSame('resultat_disponible', $examen->fresh()->statut);
+
+        // Rapport journalier + bulletin du jour
+        $this->get(route('labo.rapport', ['date' => now()->toDateString()]))->assertOk()->assertSee('Glycémie');
+        $this->get(route('patients.bulletin-jour', ['patient' => $this->patient->id]))->assertOk()->assertSee('Glycémie');
+    }
+
+    public function test_sejour_termine_aucun_nouveau_service(): void
+    {
+        $this->visit->update(['statut' => 'termine', 'date_sortie' => now()]);
+
+        $type = TypeExamen::where('code', 'GLYC-JEUN')->firstOrFail();
+        $this->post(route('labo.store'), [
+            'visit_id' => $this->visit->id, 'domaine' => 'labo', 'types' => [$type->id],
+        ])->assertSessionHas('error');
+
+        $this->assertSame(0, ExamenLaboratoire::where('visit_id', $this->visit->id)->count());
+    }
+
     public function test_facturation_patient_type_autre(): void
     {
         $this->patient->update(['type_prise_en_charge' => 'autre']);

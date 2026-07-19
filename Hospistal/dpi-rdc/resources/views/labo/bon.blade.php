@@ -49,11 +49,14 @@
     </table>
 </div>
 
+@php $bonCaisse = \App\Models\BonSortie::where('examen_id', $examen->id)->latest('created_at')->first(); @endphp
 @if($examen->facture)
 <div class="bloc">
     <div class="bloc-titre {{ $examen->facture->statut === 'payee' ? 'vert' : '' }}">Règlement</div>
     <p style="padding: 4px 2px;">
-        Facture <strong>{{ $examen->facture->numero_facture }}</strong> —
+        Facture <strong>{{ $examen->facture->numero_facture }}</strong>
+        @if($bonCaisse) — Bon caisse <strong style="font-family:'Courier New',monospace;">{{ $bonCaisse->numero }}</strong> @endif
+        —
         {{ $examen->facture->statut === 'payee' ? '✓ PAYÉE — le prélèvement/l\'examen peut être réalisé' : '⏳ EN ATTENTE DE PAIEMENT à la caisse' }}
         @if($examen->visit?->serviACredit()) (patient hospitalisé — servi à crédit) @endif
     </p>

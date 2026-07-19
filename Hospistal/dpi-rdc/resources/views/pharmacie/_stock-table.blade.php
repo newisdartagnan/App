@@ -36,6 +36,7 @@
                 <th class="text-left px-4 py-3 font-medium text-gray-600">Stock</th>
                 <th class="text-left px-4 py-3 font-medium text-gray-600">Prix unitaire</th>
                 <th class="text-left px-4 py-3 font-medium text-gray-600">Péremption</th>
+                <th class="text-left px-4 py-3 font-medium text-gray-600">Officine</th>
                 <th class="text-left px-4 py-3 font-medium text-gray-600">Statut</th>
             </tr>
         </thead>
@@ -95,6 +96,9 @@
                     </span>
                     @else — @endif
                 </td>
+                <td class="px-4 py-3 text-xs text-gray-500">
+                    {{ $med->stock?->officine?->nom ?? 'Officine ambulatoire' }}
+                </td>
                 <td class="px-4 py-3">
                     @if(!$med->stock || $med->stock->quantite_disponible <= 0)
                     <span class="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">Rupture</span>
@@ -106,7 +110,7 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">{{ $search ? 'Aucun médicament trouvé' : 'Stock vide — ajoutez des médicaments' }}</td></tr>
+            <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">{{ $search ? 'Aucun médicament trouvé' : 'Stock vide — ajoutez des médicaments' }}</td></tr>
             @endforelse
         </tbody>
     </table>

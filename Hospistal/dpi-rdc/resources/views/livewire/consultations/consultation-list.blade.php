@@ -24,7 +24,7 @@
                     @endif
                 </p>
                 <p class="text-xs text-gray-500 mt-0.5">
-                    Arrivé à {{ $visit->date_entree->format('H:i') }}
+                    Arrivé le {{ $visit->date_entree->format('d/m/Y à H:i') }}
                     — {{ $visit->estTriee() ? '✓ trié' : '⏳ à trier (infirmier)' }}
                     @if($visit->motif_consultation) — {{ \Illuminate\Support\Str::limit($visit->motif_consultation, 45) }} @endif
                 </p>
@@ -36,10 +36,12 @@
                     🩹 Trier
                 </a>
                 @endif
+                @can('consultation.create')
                 <a href="{{ route('visites.consulter', $visit) }}"
                    class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap">
                     Consulter →
                 </a>
+                @endcan
             </div>
         </div>
         @endforeach

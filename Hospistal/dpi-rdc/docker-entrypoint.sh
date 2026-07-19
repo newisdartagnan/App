@@ -18,3 +18,5 @@ if [ -f /var/www/artisan ]; then
 fi
 
 exec "$@"
+
+php artisan storage:link --force 2>/dev/null || true

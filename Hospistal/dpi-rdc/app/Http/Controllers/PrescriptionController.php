@@ -37,6 +37,10 @@ class PrescriptionController extends Controller
             'lignes.*.quantite_totale' => 'nullable|numeric|min:0.5',
         ]);
 
+        if (! $consultation->visit->peutRecevoirServices()) {
+            return back()->with('error', 'Séjour terminé — aucune nouvelle prescription possible.');
+        }
+
         $lignes = collect($request->input('lignes', []))
             ->filter(fn ($l) => ! blank($l['medicament_id'] ?? null));
 

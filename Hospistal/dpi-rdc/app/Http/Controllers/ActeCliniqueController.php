@@ -36,6 +36,14 @@ class ActeCliniqueController extends Controller
         $tarifs = config('dpi.tarifs_cdf', []);
 
         $catalogue = match ($domaine) {
+            'examen_specialise' => \App\Models\TypeConsultation::where('categorie', 'specialisee')
+                ->where('est_actif', true)
+                ->orderBy('libelle')
+                ->get()
+                ->map(fn ($tc) => [
+                    'libelle' => 'Examen spécialisé ' . $tc->libelle,
+                    'prix' => $tc->prixCdf(),
+                ])->all(),
             'maternite' => [
                 ['libelle' => 'Accouchement voie basse', 'prix' => $tarifs['accouchement'] ?? 200000],
                 ['libelle' => 'Césarienne', 'prix' => 350000],
@@ -55,13 +63,17 @@ class ActeCliniqueController extends Controller
     {
         $request->validate([
             'visit_id' => 'required|uuid|exists:visits,id',
-            'domaine' => 'required|in:chirurgie,maternite',
+            'domaine' => 'required|in:chirurgie,maternite,examen_specialise',
             'libelle' => 'required|string|max:255',
             'prix' => 'required|numeric|min:0',
             'compte_rendu' => 'nullable|string',
         ]);
 
         $visit = Visit::findOrFail($request->visit_id);
+
+        if (! $visit->peutRecevoirServices()) {
+            return back()->with('error', 'Séjour terminé — aucun nouvel acte possible.');
+        }
 
         $acte = ActeClinique::create([
             'visit_id' => $visit->id,
@@ -82,7 +94,11 @@ class ActeCliniqueController extends Controller
                 ->with('success', 'Acte enregistré — facture au guichet.');
         }
 
-        $route = $request->domaine === 'maternite' ? 'maternite.index' : 'bloc.index';
+        $route = match ($request->domaine) {
+            'maternite' => 'maternite.index',
+            'examen_specialise' => 'examens-specialises.index',
+            default => 'bloc.index',
+        };
 
         return redirect()->route($route)->with('success', 'Acte planifié.');
     }

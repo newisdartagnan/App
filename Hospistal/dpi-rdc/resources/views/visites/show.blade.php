@@ -30,6 +30,7 @@
         @endif
         <a href="{{ route('labo.create', ['visit_id' => $visit->id]) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">🔬 Prescrire labo</a>
         <a href="{{ route('imagerie.create', ['visit_id' => $visit->id]) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">📷 Imagerie</a>
+        <a href="{{ route('examens-specialises.create', ['visit_id' => $visit->id]) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">🩺 Examen spécialisé</a>
         @if($visit->consultations->first())
         <a href="{{ route('prescriptions.create', $visit->consultations->first()) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">💊 Prescrire</a>
         @endif

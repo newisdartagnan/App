@@ -138,6 +138,16 @@ class Visit extends Model
         return $this->type === 'hospitalisation';
     }
 
+    /**
+     * Un séjour terminé (sortie ou ambulatoire clôturé à 24 h) ne reçoit
+     * plus aucun nouveau produit ni service. Les factures déjà émises
+     * restent payables et les bons déjà payés restent servis.
+     */
+    public function peutRecevoirServices(): bool
+    {
+        return $this->statut !== 'termine' && $this->statut !== 'annule';
+    }
+
     public function joursHospitalisation(): int
     {
         $fin = $this->date_sortie ?? now();

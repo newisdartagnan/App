@@ -51,6 +51,26 @@
     </table>
 </div>
 
+@if($facture->bonsSortie->count() > 0)
+<div class="bloc">
+    <div class="bloc-titre vert">Bons de service émis</div>
+    <table class="donnees">
+        <thead><tr><th>N° bon</th><th>Service</th><th>Statut</th><th>Validité</th></tr></thead>
+        <tbody>
+            @foreach($facture->bonsSortie as $bon)
+            <tr>
+                <td style="font-family:'Courier New',monospace;font-weight:bold;">{{ $bon->numero }}</td>
+                <td>{{ ucfirst($bon->type) }}</td>
+                <td>{{ $bon->statut === 'utilise' ? 'Utilisé' : 'Émis' }}</td>
+                <td>{{ $bon->expire_at?->format('d/m/Y H:i') ?? '—' }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    <p style="font-size:10px;color:#555;padding:4px 2px;">Le patient présente ce numéro au service concerné (pharmacie, laboratoire, imagerie).</p>
+</div>
+@endif
+
 @if($facture->paiements->count() > 0)
 <div class="bloc">
     <div class="bloc-titre vert">Paiements</div>

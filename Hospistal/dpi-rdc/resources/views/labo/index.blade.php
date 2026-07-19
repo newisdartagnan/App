@@ -5,6 +5,7 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-gray-800">{{ $domaine === 'imagerie' ? 'Imagerie médicale' : 'Laboratoire' }}</h2>
         <div class="flex items-center gap-3">
+            <a href="{{ route('labo.rapport', ['domaine' => $domaine]) }}" class="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">📊 Rapport du jour</a>
             <a href="{{ $domaine === 'imagerie' ? route('labo.index') : route('imagerie.index') }}" class="text-blue-700 hover:underline text-sm">
                 → {{ $domaine === 'imagerie' ? 'Laboratoire' : 'Imagerie' }}
             </a>
