@@ -8,6 +8,8 @@
             <h2 class="text-2xl font-bold">{{ $examen->domaine === 'imagerie' ? 'Imagerie' : 'Bilan' }} — {{ $examen->patient->nom_complet }}</h2>
         </div>
         <div class="flex gap-2">
+            <a href="{{ route('patients.bulletin-jour', ['patient' => $examen->patient_id, 'date' => $examen->date_prescription->toDateString()]) }}" target="_blank"
+               class="border border-green-700 text-green-700 hover:bg-green-50 text-sm font-medium px-4 py-2 rounded-lg">📄 Bulletin du jour</a>
             <a href="{{ route('labo.bon', $examen) }}" target="_blank"
                class="border border-blue-700 text-blue-700 hover:bg-blue-50 text-sm font-medium px-4 py-2 rounded-lg">🖨️ Bon d'examen</a>
             @if(in_array($examen->statut, ['resultat_disponible', 'valide']))
@@ -132,18 +134,74 @@
     @endif
 
     @if($examen->statut === 'resultat_disponible')
-    <form method="POST" action="{{ route('labo.valider', $examen) }}" class="mt-4 bg-white rounded-xl shadow p-4">
+    <form method="POST" action="{{ route('labo.valider', $examen) }}" class="mt-4 bg-white rounded-xl shadow p-4 space-y-3">
         @csrf
-        <label for="conclusion" class="block text-sm font-medium text-gray-700 mb-1">
-            {{ $examen->domaine === 'imagerie' ? 'Conclusion du compte-rendu' : 'Conclusion du biologiste' }}
-        </label>
-        <textarea id="conclusion" name="conclusion" rows="3"
-            placeholder="{{ $examen->domaine === 'imagerie' ? 'Description, conclusion et recommandations…' : 'Interprétation globale du bilan…' }}"
-            class="w-full border rounded-lg px-3 py-2 text-sm mb-3">{{ $examen->conclusion }}</textarea>
+        @if($examen->domaine === 'imagerie')
+        <div>
+            <label for="technique" class="block text-sm font-medium text-gray-700 mb-1">Technique utilisée</label>
+            <textarea id="technique" name="technique" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm">{{ $examen->technique }}</textarea>
+        </div>
+        @endif
+        <div>
+            <label for="conclusion" class="block text-sm font-medium text-gray-700 mb-1">
+                {{ $examen->domaine === 'imagerie' ? 'Description & conclusion du compte-rendu' : 'Conclusion du biologiste' }}
+            </label>
+            <textarea id="conclusion" name="conclusion" rows="3"
+                class="w-full border rounded-lg px-3 py-2 text-sm">{{ $examen->conclusion }}</textarea>
+        </div>
+        @if($examen->domaine === 'imagerie')
+        <div>
+            <label for="recommandations" class="block text-sm font-medium text-gray-700 mb-1">Recommandations</label>
+            <textarea id="recommandations" name="recommandations" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm">{{ $examen->recommandations }}</textarea>
+        </div>
+        @endif
         <button type="submit" class="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-lg text-sm min-h-[44px]">
             ✓ Valider {{ $examen->domaine === 'imagerie' ? 'le compte-rendu' : 'le bilan' }}
         </button>
     </form>
     @endif
+
+    @if($examen->statut === 'valide')
+    <form method="POST" action="{{ route('labo.rouvrir', $examen) }}" class="mt-4">
+        @csrf
+        <button type="submit" class="border border-amber-600 text-amber-700 hover:bg-amber-50 px-5 py-2 rounded-lg text-sm min-h-[44px]">
+            ✏️ Modifier le bilan (rouvrir)
+        </button>
+    </form>
+    @endif
+
+    {{-- Fichiers joints : photos, images, vidéos, PDF (imagerie surtout) --}}
+    <div class="bg-white rounded-xl shadow p-4 mt-4">
+        <h4 class="font-semibold text-gray-700 mb-3 text-sm">📎 Fichiers joints ({{ $examen->fichiers->count() }})</h4>
+        @if($examen->fichiers->count() > 0)
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            @foreach($examen->fichiers as $fichier)
+            <a href="{{ asset('storage/' . $fichier->chemin) }}" target="_blank" class="border rounded-lg p-2 hover:border-blue-400 block">
+                @if($fichier->type === 'image')
+                <img src="{{ asset('storage/' . $fichier->chemin) }}" alt="{{ $fichier->nom_original }}" class="w-full h-24 object-cover rounded mb-1">
+                @else
+                <div class="w-full h-24 bg-gray-100 rounded mb-1 flex items-center justify-center text-3xl">
+                    {{ $fichier->type === 'video' ? '🎬' : ($fichier->type === 'pdf' ? '📄' : '📁') }}
+                </div>
+                @endif
+                <p class="text-xs truncate">{{ $fichier->nom_original }}</p>
+                @if($fichier->description)<p class="text-xs text-gray-400 truncate">{{ $fichier->description }}</p>@endif
+            </a>
+            @endforeach
+        </div>
+        @endif
+        <form method="POST" action="{{ route('labo.fichiers', $examen) }}" enctype="multipart/form-data" class="flex flex-wrap items-end gap-3">
+            @csrf
+            <div>
+                <label for="fichier" class="block text-xs font-medium text-gray-600 mb-1">Ajouter (image, vidéo, PDF, DICOM — 50 Mo max)</label>
+                <input id="fichier" name="fichier" type="file" required class="text-sm">
+            </div>
+            <div class="flex-1 min-w-[160px]">
+                <label for="fichier-desc" class="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                <input id="fichier-desc" name="description" type="text" class="w-full min-h-[40px] rounded-lg border border-gray-300 px-3 py-1 text-sm">
+            </div>
+            <button type="submit" class="min-h-[40px] px-4 py-1 bg-blue-700 text-white rounded-lg text-sm">Téléverser</button>
+        </form>
+    </div>
 </div>
 @endsection

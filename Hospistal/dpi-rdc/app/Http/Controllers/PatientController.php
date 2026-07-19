@@ -150,6 +150,7 @@ class PatientController extends Controller
     {
         $data = $request->validate([
             'nom' => 'required|string|max:100',
+            'postnom' => 'nullable|string|max:100',
             'prenom' => 'required|string|max:100',
             'sexe' => 'required|in:M,F,Inconnu',
             'date_naissance' => 'nullable|date|before:today',
@@ -216,6 +217,7 @@ class PatientController extends Controller
             'establishment_id' => $establishment->id,
             'dossier_number' => app(DossierNumberService::class)->generate($establishment->code),
             'nom' => $nom,
+            'postnom' => $request->filled('postnom') ? mb_strtoupper(trim($request->postnom)) : null,
             'prenom' => $prenom,
             'nom_soundex' => $dedup->metaphone($nom),
             'prenom_soundex' => $dedup->metaphone($prenom),

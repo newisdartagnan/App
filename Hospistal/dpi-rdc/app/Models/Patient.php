@@ -15,7 +15,7 @@ class Patient extends Model
 
     protected $fillable = [
         'establishment_id', 'dossier_number', 'global_patient_id',
-        'nom', 'prenom', 'nom_soundex', 'prenom_soundex',
+        'nom', 'postnom', 'prenom', 'nom_soundex', 'prenom_soundex',
         'date_naissance', 'lieu_naissance', 'sexe', 'nationalite',
         'telephone', 'adresse', 'province', 'territoire',
         'profession', 'situation_matrimoniale', 'niveau_instruction',
@@ -48,7 +48,7 @@ class Patient extends Model
 
     public function getNomCompletAttribute(): string
     {
-        return "{$this->nom} {$this->prenom}";
+        return trim($this->nom . ' ' . ($this->postnom ? $this->postnom . ' ' : '') . $this->prenom);
     }
 
     protected function getSyncPriority(): int

@@ -19,6 +19,8 @@
         <div><strong>Prescripteur :</strong> {{ $examen->prescripteur ? 'Dr ' . $examen->prescripteur->nom : '—' }}</div>
         <div><strong>Prélèvement / examen :</strong> {{ ($examen->date_prelevement ?? $examen->date_prescription)?->format('d/m/Y H:i') }}</div>
         <div><strong>Résultats du :</strong> {{ $examen->date_resultat?->format('d/m/Y H:i') ?? '—' }}</div>
+        @php $bonCaisse = \App\Models\BonSortie::where('examen_id', $examen->id)->latest('created_at')->first(); @endphp
+        @if($bonCaisse)<div><strong>Bon caisse :</strong> <span style="font-family:'Courier New',monospace;">{{ $bonCaisse->numero }}</span></div>@endif
     </div>
 </div>
 
@@ -49,10 +51,33 @@
     </table>
 </div>
 
+@if($examen->technique)
+<div class="bloc">
+    <div class="bloc-titre">Technique utilisée</div>
+    <div class="conclusion" style="background:#f5f8fc;border-color:#cfd8e3;">{{ $examen->technique }}</div>
+</div>
+@endif
+
 @if($examen->conclusion)
 <div class="bloc">
     <div class="bloc-titre vert">Conclusion</div>
     <div class="conclusion">{{ $examen->conclusion }}</div>
+</div>
+@endif
+
+@if($examen->recommandations)
+<div class="bloc">
+    <div class="bloc-titre" style="background:#0dcaf0;">Recommandations</div>
+    <div class="conclusion" style="background:#f0fbfd;border-color:#b6e8f2;">{{ $examen->recommandations }}</div>
+</div>
+@endif
+
+@if($examen->fichiers->count() > 0)
+<div class="bloc">
+    <div class="bloc-titre">Documents annexes</div>
+    @foreach($examen->fichiers as $i => $f)
+    <p style="padding:2px;font-size:11px;"><strong>Document {{ $i + 1 }} :</strong> {{ $f->nom_original }}@if($f->description) — {{ $f->description }}@endif</p>
+    @endforeach
 </div>
 @endif
 

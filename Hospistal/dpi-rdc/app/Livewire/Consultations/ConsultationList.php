@@ -30,7 +30,12 @@ class ConsultationList extends Component
         // File d'attente : visites payées (ou contrôles gratuits), pas encore
         // consultées — groupée par spécialité, la spécialité du médecin connecté
         // en premier, urgences toujours en tête.
-        $maSpecialite = auth()->user()->specialite;
+        $utilisateur = auth()->user();
+        $maSpecialite = $utilisateur->specialite;
+        // Un médecin (non admin/directeur) ne voit que sa spécialité + urgences +
+        // médecine générale s'il est généraliste. Infirmiers et admin voient tout.
+        $estMedecin = $utilisateur->hasRole('medecin')
+            && ! $utilisateur->hasAnyRole(['super_admin', 'directeur']);
 
         $fileAttente = $base()
             ->where('statut', 'en_cours')
@@ -38,6 +43,17 @@ class ConsultationList extends Component
             ->orderByRaw("CASE WHEN type = 'urgence' THEN 0 ELSE 1 END")
             ->orderBy('date_entree')
             ->get();
+
+        if ($estMedecin) {
+            $fileAttente = $fileAttente->filter(function ($v) use ($maSpecialite) {
+                if ($v->type === 'urgence') {
+                    return true;
+                }
+                $specialite = $v->typeConsultation?->specialite ?: 'Médecine générale';
+
+                return $maSpecialite ? $specialite === $maSpecialite : $specialite === 'Médecine générale';
+            });
+        }
 
         $fileParSpecialite = $fileAttente
             ->groupBy(fn ($v) => $v->type === 'urgence' ? '🚨 Urgences'

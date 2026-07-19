@@ -16,9 +16,14 @@ class LaboratoireService
         array $typeExamenIds,
         string $domaine = 'labo',
         bool $urgence = false,
-        ?string $observations = null
+        ?string $observations = null,
+        array $parametresChoisis = []
     ): ExamenLaboratoire {
-        return DB::transaction(function () use ($visit, $typeExamenIds, $domaine, $urgence, $observations) {
+        if (! $visit->peutRecevoirServices()) {
+            throw new \RuntimeException('Séjour terminé — aucun nouveau service ne peut être servi à ce patient.');
+        }
+
+        return DB::transaction(function () use ($visit, $typeExamenIds, $domaine, $urgence, $observations, $parametresChoisis) {
             $visit->load('patient');
 
             $patient = $visit->patient;
@@ -45,7 +50,14 @@ class LaboratoireService
                 $parametres = $refs['parametres'] ?? null;
 
                 if (is_array($parametres) && $parametres !== []) {
+                    // Sous-examens cochés individuellement (panel partiel) —
+                    // par défaut, tout le panel est prescrit.
+                    $choisis = $parametresChoisis[$type->id] ?? null;
+
                     foreach ($parametres as $param) {
+                        if (is_array($choisis) && $choisis !== [] && ! in_array($param['nom'] ?? '', $choisis, true)) {
+                            continue;
+                        }
                         [$min, $max] = $this->bornesPourPatient($param, $patient);
                         ResultatExamen::create([
                             'examen_id' => $examen->id,

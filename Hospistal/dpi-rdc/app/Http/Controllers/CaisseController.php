@@ -75,7 +75,7 @@ class CaisseController extends Controller
      */
     public function imprimer(Facture $facture): View
     {
-        $facture->load(['patient', 'visit', 'lignes', 'paiements.caissier', 'lignesTiersPayant.assurance']);
+        $facture->load(['patient', 'visit', 'lignes', 'paiements.caissier', 'lignesTiersPayant.assurance', 'bonsSortie']);
 
         return view('caisse.imprimer', compact('facture'));
     }

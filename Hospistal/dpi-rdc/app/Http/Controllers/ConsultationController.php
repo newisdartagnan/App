@@ -39,6 +39,9 @@ class ConsultationController extends Controller
      */
     public function consulter(Visit $visit): View|RedirectResponse
     {
+        abort_unless(auth()->user()->can('consultation.create'), 403,
+            'Réservé aux médecins — les infirmiers font le triage.');
+
         $visit->load('patient');
 
         if ($consultation = $visit->consultations()->first()) {

@@ -10,7 +10,9 @@ class DossierNumberService
     public function generate(string $establishmentCode): string
     {
         $year = now()->year;
-        $prefix = "{$establishmentCode}-{$year}-";
+        // Format demandé : PAT-2026-000001 (préfixe configurable, indépendant
+        // du code d'établissement)
+        $prefix = config('dpi.dossier_prefix', 'PAT') . "-{$year}-";
 
         return DB::transaction(function () use ($prefix) {
             $last = Patient::withTrashed()

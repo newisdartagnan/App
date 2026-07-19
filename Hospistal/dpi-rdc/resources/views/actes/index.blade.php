@@ -1,9 +1,9 @@
 @extends('layouts.app')
-@section('title', $domaine === 'maternite' ? 'Maternité' : 'Bloc opératoire')
+@section('title', $domaine === 'maternite' ? 'Maternité' : ($domaine === 'examen_specialise' ? 'Examens spécialisés' : 'Bloc opératoire'))
 @section('content')
 <div class="max-w-6xl mx-auto px-4 py-6">
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-bold">{{ $domaine === 'maternite' ? 'Maternité' : 'Bloc opératoire' }}</h2>
+        <h2 class="text-2xl font-bold">{{ $domaine === 'maternite' ? 'Maternité' : ($domaine === 'examen_specialise' ? 'Examens spécialisés' : 'Bloc opératoire') }}</h2>
         <a href="{{ $domaine === 'maternite' ? route('maternite.create') : route('bloc.create') }}" class="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">+ Nouvel acte</a>
     </div>
 

@@ -61,6 +61,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/labo/{examen}/bulletin', [LaboratoireController::class, 'bulletin'])->name('labo.bulletin');
     Route::post('/labo/{examen}/resultats', [LaboratoireController::class, 'saisirResultats'])->name('labo.resultats');
     Route::post('/labo/{examen}/valider', [LaboratoireController::class, 'valider'])->name('labo.valider');
+    Route::post('/labo/{examen}/rouvrir', [LaboratoireController::class, 'rouvrir'])->name('labo.rouvrir');
+    Route::post('/labo/{examen}/fichiers', [LaboratoireController::class, 'ajouterFichier'])->name('labo.fichiers');
+    Route::get('/labo-rapport', [LaboratoireController::class, 'rapport'])->name('labo.rapport');
+    Route::get('/patients/{patient}/bulletin-jour', [LaboratoireController::class, 'bulletinJour'])->name('patients.bulletin-jour');
 
     // Imagerie (même contrôleur, domaine imagerie)
     Route::get('/imagerie', fn () => app(LaboratoireController::class)->index(request()->merge(['domaine' => 'imagerie'])))->name('imagerie.index');
@@ -75,6 +79,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/maternite', fn () => app(ActeCliniqueController::class)->index(request()->merge(['domaine' => 'maternite'])))->name('maternite.index');
     Route::get('/maternite/nouveau', fn () => app(ActeCliniqueController::class)->create(request()->merge(['domaine' => 'maternite'])))->name('maternite.create');
     Route::post('/maternite', [ActeCliniqueController::class, 'store'])->name('maternite.store');
+
+    // Examens spécialisés (dentisterie, ORL, ophtalmo…) prescrits depuis le parcours
+    Route::get('/examens-specialises', fn () => app(ActeCliniqueController::class)->index(request()->merge(['domaine' => 'examen_specialise'])))->name('examens-specialises.index');
+    Route::get('/examens-specialises/nouveau', fn () => app(ActeCliniqueController::class)->create(request()->merge(['domaine' => 'examen_specialise'])))->name('examens-specialises.create');
+    Route::post('/examens-specialises', [ActeCliniqueController::class, 'store'])->name('examens-specialises.store');
 
     Route::post('/actes/{acte}/realiser', [ActeCliniqueController::class, 'realiser'])->name('actes.realiser');
     Route::post('/actes/{acte}/facturer', [ActeCliniqueController::class, 'facturer'])->name('actes.facturer');

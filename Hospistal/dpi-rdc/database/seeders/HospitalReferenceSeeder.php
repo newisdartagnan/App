@@ -20,6 +20,7 @@ class HospitalReferenceSeeder extends Seeder
         }
 
         $this->seedServices($establishment);
+        $this->seedOfficines($establishment);
         $this->seedTypesConsultation();
         $this->seedMedicaments($establishment);
         $this->seedExamens();
@@ -86,6 +87,21 @@ class HospitalReferenceSeeder extends Seeder
                     'prix_unitaire_achat' => $m['prix'] * 0.7,
                     'quantite_alerte' => 50,
                 ]
+            );
+        }
+    }
+
+    protected function seedOfficines(Establishment $establishment): void
+    {
+        // Structure pharmacie CSK : dépôt central + officine ambulatoire +
+        // une officine par service d'hospitalisation
+        \App\Models\Officine::firstOrCreate(['nom' => 'Dépôt central'], ['type' => 'depot_central']);
+        \App\Models\Officine::firstOrCreate(['nom' => 'Officine ambulatoire'], ['type' => 'ambulatoire']);
+
+        foreach (Service::where('establishment_id', $establishment->id)->get() as $service) {
+            \App\Models\Officine::firstOrCreate(
+                ['nom' => 'Officine ' . $service->nom],
+                ['type' => 'service', 'service_id' => $service->id]
             );
         }
     }
