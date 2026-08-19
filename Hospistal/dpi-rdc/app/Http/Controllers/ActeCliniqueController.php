@@ -11,17 +11,62 @@ use Illuminate\View\View;
 
 class ActeCliniqueController extends Controller
 {
+    /**
+     * Salle d'opération / maternité sur le modèle du programme GPS :
+     * demandes à planifier, programme planifié, puis actes réalisés.
+     */
     public function index(Request $request): View
     {
         $domaine = $request->get('domaine', 'chirurgie');
 
-        $actes = ActeClinique::with(['patient', 'visit', 'prescripteur'])
+        $actes = ActeClinique::with(['patient', 'visit.service', 'prescripteur', 'operateur'])
             ->where('domaine', $domaine)
             ->orderByDesc('created_at')
-            ->paginate(20)
-            ->withQueryString();
+            ->get();
 
-        return view('actes.index', compact('actes', 'domaine'));
+        $programme = [
+            // Demandes reçues, pas encore inscrites au programme
+            'demandes' => $actes->where('statut', 'planifie')->whereNull('date_prevue'),
+            // Programme opératoire daté
+            'planifies' => $actes->where('statut', 'planifie')->whereNotNull('date_prevue')
+                ->sortBy('date_prevue'),
+            // Actes réalisés (registre)
+            'realises' => $actes->whereIn('statut', ['realise', 'facture'])->take(50),
+        ];
+
+        $operateurs = \App\Models\User::role(['medecin', 'infirmier_chef'])
+            ->orderBy('nom')
+            ->get(['id', 'nom', 'prenom']);
+
+        return view('actes.index', compact('actes', 'domaine', 'programme', 'operateurs'));
+    }
+
+    /**
+     * Inscrire une demande au programme opératoire (date, opérateur, durée).
+     */
+    public function planifier(Request $request, ActeClinique $acte): RedirectResponse
+    {
+        $request->validate([
+            'date_prevue' => 'required|date',
+            'operateur_id' => 'nullable|uuid|exists:users,id',
+            'duree_minutes' => 'nullable|integer|min:5|max:1440',
+            'indication' => 'nullable|string|max:255',
+        ]);
+
+        if (! $acte->visit?->peutRecevoirServices()) {
+            return back()->with('error', 'Séjour terminé — programmation impossible.');
+        }
+
+        $acte->update([
+            'date_prevue' => $request->date_prevue,
+            'operateur_id' => $request->operateur_id,
+            'duree_minutes' => $request->duree_minutes,
+            'indication' => $request->indication,
+            'consentement' => $request->boolean('consentement'),
+            'urgence' => $request->boolean('urgence'),
+        ]);
+
+        return back()->with('success', 'Acte inscrit au programme opératoire.');
     }
 
     public function create(Request $request): View|RedirectResponse

@@ -17,8 +17,9 @@ class ActeClinique extends Model
     ];
 
     protected $fillable = [
-        'visit_id', 'patient_id', 'prescripteur_id', 'domaine', 'libelle',
+        'visit_id', 'patient_id', 'prescripteur_id', 'operateur_id', 'domaine', 'libelle',
         'prix', 'quantite', 'statut', 'compte_rendu', 'date_realisation', 'facture_id',
+        'date_prevue', 'duree_minutes', 'consentement', 'urgence', 'indication',
     ];
 
     protected function casts(): array
@@ -27,12 +28,21 @@ class ActeClinique extends Model
             'prix' => 'decimal:2',
             'quantite' => 'decimal:2',
             'date_realisation' => 'datetime',
+            'date_prevue' => 'datetime',
+            'consentement' => 'boolean',
+            'urgence' => 'boolean',
         ];
     }
 
     public function visit(): BelongsTo
     {
         return $this->belongsTo(Visit::class);
+    }
+
+    /** Chirurgien / opérateur qui réalise l'acte. */
+    public function operateur(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'operateur_id');
     }
 
     public function patient(): BelongsTo
