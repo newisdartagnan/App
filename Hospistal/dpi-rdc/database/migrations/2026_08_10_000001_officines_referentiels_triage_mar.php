@@ -38,6 +38,16 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        // Le stock devient propre à chaque officine : deux officines peuvent
+        // détenir le même lot du même produit sans se marcher dessus.
+        Schema::table('stock_medicaments', function (Blueprint $table) {
+            $table->dropUnique('stock_medicaments_medicament_id_establishment_id_lot_unique');
+            $table->unique(
+                ['medicament_id', 'establishment_id', 'officine_id', 'lot'],
+                'stock_medicaments_officine_lot_unique'
+            );
+        });
+
         // Traçabilité provenance / destination des mouvements de stock
         Schema::table('mouvements_stock', function (Blueprint $table) {
             if (! Schema::hasColumn('mouvements_stock', 'officine_id')) {
@@ -164,6 +174,11 @@ return new class extends Migration
 
         Schema::table('mouvements_stock', function (Blueprint $table) {
             $table->dropColumn(['provenance', 'destination']);
+        });
+
+        Schema::table('stock_medicaments', function (Blueprint $table) {
+            $table->dropUnique('stock_medicaments_officine_lot_unique');
+            $table->unique(['medicament_id', 'establishment_id', 'lot']);
         });
     }
 };
