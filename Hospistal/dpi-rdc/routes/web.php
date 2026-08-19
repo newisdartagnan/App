@@ -1,14 +1,27 @@
 <?php
 
 use App\Http\Controllers\ActeCliniqueController;
+use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\BilanHydriqueController;
 use App\Http\Controllers\CaisseController;
 use App\Http\Controllers\ConsultationController;
+use App\Http\Controllers\ConventionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DieteMenageController;
+use App\Http\Controllers\DossierInfirmierController;
+use App\Http\Controllers\DossierMedicalController;
+use App\Http\Controllers\EquipementController;
 use App\Http\Controllers\LaboratoireController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OfficineController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PharmacieController;
+use App\Http\Controllers\PlanAdministrationController;
 use App\Http\Controllers\PrescriptionController;
+use App\Http\Controllers\ServiceHospitalierController;
+use App\Http\Controllers\StatistiqueController;
+use App\Http\Controllers\UrgenceController;
 use App\Http\Controllers\VisitController;
 use Illuminate\Support\Facades\Route;
 
@@ -93,80 +106,95 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/consultations/{consultation}/prescrire', [PrescriptionController::class, 'store'])->name('prescriptions.store');
 
     // Services d'hospitalisation (réa, médecine interne, néonatologie…)
-    Route::get('/services', [\App\Http\Controllers\ServiceHospitalierController::class, 'index'])->name('services.index');
-    Route::get('/services/{service}', [\App\Http\Controllers\ServiceHospitalierController::class, 'show'])->name('services.show');
-    Route::get('/services/{service}/patient/{visit}', [\App\Http\Controllers\ServiceHospitalierController::class, 'dossier'])->name('services.dossier');
-    Route::post('/visites/{visit}/evolution', [\App\Http\Controllers\ServiceHospitalierController::class, 'storeNote'])->name('visites.evolution');
-    Route::post('/visites/{visit}/signes-vitaux', [\App\Http\Controllers\ServiceHospitalierController::class, 'storeSignesVitaux'])->name('visites.signes-vitaux');
-    Route::post('/lits/{lit}/statut', [\App\Http\Controllers\ServiceHospitalierController::class, 'statutLit'])->name('lits.statut');
+    Route::get('/services', [ServiceHospitalierController::class, 'index'])->name('services.index');
+    Route::get('/services/{service}', [ServiceHospitalierController::class, 'show'])->name('services.show');
+    Route::get('/services/{service}/patient/{visit}', [ServiceHospitalierController::class, 'dossier'])->name('services.dossier');
+    Route::post('/visites/{visit}/evolution', [ServiceHospitalierController::class, 'storeNote'])->name('visites.evolution');
+    Route::post('/visites/{visit}/signes-vitaux', [ServiceHospitalierController::class, 'storeSignesVitaux'])->name('visites.signes-vitaux');
+    Route::post('/lits/{lit}/statut', [ServiceHospitalierController::class, 'statutLit'])->name('lits.statut');
 
     // Notifications internes (labo / imagerie / pharmacie ↔ médecins)
-    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
-    Route::post('/notifications/tout-lu', [\App\Http\Controllers\NotificationController::class, 'toutMarquerLues'])->name('notifications.tout-lu');
-    Route::post('/notifications/{notification}/lue', [\App\Http\Controllers\NotificationController::class, 'marquerLue'])->name('notifications.lue');
-    Route::post('/notifications/{notification}/archiver', [\App\Http\Controllers\NotificationController::class, 'archiver'])->name('notifications.archiver');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/tout-lu', [NotificationController::class, 'toutMarquerLues'])->name('notifications.tout-lu');
+    Route::post('/notifications/{notification}/lue', [NotificationController::class, 'marquerLue'])->name('notifications.lue');
+    Route::post('/notifications/{notification}/archiver', [NotificationController::class, 'archiver'])->name('notifications.archiver');
 
     // Programme opératoire (bloc)
     Route::post('/bloc/{acte}/planifier', [ActeCliniqueController::class, 'planifier'])->name('bloc.planifier');
 
     // Urgences — triage structuré puis prise en charge
-    Route::get('/urgences', [\App\Http\Controllers\UrgenceController::class, 'index'])->name('urgences.index');
-    Route::get('/urgences/registre', [\App\Http\Controllers\UrgenceController::class, 'registre'])->name('urgences.registre');
-    Route::get('/urgences/{visit}/triage', [\App\Http\Controllers\UrgenceController::class, 'triage'])->name('urgences.triage');
-    Route::post('/urgences/{visit}/triage', [\App\Http\Controllers\UrgenceController::class, 'storeTriage'])->name('urgences.triage.store');
+    Route::get('/urgences', [UrgenceController::class, 'index'])->name('urgences.index');
+    Route::get('/urgences/registre', [UrgenceController::class, 'registre'])->name('urgences.registre');
+    Route::get('/urgences/{visit}/triage', [UrgenceController::class, 'triage'])->name('urgences.triage');
+    Route::post('/urgences/{visit}/triage', [UrgenceController::class, 'storeTriage'])->name('urgences.triage.store');
 
     // Dossier médical : antécédents, allergies, documents cliniques
-    Route::get('/patients/{patient}/dossier', [\App\Http\Controllers\DossierMedicalController::class, 'show'])->name('dossier.show');
-    Route::post('/patients/{patient}/dossier/referentiel', [\App\Http\Controllers\DossierMedicalController::class, 'storeReferentiel'])->name('dossier.referentiel.store');
-    Route::delete('/dossier/referentiel/{entree}', [\App\Http\Controllers\DossierMedicalController::class, 'destroyReferentiel'])->name('dossier.referentiel.destroy');
-    Route::post('/patients/{patient}/dossier/document', [\App\Http\Controllers\DossierMedicalController::class, 'storeDocument'])->name('dossier.document.store');
-    Route::post('/dossier/document/{document}/valider', [\App\Http\Controllers\DossierMedicalController::class, 'validerDocument'])->name('dossier.document.valider');
-    Route::get('/dossier/document/{document}/imprimer', [\App\Http\Controllers\DossierMedicalController::class, 'imprimerDocument'])->name('dossier.document.imprimer');
+    Route::get('/patients/{patient}/dossier', [DossierMedicalController::class, 'show'])->name('dossier.show');
+    Route::post('/patients/{patient}/dossier/referentiel', [DossierMedicalController::class, 'storeReferentiel'])->name('dossier.referentiel.store');
+    Route::delete('/dossier/referentiel/{entree}', [DossierMedicalController::class, 'destroyReferentiel'])->name('dossier.referentiel.destroy');
+    Route::post('/patients/{patient}/dossier/document', [DossierMedicalController::class, 'storeDocument'])->name('dossier.document.store');
+    Route::post('/dossier/document/{document}/valider', [DossierMedicalController::class, 'validerDocument'])->name('dossier.document.valider');
+    Route::get('/dossier/document/{document}/imprimer', [DossierMedicalController::class, 'imprimerDocument'])->name('dossier.document.imprimer');
 
     // Pharmacie à deux niveaux : officines et dépôt central
-    Route::get('/officines', [\App\Http\Controllers\OfficineController::class, 'index'])->name('officines.index');
-    Route::post('/officines/{officine}/activer', [\App\Http\Controllers\OfficineController::class, 'activer'])->name('officines.activer');
-    Route::get('/officines/stock', [\App\Http\Controllers\OfficineController::class, 'stock'])->name('officines.stock');
-    Route::post('/officines/requisition', [\App\Http\Controllers\OfficineController::class, 'storeRequisition'])->name('officines.requisition.store');
-    Route::get('/depot-central', [\App\Http\Controllers\OfficineController::class, 'depot'])->name('officines.depot');
-    Route::post('/depot-central/entree', [\App\Http\Controllers\OfficineController::class, 'entree'])->name('officines.entree');
-    Route::post('/requisitions/{requisition}/servir', [\App\Http\Controllers\OfficineController::class, 'servir'])->name('requisitions.servir');
-    Route::post('/requisitions/{requisition}/refuser', [\App\Http\Controllers\OfficineController::class, 'refuser'])->name('requisitions.refuser');
+    Route::get('/officines', [OfficineController::class, 'index'])->name('officines.index');
+    Route::post('/officines/{officine}/activer', [OfficineController::class, 'activer'])->name('officines.activer');
+    Route::get('/officines/stock', [OfficineController::class, 'stock'])->name('officines.stock');
+    Route::post('/officines/requisition', [OfficineController::class, 'storeRequisition'])->name('officines.requisition.store');
+    Route::get('/depot-central', [OfficineController::class, 'depot'])->name('officines.depot');
+    Route::post('/depot-central/entree', [OfficineController::class, 'entree'])->name('officines.entree');
+    Route::post('/requisitions/{requisition}/servir', [OfficineController::class, 'servir'])->name('requisitions.servir');
+    Route::post('/requisitions/{requisition}/refuser', [OfficineController::class, 'refuser'])->name('requisitions.refuser');
 
     // Plan d'administration des traitements (grille 24 h)
-    Route::get('/visites/{visit}/traitements', [\App\Http\Controllers\PlanAdministrationController::class, 'index'])->name('mar.index');
-    Route::post('/visites/{visit}/traitements', [\App\Http\Controllers\PlanAdministrationController::class, 'store'])->name('mar.store');
-    Route::post('/visites/{visit}/traitements/copier', [\App\Http\Controllers\PlanAdministrationController::class, 'copierJourSuivant'])->name('mar.copier');
-    Route::post('/traitements/{plan}/basculer', [\App\Http\Controllers\PlanAdministrationController::class, 'basculer'])->name('mar.basculer');
-    Route::delete('/traitements/{plan}', [\App\Http\Controllers\PlanAdministrationController::class, 'destroy'])->name('mar.destroy');
+    Route::get('/visites/{visit}/traitements', [PlanAdministrationController::class, 'index'])->name('mar.index');
+    Route::post('/visites/{visit}/traitements', [PlanAdministrationController::class, 'store'])->name('mar.store');
+    Route::post('/visites/{visit}/traitements/copier', [PlanAdministrationController::class, 'copierJourSuivant'])->name('mar.copier');
+    Route::post('/traitements/{plan}/basculer', [PlanAdministrationController::class, 'basculer'])->name('mar.basculer');
+    Route::delete('/traitements/{plan}', [PlanAdministrationController::class, 'destroy'])->name('mar.destroy');
 
     // Facturation société / convention et contrôle de caisse
-    Route::get('/conventions', [\App\Http\Controllers\ConventionController::class, 'index'])->name('conventions.index');
-    Route::post('/conventions/emettre', [\App\Http\Controllers\ConventionController::class, 'emettre'])->name('conventions.emettre');
-    Route::get('/conventions/dettes', [\App\Http\Controllers\ConventionController::class, 'dettes'])->name('conventions.dettes');
-    Route::get('/conventions/{facture}', [\App\Http\Controllers\ConventionController::class, 'show'])->name('conventions.show');
-    Route::get('/conventions/{facture}/imprimer', [\App\Http\Controllers\ConventionController::class, 'imprimer'])->name('conventions.imprimer');
-    Route::post('/conventions/{facture}/regler', [\App\Http\Controllers\ConventionController::class, 'regler'])->name('conventions.regler');
-    Route::get('/billetage', [\App\Http\Controllers\ConventionController::class, 'billetage'])->name('caisse.billetage');
-    Route::post('/billetage', [\App\Http\Controllers\ConventionController::class, 'storeBilletage'])->name('caisse.billetage.store');
+    Route::get('/conventions', [ConventionController::class, 'index'])->name('conventions.index');
+    Route::post('/conventions/emettre', [ConventionController::class, 'emettre'])->name('conventions.emettre');
+    Route::get('/conventions/dettes', [ConventionController::class, 'dettes'])->name('conventions.dettes');
+    Route::get('/conventions/{facture}', [ConventionController::class, 'show'])->name('conventions.show');
+    Route::get('/conventions/{facture}/imprimer', [ConventionController::class, 'imprimer'])->name('conventions.imprimer');
+    Route::post('/conventions/{facture}/regler', [ConventionController::class, 'regler'])->name('conventions.regler');
+    Route::get('/billetage', [ConventionController::class, 'billetage'])->name('caisse.billetage');
+    Route::post('/billetage', [ConventionController::class, 'storeBilletage'])->name('caisse.billetage.store');
 
     // Statistiques de pilotage
-    Route::get('/statistiques', [\App\Http\Controllers\StatistiqueController::class, 'index'])->name('statistiques.index');
+    Route::get('/statistiques', [StatistiqueController::class, 'index'])->name('statistiques.index');
 
     // Agenda des rendez-vous
-    Route::get('/agenda', [\App\Http\Controllers\AgendaController::class, 'index'])->name('agenda.index');
-    Route::post('/agenda', [\App\Http\Controllers\AgendaController::class, 'store'])->name('agenda.store');
-    Route::post('/agenda/bloquer', [\App\Http\Controllers\AgendaController::class, 'bloquer'])->name('agenda.bloquer');
-    Route::post('/agenda/{rendezVous}/statut', [\App\Http\Controllers\AgendaController::class, 'statut'])->name('agenda.statut');
-    Route::delete('/agenda/{rendezVous}', [\App\Http\Controllers\AgendaController::class, 'destroy'])->name('agenda.destroy');
+    Route::get('/agenda', [AgendaController::class, 'index'])->name('agenda.index');
+    Route::post('/agenda', [AgendaController::class, 'store'])->name('agenda.store');
+    Route::post('/agenda/bloquer', [AgendaController::class, 'bloquer'])->name('agenda.bloquer');
+    Route::post('/agenda/{rendezVous}/statut', [AgendaController::class, 'statut'])->name('agenda.statut');
+    Route::delete('/agenda/{rendezVous}', [AgendaController::class, 'destroy'])->name('agenda.destroy');
 
     // Bilan hydrique (dossier infirmier)
-    Route::get('/visites/{visit}/bilan-hydrique', [\App\Http\Controllers\BilanHydriqueController::class, 'index'])->name('bilan-hydrique.index');
-    Route::post('/visites/{visit}/bilan-hydrique', [\App\Http\Controllers\BilanHydriqueController::class, 'store'])->name('bilan-hydrique.store');
+    Route::get('/visites/{visit}/bilan-hydrique', [BilanHydriqueController::class, 'index'])->name('bilan-hydrique.index');
+    Route::post('/visites/{visit}/bilan-hydrique', [BilanHydriqueController::class, 'store'])->name('bilan-hydrique.store');
+
+    // Dossier infirmier : pansement, gavage, évaluation neuro, transfusion
+    Route::get('/visites/{visit}/dossier-infirmier', [DossierInfirmierController::class, 'index'])->name('infirmier.index');
+    Route::post('/visites/{visit}/dossier-infirmier/pansement', [DossierInfirmierController::class, 'storePansement'])->name('infirmier.pansement');
+    Route::post('/visites/{visit}/dossier-infirmier/gavage', [DossierInfirmierController::class, 'storeGavage'])->name('infirmier.gavage');
+    Route::post('/visites/{visit}/dossier-infirmier/neuro', [DossierInfirmierController::class, 'storeNeuro'])->name('infirmier.neuro');
+    Route::post('/visites/{visit}/dossier-infirmier/transfusion', [DossierInfirmierController::class, 'storeTransfusion'])->name('infirmier.transfusion');
+    Route::post('/transfusions/{transfusion}/terminer', [DossierInfirmierController::class, 'terminerTransfusion'])->name('infirmier.transfusion.terminer');
+
+    // Diète et ménage des patients hospitalisés
+    Route::get('/diete-menage', [DieteMenageController::class, 'index'])->name('diete.index');
+    Route::get('/diete-menage/imprimer', [DieteMenageController::class, 'imprimer'])->name('diete.imprimer');
+    Route::post('/visites/{visit}/diete', [DieteMenageController::class, 'prescrire'])->name('diete.prescrire');
+    Route::post('/visites/{visit}/diete/arreter', [DieteMenageController::class, 'arreter'])->name('diete.arreter');
+    Route::post('/visites/{visit}/menage', [DieteMenageController::class, 'menage'])->name('diete.menage');
 
     // Équipements (machines labo / imagerie)
-    Route::get('/equipements', [\App\Http\Controllers\EquipementController::class, 'index'])->name('equipements.index');
-    Route::post('/equipements', [\App\Http\Controllers\EquipementController::class, 'store'])->name('equipements.store');
+    Route::get('/equipements', [EquipementController::class, 'index'])->name('equipements.index');
+    Route::post('/equipements', [EquipementController::class, 'store'])->name('equipements.store');
 
     // Pharmacie
     Route::get('/pharmacie', [PharmacieController::class, 'dashboard'])->name('pharmacie.dashboard');

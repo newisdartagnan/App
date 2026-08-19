@@ -1,13 +1,17 @@
 <?php
+
 namespace App\Models;
+
 use App\Models\Concerns\Syncable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+
 class Visit extends Model
 {
     use HasUuids, Syncable;
+
     protected $fillable = [
         'patient_id', 'establishment_id', 'user_id', 'type', 'type_consultation_id', 'statut',
         'date_entree', 'date_sortie', 'duree_sejour_jours',
@@ -17,6 +21,7 @@ class Visit extends Model
         'motif_consultation', 'symptomes_principaux', 'tarif_consultation', 'est_payant', 'gratuite',
         'triage_fait_at', 'triage_par', 'sync_status',
     ];
+
     protected function casts(): array
     {
         return [
@@ -27,18 +32,22 @@ class Visit extends Model
             'triage_fait_at' => 'datetime',
         ];
     }
+
     public function patient(): BelongsTo
     {
         return $this->belongsTo(Patient::class);
     }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
+
     public function establishment(): BelongsTo
     {
         return $this->belongsTo(Establishment::class);
     }
+
     public function consultations(): HasMany
     {
         return $this->hasMany(Consultation::class);
@@ -98,6 +107,46 @@ class Visit extends Model
     public function bilansHydriques(): HasMany
     {
         return $this->hasMany(BilanHydrique::class);
+    }
+
+    public function soinsPansement(): HasMany
+    {
+        return $this->hasMany(SoinPansement::class);
+    }
+
+    public function soinsGavage(): HasMany
+    {
+        return $this->hasMany(SoinGavage::class);
+    }
+
+    public function evaluationsNeuro(): HasMany
+    {
+        return $this->hasMany(EvaluationNeuro::class);
+    }
+
+    public function transfusions(): HasMany
+    {
+        return $this->hasMany(Transfusion::class);
+    }
+
+    public function prescriptionsDiete(): HasMany
+    {
+        return $this->hasMany(PrescriptionDiete::class);
+    }
+
+    public function tachesMenage(): HasMany
+    {
+        return $this->hasMany(TacheMenage::class);
+    }
+
+    /** Diète actuellement servie au patient, null si aucune n'est prescrite. */
+    public function dieteEnCours(): ?PrescriptionDiete
+    {
+        return $this->prescriptionsDiete()
+            ->with('typeDiete')
+            ->whereNull('fin')
+            ->latest('debut')
+            ->first();
     }
 
     public function typeConsultation(): BelongsTo
@@ -182,6 +231,7 @@ class Visit extends Model
     public function joursHospitalisation(): int
     {
         $fin = $this->date_sortie ?? now();
+
         return max(1, (int) $this->date_entree->diffInDays($fin) + 1);
     }
 }
