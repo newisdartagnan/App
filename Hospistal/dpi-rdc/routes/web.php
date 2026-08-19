@@ -109,6 +109,37 @@ Route::middleware(['auth'])->group(function () {
     // Programme opératoire (bloc)
     Route::post('/bloc/{acte}/planifier', [ActeCliniqueController::class, 'planifier'])->name('bloc.planifier');
 
+    // Urgences — triage structuré puis prise en charge
+    Route::get('/urgences', [\App\Http\Controllers\UrgenceController::class, 'index'])->name('urgences.index');
+    Route::get('/urgences/registre', [\App\Http\Controllers\UrgenceController::class, 'registre'])->name('urgences.registre');
+    Route::get('/urgences/{visit}/triage', [\App\Http\Controllers\UrgenceController::class, 'triage'])->name('urgences.triage');
+    Route::post('/urgences/{visit}/triage', [\App\Http\Controllers\UrgenceController::class, 'storeTriage'])->name('urgences.triage.store');
+
+    // Dossier médical : antécédents, allergies, documents cliniques
+    Route::get('/patients/{patient}/dossier', [\App\Http\Controllers\DossierMedicalController::class, 'show'])->name('dossier.show');
+    Route::post('/patients/{patient}/dossier/referentiel', [\App\Http\Controllers\DossierMedicalController::class, 'storeReferentiel'])->name('dossier.referentiel.store');
+    Route::delete('/dossier/referentiel/{entree}', [\App\Http\Controllers\DossierMedicalController::class, 'destroyReferentiel'])->name('dossier.referentiel.destroy');
+    Route::post('/patients/{patient}/dossier/document', [\App\Http\Controllers\DossierMedicalController::class, 'storeDocument'])->name('dossier.document.store');
+    Route::post('/dossier/document/{document}/valider', [\App\Http\Controllers\DossierMedicalController::class, 'validerDocument'])->name('dossier.document.valider');
+    Route::get('/dossier/document/{document}/imprimer', [\App\Http\Controllers\DossierMedicalController::class, 'imprimerDocument'])->name('dossier.document.imprimer');
+
+    // Pharmacie à deux niveaux : officines et dépôt central
+    Route::get('/officines', [\App\Http\Controllers\OfficineController::class, 'index'])->name('officines.index');
+    Route::post('/officines/{officine}/activer', [\App\Http\Controllers\OfficineController::class, 'activer'])->name('officines.activer');
+    Route::get('/officines/stock', [\App\Http\Controllers\OfficineController::class, 'stock'])->name('officines.stock');
+    Route::post('/officines/requisition', [\App\Http\Controllers\OfficineController::class, 'storeRequisition'])->name('officines.requisition.store');
+    Route::get('/depot-central', [\App\Http\Controllers\OfficineController::class, 'depot'])->name('officines.depot');
+    Route::post('/depot-central/entree', [\App\Http\Controllers\OfficineController::class, 'entree'])->name('officines.entree');
+    Route::post('/requisitions/{requisition}/servir', [\App\Http\Controllers\OfficineController::class, 'servir'])->name('requisitions.servir');
+    Route::post('/requisitions/{requisition}/refuser', [\App\Http\Controllers\OfficineController::class, 'refuser'])->name('requisitions.refuser');
+
+    // Plan d'administration des traitements (grille 24 h)
+    Route::get('/visites/{visit}/traitements', [\App\Http\Controllers\PlanAdministrationController::class, 'index'])->name('mar.index');
+    Route::post('/visites/{visit}/traitements', [\App\Http\Controllers\PlanAdministrationController::class, 'store'])->name('mar.store');
+    Route::post('/visites/{visit}/traitements/copier', [\App\Http\Controllers\PlanAdministrationController::class, 'copierJourSuivant'])->name('mar.copier');
+    Route::post('/traitements/{plan}/basculer', [\App\Http\Controllers\PlanAdministrationController::class, 'basculer'])->name('mar.basculer');
+    Route::delete('/traitements/{plan}', [\App\Http\Controllers\PlanAdministrationController::class, 'destroy'])->name('mar.destroy');
+
     // Équipements (machines labo / imagerie)
     Route::get('/equipements', [\App\Http\Controllers\EquipementController::class, 'index'])->name('equipements.index');
     Route::post('/equipements', [\App\Http\Controllers\EquipementController::class, 'store'])->name('equipements.store');

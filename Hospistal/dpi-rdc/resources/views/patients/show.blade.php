@@ -10,7 +10,21 @@
             <h2 class="text-2xl font-bold text-gray-800">{{ $patient->nom_complet }}</h2>
             <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{{ $patient->dossier_number }}</span>
         </div>
+        <a href="{{ route('dossier.show', $patient) }}"
+           class="bg-white border border-blue-300 text-blue-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50">
+            📋 Dossier médical
+        </a>
     </div>
+
+    @php $allergiesConnues = app(\App\Services\DossierMedicalService::class)->allergies($patient); @endphp
+    @if($allergiesConnues->isNotEmpty())
+    <div class="bg-red-50 border-2 border-red-300 rounded-xl px-4 py-3 mb-4">
+        <p class="font-bold text-red-800 mb-1">⚠️ Allergies connues</p>
+        <p class="text-sm text-red-700">
+            @foreach($allergiesConnues as $a){{ $a->referentiel->libelle }}@if($a->severite) ({{ $a->severite }})@endif@if(! $loop->last) · @endif @endforeach
+        </p>
+    </div>
+    @endif
 
     @if(session('success'))<div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 mb-4">{{ session('success') }}</div>@endif
     @if(session('info'))<div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 mb-4">{{ session('info') }}</div>@endif

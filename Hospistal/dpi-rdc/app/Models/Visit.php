@@ -74,6 +74,22 @@ class Visit extends Model
         return $this->hasMany(NoteEvolution::class);
     }
 
+    public function triagesUrgence(): HasMany
+    {
+        return $this->hasMany(TriageUrgence::class);
+    }
+
+    public function plansAdministration(): HasMany
+    {
+        return $this->hasMany(PlanAdministration::class);
+    }
+
+    /** Dernier triage d'urgence enregistré pour cette visite. */
+    public function triageUrgence(): ?TriageUrgence
+    {
+        return $this->triagesUrgence()->latest('triage_at')->first();
+    }
+
     public function signesVitaux(): HasMany
     {
         return $this->hasMany(SigneVital::class);

@@ -164,9 +164,12 @@
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-4 py-3 border-b font-semibold text-gray-700 flex justify-between items-center">
                 <span>💊 Produits &amp; prescriptions</span>
-                @if($visit->consultations->first())
-                <a href="{{ route('prescriptions.create', $visit->consultations->first()) }}" class="text-xs text-blue-700 hover:underline">+ Prescrire</a>
-                @endif
+                <span class="flex gap-3">
+                    <a href="{{ route('mar.index', ['visit' => $visit->id]) }}" class="text-xs text-blue-700 hover:underline">💉 Plan 24 h</a>
+                    @if($visit->consultations->first())
+                    <a href="{{ route('prescriptions.create', $visit->consultations->first()) }}" class="text-xs text-blue-700 hover:underline">+ Prescrire</a>
+                    @endif
+                </span>
             </div>
             <div class="divide-y divide-gray-100 max-h-72 overflow-y-auto">
                 @forelse($prescriptions as $prescription)
