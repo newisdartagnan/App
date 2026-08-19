@@ -41,6 +41,10 @@ class RolePermissionSeeder extends Seeder
             ],
             'infirmier' => ['patient.view', 'consultation.view'],
             'laborantin' => ['labo.create', 'labo.view', 'labo.validate', 'patient.view'],
+            // Manipulateur / radiologue : même plateau technique, côté imagerie.
+            // Tant qu'aucun agent ne porte ce rôle, l'imagerie est notifiée au
+            // laboratoire (cf. NotificationService::groupePourDomaine).
+            'radiologue' => ['labo.create', 'labo.view', 'labo.validate', 'patient.view'],
             'pharmacien' => [
                 'stock.view', 'stock.adjust', 'stock.receive',
                 'dispensation.execute', 'prescription.create', 'patient.view',

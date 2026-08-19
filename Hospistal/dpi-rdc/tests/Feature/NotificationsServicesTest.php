@@ -371,4 +371,46 @@ class NotificationsServicesTest extends TestCase
         $this->assertSame('prescription_recue', $notif->type);
         $this->assertSame('pharmacien', $notif->groupe_destinataire);
     }
+
+    public function test_imagerie_notifie_les_manipulateurs_quand_ils_existent(): void
+    {
+        $type = TypeExamen::where('code', 'like', 'IMG-%')->firstOrFail();
+
+        // Sans manipulateur affecté, l'imagerie revient au laboratoire
+        $examen = app(LaboratoireService::class)
+            ->prescrireExamens($this->visit, [$type->id], 'imagerie');
+        $this->assertSame('laborantin', NotificationInterne::where('reference_id', $examen->id)
+            ->firstOrFail()->groupe_destinataire);
+
+        // Dès qu'un manipulateur porte le rôle, l'imagerie lui est adressée
+        $manip = User::create([
+            'establishment_id' => $this->etab->id,
+            'nom' => 'KALALA', 'prenom' => 'Grace',
+            'email' => 'manip@dpi-rdc.local', 'matricule' => 'IMG-001',
+            'password' => bcrypt('secret'), 'is_active' => true,
+        ]);
+        $manip->assignRole('radiologue');
+
+        $examen2 = app(LaboratoireService::class)
+            ->prescrireExamens($this->visit, [$type->id], 'imagerie');
+        $this->assertSame('radiologue', NotificationInterne::where('reference_id', $examen2->id)
+            ->firstOrFail()->groupe_destinataire);
+
+        // Le manipulateur voit bien la notification qui lui est destinée
+        $this->assertSame(1, app(\App\Services\NotificationService::class)->nonLuesPour($manip));
+    }
+
+    public function test_le_registre_nomme_les_unites_d_analyse(): void
+    {
+        $type = TypeExamen::where('categorie', 'hematologie')->firstOrFail();
+
+        $this->assertSame('Hématologie', $type->uniteAnalyse());
+
+        app(LaboratoireService::class)->prescrireExamens($this->visit, [$type->id], 'labo');
+
+        $this->get(route('labo.rapport', ['date' => now()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Hématologie')
+            ->assertDontSee('>hematologie<', false);
+    }
 }

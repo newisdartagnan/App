@@ -16,7 +16,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">Examens à prescrire</label>
             <div class="grid gap-2 max-h-96 overflow-y-auto border rounded-lg p-3">
                 @foreach($types->groupBy('categorie') as $cat => $group)
-                <p class="text-xs font-semibold text-gray-500 uppercase mt-2">{{ $cat }}</p>
+                <p class="text-xs font-semibold text-gray-500 uppercase mt-2">{{ $group->first()->uniteAnalyse() }}</p>
                 @foreach($group as $type)
                 @php $parametres = $type->valeurs_reference['parametres'] ?? []; @endphp
                 @if(count($parametres) > 1)

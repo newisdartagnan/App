@@ -220,7 +220,7 @@ class LaboratoireController extends Controller
                             : null;
 
                         return [
-                            'categorie' => $type->categorie ?: 'Autres analyses',
+                            'categorie' => $type->uniteAnalyse(),
                             'examen' => $examen,
                             'type' => $type,
                             'partiel' => $partiel,
