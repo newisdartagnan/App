@@ -1,18 +1,23 @@
 <?php
+
 namespace App\Services;
 
 use App\Models\ActeClinique;
 use App\Models\Assurance;
-use App\Models\ExamenLaboratoire;
 use App\Models\BonSortie;
+use App\Models\ExamenLaboratoire;
 use App\Models\Facture;
 use App\Models\FactureTiersPayant;
 use App\Models\LigneFacture;
+use App\Models\Paiement;
 use App\Models\Patient;
 use App\Models\PatientAssurance;
 use App\Models\Prescription;
+use App\Models\PrescriptionDiete;
 use App\Models\Visit;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class FacturationService
 {
@@ -31,7 +36,7 @@ class FacturationService
     ): Facture {
         return DB::transaction(function () use (
             $patient, $visit, $type, $libelle,
-            $montant, $devise, $referenceId, $referenceType
+            $montant, $devise, $referenceId
         ) {
             $numero = $this->genererNumeroFacture();
 
@@ -114,7 +119,7 @@ class FacturationService
                 $ligneFacture = LigneFacture::create([
                     'facture_id' => $facture->id,
                     'type' => 'medicament',
-                    'libelle' => $ligne->medicament->denomination_commune . ' ' . $ligne->medicament->dosage,
+                    'libelle' => $ligne->medicament->denomination_commune.' '.$ligne->medicament->dosage,
                     'reference_id' => $ligne->medicament_id,
                     'quantite' => $ligne->quantite_totale,
                     'prix_unitaire' => $ligne->medicament->stock?->prix_unitaire_vente ?? 0,
@@ -153,7 +158,9 @@ class FacturationService
     ): void {
         $patientAssurance = $this->resolvePatientAssurance($patient);
 
-        if (!$patientAssurance || !$patientAssurance->assurance->est_actif) return;
+        if (! $patientAssurance || ! $patientAssurance->assurance->est_actif) {
+            return;
+        }
 
         $assurance = $patientAssurance->assurance;
 
@@ -168,7 +175,7 @@ class FacturationService
         $partAssurance = 0;
         $partPatient = $ligne->total_ligne;
 
-        if ($acteCouvert && !$plafondAtteint) {
+        if ($acteCouvert && ! $plafondAtteint) {
             $taux = $assurance->tauxPourActe($typeActe, $referenceId);
 
             // Vérifier si le plafond permet de couvrir entièrement
@@ -192,7 +199,7 @@ class FacturationService
         }
 
         // Enregistrer le détail
-        \App\Models\FactureTiersPayant::create([
+        FactureTiersPayant::create([
             'facture_id' => $facture->id,
             'ligne_facture_id' => $ligne->id,
             'assurance_id' => $assurance->id,
@@ -229,7 +236,7 @@ class FacturationService
         }
 
         $assurance = Assurance::firstOrCreate(
-            ['code' => strtoupper(\Illuminate\Support\Str::slug($patient->assurance_nom, '_')) ?: 'ASSURANCE'],
+            ['code' => strtoupper(Str::slug($patient->assurance_nom, '_')) ?: 'ASSURANCE'],
             ['nom' => $patient->assurance_nom, 'taux_couverture' => 80, 'est_actif' => true]
         );
 
@@ -237,7 +244,7 @@ class FacturationService
             'patient_id' => $patient->id,
             'assurance_id' => $assurance->id,
             'numero_police' => $patient->assurance_numero ?: 'N/A',
-            'nom_beneficiaire' => trim($patient->nom . ' ' . $patient->prenom),
+            'nom_beneficiaire' => trim($patient->nom.' '.$patient->prenom),
             'date_debut' => now()->toDateString(),
             'annee_courante' => (int) now()->format('Y'),
             'est_actif' => true,
@@ -256,7 +263,7 @@ class FacturationService
             // Tarif du type choisi à l'accueil : générale 20 $, spécialisée 24 $
             $tc = $visit->typeConsultation;
             $montant = $tc->prixCdf();
-            $libelle = 'Consultation ' . $tc->libelle . ' (' . ($tc->prix_usd + 0) . ' $)';
+            $libelle = 'Consultation '.$tc->libelle.' ('.($tc->prix_usd + 0).' $)';
         } else {
             $montant = match ($visit->type) {
                 'urgence' => $tarifs['urgence'] ?? 25000,
@@ -308,7 +315,7 @@ class FacturationService
 
                 $lignes[] = [
                     'type' => $examen->domaine === 'imagerie' ? 'imagerie' : 'examen_labo',
-                    'libelle' => $type->libelle . ($partiel ? " ({$retenus}/{$totalParametres} sous-examens)" : ''),
+                    'libelle' => $type->libelle.($partiel ? " ({$retenus}/{$totalParametres} sous-examens)" : ''),
                     'reference_id' => $type->id,
                     'prix' => $prix,
                 ];
@@ -366,7 +373,10 @@ class FacturationService
     }
 
     /**
-     * Facture séjour hospitalisation (nuits)
+     * Facture du séjour : les journées d'hospitalisation, puis une ligne par
+     * diète servie. La nutrition hospitalière est une prestation facturée à
+     * part, pas un forfait noyé dans le prix du lit — le patient voit ce
+     * qu'il a mangé, la cuisine retrouve ses journées.
      */
     public function creerFactureHospitalisation(Visit $visit): Facture
     {
@@ -374,17 +384,36 @@ class FacturationService
             $visit->load('patient');
             $tarifJour = config('dpi.tarifs_cdf.hospitalisation_jour', 35000);
             $jours = $visit->joursHospitalisation();
-            $total = $tarifJour * $jours;
 
-            $facture = $this->creerFactureAmbulatoire(
-                $visit->patient,
-                $visit,
-                'hospitalisation',
-                "Hospitalisation ({$jours} jour(s))",
-                (float) $total,
-                'CDF',
-                $visit->id
-            );
+            $lignes = [[
+                'type' => 'hospitalisation',
+                'libelle' => "Hospitalisation ({$jours} jour(s))",
+                'reference_id' => $visit->id,
+                'quantite' => $jours,
+                'prix_unitaire' => (float) $tarifJour,
+            ]];
+
+            $dietes = $this->dietesAFacturer($visit);
+
+            foreach ($dietes as $prescription) {
+                $lignes[] = [
+                    'type' => 'diete',
+                    'libelle' => $prescription->typeDiete->libelle
+                        .' ('.$prescription->joursServis().' jour(s))',
+                    'reference_id' => $prescription->id,
+                    'quantite' => $prescription->joursServis(),
+                    'prix_unitaire' => (float) $prescription->typeDiete->prix_journalier,
+                ];
+            }
+
+            $facture = $this->creerFactureLignes($visit->patient, $visit, $lignes);
+
+            foreach ($dietes as $prescription) {
+                $prescription->update([
+                    'facture_id' => $facture->id,
+                    'jours_factures' => $prescription->joursServis(),
+                ]);
+            }
 
             ActeClinique::create([
                 'visit_id' => $visit->id,
@@ -404,13 +433,110 @@ class FacturationService
     }
 
     /**
+     * Diètes du séjour restant à facturer. Celle encore en cours est clôturée
+     * au jour de la facturation : on ne facture jamais une journée à venir.
+     *
+     * @return Collection<int, PrescriptionDiete>
+     */
+    protected function dietesAFacturer(Visit $visit): Collection
+    {
+        return $visit->prescriptionsDiete()
+            ->with('typeDiete')
+            ->whereNull('facture_id')
+            ->orderBy('debut')
+            ->get()
+            ->each(function ($prescription) {
+                if ($prescription->fin === null) {
+                    $prescription->update(['fin' => now()->toDateString()]);
+                    $prescription->refresh();
+                }
+            })
+            // Une mise à jeun ne coûte rien : inutile d'alourdir la facture.
+            ->filter(fn ($prescription) => (float) $prescription->typeDiete->prix_journalier > 0)
+            ->values();
+    }
+
+    /**
+     * Facture à plusieurs lignes, chacune passant par le tiers payant selon
+     * sa nature (le séjour et la diète ne sont pas couverts au même taux).
+     *
+     * @param  array<int, array{type: string, libelle: string, reference_id: ?string, quantite: float|int, prix_unitaire: float}>  $lignes
+     */
+    protected function creerFactureLignes(
+        Patient $patient,
+        Visit $visit,
+        array $lignes,
+        string $devise = 'CDF'
+    ): Facture {
+        return DB::transaction(function () use ($patient, $visit, $lignes, $devise) {
+            $total = array_sum(array_map(
+                fn ($l) => $l['quantite'] * $l['prix_unitaire'],
+                $lignes
+            ));
+
+            $facture = Facture::create([
+                'patient_id' => $patient->id,
+                'visit_id' => $visit->id,
+                'establishment_id' => $visit->establishment_id,
+                'numero_facture' => $this->genererNumeroFacture(),
+                'date_facture' => now(),
+                'statut' => 'emise',
+                'type_prise_en_charge' => $patient->type_prise_en_charge,
+                'total_ht' => $total,
+                'total_ttc' => $total,
+                'patient_part' => $total,
+                'assurance_part' => 0,
+            ]);
+
+            foreach ($lignes as $ligne) {
+                $totalLigne = $ligne['quantite'] * $ligne['prix_unitaire'];
+
+                $modele = LigneFacture::create([
+                    'facture_id' => $facture->id,
+                    'type' => $ligne['type'],
+                    'libelle' => $ligne['libelle'],
+                    'reference_id' => $ligne['reference_id'] ?? null,
+                    'quantite' => $ligne['quantite'],
+                    'prix_unitaire' => $ligne['prix_unitaire'],
+                    'total_ligne' => $totalLigne,
+                ]);
+
+                if ($patient->type_prise_en_charge === 'assurance') {
+                    $this->appliquerTiersPayant(
+                        $facture, $modele, $patient, $devise,
+                        $ligne['type'], $ligne['reference_id'] ?? null
+                    );
+                }
+            }
+
+            if ($patient->type_prise_en_charge === 'assurance') {
+                $facture->refresh();
+                $totalAssurance = (float) $facture->lignesTiersPayant->sum('part_assurance');
+
+                if ($totalAssurance > 0) {
+                    $facture->update([
+                        'assurance_part' => $totalAssurance,
+                        'patient_part' => $total - $totalAssurance,
+                    ]);
+                }
+            }
+
+            return $facture->fresh();
+        });
+    }
+
+    /**
      * Facture acte chirurgical ou maternité
      */
     public function creerFactureActeClinique(ActeClinique $acte): Facture
     {
         return DB::transaction(function () use ($acte) {
             $acte->load(['patient', 'visit']);
-            $typeLigne = $acte->domaine === 'chirurgie' ? 'acte_chirurgical' : 'autre';
+            $typeLigne = match ($acte->domaine) {
+                'chirurgie' => 'acte_chirurgical',
+                'dialyse' => 'dialyse',
+                default => 'autre',
+            };
 
             $facture = $this->creerFactureAmbulatoire(
                 $acte->patient,
@@ -441,18 +567,18 @@ class FacturationService
         ?ExamenLaboratoire $examen = null
     ): array {
         return DB::transaction(function () use (
-            $facture, $montantRecu, $devise,
+            $facture, $montantRecu,
             $modePaiement, $reference, $prescription, $examen
         ) {
             // Enregistrer le paiement
-            \App\Models\Paiement::create([
+            Paiement::create([
                 'facture_id' => $facture->id,
                 'caissier_id' => auth()->id(),
                 'date_paiement' => now(),
                 'montant' => $montantRecu,
                 'mode_paiement' => $modePaiement,
                 'reference_paiement' => $reference,
-                'recu_numero' => 'REC-' . now()->format('YmdHis'),
+                'recu_numero' => 'REC-'.now()->format('YmdHis'),
             ]);
 
             $facture->update(['statut' => 'payee']);
@@ -503,11 +629,12 @@ class FacturationService
 
     protected function genererNumeroFacture(): string
     {
-        $prefix = 'FAC-' . now()->format('Y') . '-';
-        $last = Facture::where('numero_facture', 'like', $prefix . '%')
+        $prefix = 'FAC-'.now()->format('Y').'-';
+        $last = Facture::where('numero_facture', 'like', $prefix.'%')
             ->orderByDesc('numero_facture')
             ->value('numero_facture');
         $seq = $last ? (int) substr($last, -6) + 1 : 1;
-        return $prefix . str_pad($seq, 6, '0', STR_PAD_LEFT);
+
+        return $prefix.str_pad($seq, 6, '0', STR_PAD_LEFT);
     }
 }

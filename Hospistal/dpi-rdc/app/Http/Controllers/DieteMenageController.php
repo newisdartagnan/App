@@ -34,7 +34,13 @@ class DieteMenageController extends Controller
                 'patient',
                 'service',
                 'lit',
-                'prescriptionsDiete' => fn ($q) => $q->whereNull('fin')->with('typeDiete')->latest('debut'),
+                // La diète du jour affiché, et non la seule diète ouverte :
+                // une fois le séjour facturé la prescription est clôturée,
+                // et la cuisine doit continuer de voir ce qu'elle sert.
+                'prescriptionsDiete' => fn ($q) => $q->with('typeDiete')
+                    ->whereDate('debut', '<=', $jour)
+                    ->where(fn ($q2) => $q2->whereNull('fin')->orWhereDate('fin', '>=', $jour))
+                    ->latest('debut'),
                 'tachesMenage' => fn ($q) => $q->whereDate('jour', $jour),
             ])
             ->orderBy('service_id')
@@ -150,7 +156,10 @@ class DieteMenageController extends Controller
             ->when($serviceId, fn ($q) => $q->where('service_id', $serviceId))
             ->with([
                 'patient', 'service', 'lit',
-                'prescriptionsDiete' => fn ($q) => $q->whereNull('fin')->with('typeDiete')->latest('debut'),
+                'prescriptionsDiete' => fn ($q) => $q->with('typeDiete')
+                    ->whereDate('debut', '<=', $jour)
+                    ->where(fn ($q2) => $q2->whereNull('fin')->orWhereDate('fin', '>=', $jour))
+                    ->latest('debut'),
             ])
             ->get()
             ->sortBy(fn ($v) => ($v->service?->nom ?? 'ZZZ').'-'.($v->lit?->numero ?? 'ZZZ'))

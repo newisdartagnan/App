@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Lit;
 use App\Models\Service;
 use App\Models\Visit;
 use App\Services\FacturationService;
@@ -55,7 +54,7 @@ class VisitController extends Controller
     /**
      * Triage infirmier : motif + constantes vitales avant le médecin.
      */
-    public function triage(Visit $visit): \Illuminate\View\View
+    public function triage(Visit $visit): View
     {
         $visit->load(['patient', 'typeConsultation']);
 
@@ -129,6 +128,10 @@ class VisitController extends Controller
 
         if ($service->facturesImpayees($visit) > 0) {
             return back()->with('error', 'Des factures sont encore impayées. Régler au guichet avant la sortie.');
+        }
+
+        if ($manquants = $service->prestationsNonFacturees($visit)) {
+            return back()->with('error', 'Facturer le séjour avant la sortie : '.implode(' et ', $manquants).'.');
         }
 
         $service->sortir($visit, $request->mode_sortie);
