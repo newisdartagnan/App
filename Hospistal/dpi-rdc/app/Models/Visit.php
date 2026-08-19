@@ -95,6 +95,11 @@ class Visit extends Model
         return $this->hasMany(SigneVital::class);
     }
 
+    public function bilansHydriques(): HasMany
+    {
+        return $this->hasMany(BilanHydrique::class);
+    }
+
     public function typeConsultation(): BelongsTo
     {
         return $this->belongsTo(TypeConsultation::class, 'type_consultation_id');

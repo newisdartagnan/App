@@ -9,7 +9,7 @@ class PatientAssurance extends Model
     use HasUuids;
     protected $table = 'patient_assurances';
     protected $fillable = [
-        'patient_id', 'assurance_id', 'numero_police', 'nom_beneficiaire',
+        'patient_id', 'assurance_id', 'assure_principal_id', 'lien_parente', 'numero_police', 'nom_beneficiaire',
         'date_debut', 'date_fin', 'annee_courante',
         'consomme_annuel_usd', 'consomme_annuel_cdf', 'est_actif',
     ];
