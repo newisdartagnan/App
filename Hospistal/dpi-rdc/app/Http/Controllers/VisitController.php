@@ -42,7 +42,7 @@ class VisitController extends Controller
         ]);
 
         $services = Service::where('establishment_id', $visit->establishment_id)
-            ->whereIn('type', ['medecine', 'chirurgie', 'maternite', 'pediatrie'])
+            ->whereIn('type', ['medecine', 'chirurgie', 'maternite', 'pediatrie', 'reanimation', 'neonatologie'])
             ->where('is_active', true)
             ->with(['lits' => fn ($q) => $q->where('statut', 'libre')])
             ->get();

@@ -293,13 +293,22 @@ class FacturationService
             $visit = $examen->visit;
             $patient = $examen->patient;
 
+            // Une ligne par type d'examen. Un panel prescrit partiellement est
+            // facturé au prorata : prix du panel x (sous-examens retenus / total).
             $lignes = [];
-            foreach ($examen->resultats as $resultat) {
-                $type = $resultat->typeExamen;
-                $prix = (float) ($type->prix ?? 0);
+            foreach ($examen->resultats->groupBy('type_examen_id') as $resultats) {
+                $type = $resultats->first()->typeExamen;
+                $totalParametres = count($type->valeurs_reference['parametres'] ?? []);
+                $retenus = $resultats->count();
+                $partiel = $totalParametres > 1 && $retenus < $totalParametres;
+
+                $prix = $partiel
+                    ? round((float) $type->prix * $retenus / $totalParametres, 2)
+                    : (float) ($type->prix ?? 0);
+
                 $lignes[] = [
                     'type' => $examen->domaine === 'imagerie' ? 'imagerie' : 'examen_labo',
-                    'libelle' => $type->libelle,
+                    'libelle' => $type->libelle . ($partiel ? " ({$retenus}/{$totalParametres} sous-examens)" : ''),
                     'reference_id' => $type->id,
                     'prix' => $prix,
                 ];

@@ -69,6 +69,16 @@ class Visit extends Model
         return $this->hasMany(ActeClinique::class);
     }
 
+    public function notesEvolution(): HasMany
+    {
+        return $this->hasMany(NoteEvolution::class);
+    }
+
+    public function signesVitaux(): HasMany
+    {
+        return $this->hasMany(SigneVital::class);
+    }
+
     public function typeConsultation(): BelongsTo
     {
         return $this->belongsTo(TypeConsultation::class, 'type_consultation_id');

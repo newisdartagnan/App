@@ -30,4 +30,15 @@ class TypeExamen extends Model
     {
         return $this->hasMany(ResultatExamen::class, 'type_examen_id');
     }
+
+    /**
+     * Prix d'un sous-examen : le prix du panel divisé à parts égales entre
+     * ses paramètres (une prescription partielle est facturée au prorata).
+     */
+    public function prixSousExamen(): float
+    {
+        $nb = count($this->valeurs_reference['parametres'] ?? []);
+
+        return $nb > 1 ? round((float) $this->prix / $nb, 2) : (float) $this->prix;
+    }
 }

@@ -30,11 +30,12 @@
                         <span class="text-gray-400 ml-auto">{{ number_format($type->prix ?? 0, 0, ',', ' ') }} CDF</span>
                     </summary>
                     <div class="pl-8 pr-2 pb-2 space-y-1 bg-gray-50/60">
-                        <p class="text-xs text-gray-400 pt-1">Ne rien cocher = tout le panel · ou choisir les sous-examens :</p>
+                        <p class="text-xs text-gray-400 pt-1">Ne rien cocher = tout le panel · ou choisir les sous-examens (facturés au prorata) :</p>
                         @foreach($parametres as $param)
                         <label class="flex items-center gap-2 text-xs text-gray-700">
                             <input type="checkbox" name="parametres[{{ $type->id }}][]" value="{{ $param['nom'] }}" class="rounded">
                             {{ $param['nom'] }} @if(!empty($param['unite']))<span class="text-gray-400">({{ $param['unite'] }})</span>@endif
+                            <span class="text-gray-400 ml-auto">{{ number_format($type->prixSousExamen(), 0, ',', ' ') }} CDF</span>
                         </label>
                         @endforeach
                     </div>
