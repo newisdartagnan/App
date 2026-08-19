@@ -31,6 +31,29 @@ class TypeExamen extends Model
         return $this->hasMany(ResultatExamen::class, 'type_examen_id');
     }
 
+    /** Libellés des unités d'analyse, pour le registre journalier. */
+    public const UNITES = [
+        'hematologie' => 'Hématologie',
+        'biochimie' => 'Biochimie',
+        'serologie' => 'Sérologie / Immunologie',
+        'microbiologie' => 'Microbiologie / Bactériologie',
+        'parasitologie' => 'Parasitologie',
+        'imagerie' => 'Imagerie médicale',
+        'radiologie' => 'Radiologie',
+        'echographie' => 'Échographie',
+        'autre' => 'Autres analyses',
+    ];
+
+    /**
+     * Nom lisible de l'unité d'analyse (le catalogue stocke un code).
+     */
+    public function uniteAnalyse(): string
+    {
+        $code = strtolower((string) $this->categorie);
+
+        return self::UNITES[$code] ?? ucfirst(str_replace('_', ' ', $code ?: 'autres analyses'));
+    }
+
     /**
      * Prix d'un sous-examen : le prix du panel divisé à parts égales entre
      * ses paramètres (une prescription partielle est facturée au prorata).

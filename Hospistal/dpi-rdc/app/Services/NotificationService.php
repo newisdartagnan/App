@@ -42,6 +42,24 @@ class NotificationService
     }
 
     /**
+     * Équipe à prévenir pour un domaine d'examen.
+     *
+     * L'imagerie s'adresse aux manipulateurs quand l'établissement en a
+     * affecté ; sinon elle revient au laboratoire, qui tient le plateau
+     * technique dans les structures où le personnel est mutualisé.
+     */
+    public function groupePourDomaine(string $domaine): string
+    {
+        if ($domaine !== 'imagerie') {
+            return 'laborantin';
+        }
+
+        return User::whereHas('roles', fn ($q) => $q->where('name', 'radiologue'))->exists()
+            ? 'radiologue'
+            : 'laborantin';
+    }
+
+    /**
      * Nouvelle prescription d'examens → équipe labo ou imagerie.
      */
     public function prescriptionExamen(ExamenLaboratoire $examen): NotificationInterne
@@ -60,7 +78,7 @@ class NotificationService
             referenceType: 'examen',
             referenceId: $examen->id,
             codeReference: $examen->numero_bon,
-            groupeDestinataire: 'laborantin',
+            groupeDestinataire: $this->groupePourDomaine($examen->domaine),
             priorite: $examen->urgence ? 'urgente' : 'normale',
         );
     }
