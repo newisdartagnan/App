@@ -22,6 +22,16 @@
         <div><span class="text-gray-500 text-xs">Montant</span><p class="font-semibold">{{ number_format((float) $facture->montant_total, 2, ',', ' ') }} {{ $facture->devise }}</p></div>
         <div><span class="text-gray-500 text-xs">Réglé</span><p class="font-semibold text-green-700">{{ number_format((float) $facture->montant_regle, 2, ',', ' ') }}</p></div>
         <div><span class="text-gray-500 text-xs">Reste dû</span><p class="font-semibold {{ $facture->resteDu() > 0 ? 'text-amber-700' : 'text-green-700' }}">{{ number_format($facture->resteDu(), 2, ',', ' ') }}</p></div>
+        <div>
+            <span class="text-gray-500 text-xs">Statut</span>
+            <p><span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded
+                {{ match($facture->statut) {
+                    'reglee' => 'bg-green-100 text-green-800',
+                    'partiellement_reglee' => 'bg-amber-100 text-amber-800',
+                    'annulee' => 'bg-gray-100 text-gray-600',
+                    default => 'bg-blue-100 text-blue-800',
+                } }}">{{ str_replace('_', ' ', $facture->statut) }}</span></p>
+        </div>
     </div>
 
     @if($facture->mode === 'individuelle')
