@@ -126,10 +126,12 @@ services:
     ports:
       # 80 et 443 sont souvent réservés sous Windows (plages Hyper-V/WinNAT,
       # IIS) : « bind: An attempt was made to access a socket in a way
-      # forbidden by its access permissions ». On sort de ces plages par
-      # défaut ; APP_PORT / APP_SSL_PORT restent surchargeables dans .env.
-      - "${APP_PORT:-8080}:80"
-      - "${APP_SSL_PORT:-8443}:443"
+      # forbidden by its access permissions ». On publie donc hors de ces
+      # plages. Les variables portent un nom neuf (DPI_HTTP_PORT /
+      # DPI_HTTPS_PORT) pour qu'un ancien APP_PORT=80 resté dans un .env
+      # local ne puisse plus faire échouer le démarrage.
+      - "${DPI_HTTP_PORT:-8080}:80"
+      - "${DPI_HTTPS_PORT:-8443}:443"
     volumes:
       - ./public:/var/www/public
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
