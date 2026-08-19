@@ -46,6 +46,16 @@ class Patient extends Model
         return $this->hasMany(Visit::class);
     }
 
+    public function referentielsMedicaux(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PatientReferentielMedical::class);
+    }
+
+    public function documentsCliniques(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(DocumentClinique::class);
+    }
+
     public function getNomCompletAttribute(): string
     {
         return trim($this->nom . ' ' . ($this->postnom ? $this->postnom . ' ' : '') . $this->prenom);

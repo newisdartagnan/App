@@ -16,7 +16,7 @@ class MouvementStock extends Model
 
     protected $fillable = [
         'medicament_id', 'establishment_id', 'user_id', 'type',
-        'quantite', 'quantite_avant', 'quantite_apres', 'reference', 'created_at',
+        'quantite', 'quantite_avant', 'quantite_apres', 'reference', 'officine_id', 'provenance', 'destination', 'created_at',
     ];
 
     protected function casts(): array

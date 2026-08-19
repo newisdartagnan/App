@@ -54,6 +54,25 @@ class PrescriptionController extends Controller
             }
         }
 
+        // Une allergie connue au produit doit être confirmée explicitement
+        $alertes = app(\App\Services\DossierMedicalService::class)->alertesAllergie(
+            $consultation->visit->patient,
+            $lignes->pluck('medicament_id')->all()
+        );
+
+        if ($alertes !== [] && ! $request->boolean('confirmer_allergie')) {
+            $messages = array_map(
+                fn ($a) => "{$a['medicament']} — allergie connue : {$a['allergie']}"
+                    . ($a['severite'] ? " ({$a['severite']})" : ''),
+                $alertes
+            );
+
+            return back()
+                ->withErrors(['allergie' => $messages])
+                ->withInput()
+                ->with('error', 'Allergie connue au produit prescrit — confirmez pour passer outre.');
+        }
+
         $prescription = DB::transaction(function () use ($consultation, $lignes, $request) {
             $prescription = Prescription::create([
                 'consultation_id' => $consultation->id,

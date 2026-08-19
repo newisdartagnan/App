@@ -54,6 +54,9 @@ class HospitalReferenceSeeder extends Seeder
 
     protected function seedMedicaments(Establishment $establishment): void
     {
+        $depot = \App\Models\Officine::where('type', 'depot_central')->first();
+        $ambulatoire = \App\Models\Officine::where('type', 'ambulatoire')->first();
+
         $meds = [
             ['denomination_commune' => 'Paracétamol', 'dosage' => '500 mg', 'forme' => 'comprime', 'prix' => 500, 'qte' => 5000],
             ['denomination_commune' => 'Amoxicilline', 'dosage' => '500 mg', 'forme' => 'comprime', 'prix' => 1200, 'qte' => 2000],
@@ -81,15 +84,31 @@ class HospitalReferenceSeeder extends Seeder
                 ]
             );
 
+            // L'officine ambulatoire délivre aux patients ; le dépôt central
+            // détient la réserve qui réapprovisionne les officines.
             StockMedicament::updateOrCreate(
                 ['medicament_id' => $med->id, 'establishment_id' => $establishment->id, 'lot' => 'LOT-2026-01'],
                 [
+                    'officine_id' => $ambulatoire?->id,
                     'quantite_disponible' => $m['qte'],
                     'prix_unitaire_vente' => $m['prix'],
                     'prix_unitaire_achat' => $m['prix'] * 0.7,
                     'quantite_alerte' => 50,
                 ]
             );
+
+            if ($depot) {
+                StockMedicament::updateOrCreate(
+                    ['medicament_id' => $med->id, 'establishment_id' => $establishment->id, 'lot' => 'LOT-2026-DC'],
+                    [
+                        'officine_id' => $depot->id,
+                        'quantite_disponible' => $m['qte'] * 4,
+                        'prix_unitaire_vente' => $m['prix'],
+                        'prix_unitaire_achat' => $m['prix'] * 0.7,
+                        'quantite_alerte' => 200,
+                    ]
+                );
+            }
         }
     }
 
