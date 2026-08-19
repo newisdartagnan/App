@@ -11,3 +11,8 @@ storage/framework/views/*
 !.env.example
 backups/*.gpg
 backups/*.sql*
+
+# Lien symbolique recréé au démarrage par docker-entrypoint.sh
+# (sous Windows il est illisible par le moteur de build : « invalid file request »)
+public/storage
+public/hot
