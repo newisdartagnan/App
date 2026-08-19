@@ -87,7 +87,7 @@ class VisiteService
         string $modeSortie = 'gueri',
         ?string $observations = null
     ): Visit {
-        return DB::transaction(function () use ($visit, $modeSortie, $observations) {
+        return DB::transaction(function () use ($visit, $modeSortie) {
             if ($visit->lit_id) {
                 Lit::where('id', $visit->lit_id)->update(['statut' => 'libre']);
             }
@@ -109,5 +109,66 @@ class VisiteService
         return $visit->factures()
             ->whereIn('statut', ['emise', 'partiellement_payee'])
             ->count();
+    }
+
+    /**
+     * Prestations consommées mais jamais portées sur une facture.
+     *
+     * Sans ce contrôle un patient sort sans dette apparente — toutes ses
+     * factures sont soldées — alors que ses journées, sa diète ou ses actes
+     * réalisés n'ont simplement jamais été facturés. C'est la fuite de
+     * recette la plus banale d'un hôpital.
+     *
+     * @return array<int, string>
+     */
+    public function prestationsNonFacturees(Visit $visit): array
+    {
+        if ($visit->type !== 'hospitalisation') {
+            return [];
+        }
+
+        $manquants = [];
+
+        $sejourFacture = $visit->factures()
+            ->whereHas('lignes', fn ($q) => $q->where('type', 'hospitalisation'))
+            ->exists();
+
+        if (! $sejourFacture) {
+            $manquants[] = 'les journées d\'hospitalisation';
+        }
+
+        $dietes = $visit->prescriptionsDiete()
+            ->with('typeDiete')
+            ->whereNull('facture_id')
+            ->get()
+            ->filter(fn ($p) => (float) $p->typeDiete->prix_journalier > 0);
+
+        if ($dietes->isNotEmpty()) {
+            $manquants[] = 'la diète ('.$dietes->pluck('typeDiete.libelle')->unique()->implode(', ').')';
+        }
+
+        // Séances de dialyse, interventions, accouchements : tout acte
+        // réalisé et non facturé. Le séjour lui-même en crée un, déjà
+        // rattaché à sa facture, donc exclu par le filtre sur facture_id.
+        $actes = $visit->actesCliniques()
+            ->whereIn('statut', ['planifie', 'realise'])
+            ->whereNull('facture_id')
+            ->where('prix', '>', 0)
+            ->get();
+
+        if ($actes->isNotEmpty()) {
+            $manquants[] = 'les actes réalisés ('.$actes->pluck('libelle')->unique()->implode(', ').')';
+        }
+
+        $examens = $visit->examensLaboratoire()
+            ->whereNull('facture_id')
+            ->where('statut', '!=', 'annule')
+            ->count();
+
+        if ($examens > 0) {
+            $manquants[] = $examens.' examen(s) de laboratoire ou d\'imagerie';
+        }
+
+        return $manquants;
     }
 }

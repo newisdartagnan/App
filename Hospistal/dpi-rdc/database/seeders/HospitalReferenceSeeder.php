@@ -5,8 +5,10 @@ namespace Database\Seeders;
 use App\Models\Establishment;
 use App\Models\Lit;
 use App\Models\Medicament;
+use App\Models\Officine;
 use App\Models\Service;
 use App\Models\StockMedicament;
+use App\Models\TypeConsultation;
 use App\Models\TypeExamen;
 use Illuminate\Database\Seeder;
 
@@ -35,6 +37,7 @@ class HospitalReferenceSeeder extends Seeder
             ['code' => 'PED', 'nom' => 'Pédiatrie', 'type' => 'pediatrie', 'lits' => 10],
             ['code' => 'REA', 'nom' => 'Réanimation', 'type' => 'reanimation', 'lits' => 6],
             ['code' => 'NEO', 'nom' => 'Néonatologie', 'type' => 'neonatologie', 'lits' => 8],
+            ['code' => 'DIAL', 'nom' => 'Dialyse / Néphrologie', 'type' => 'dialyse', 'lits' => 8],
         ];
 
         foreach ($defs as $def) {
@@ -45,7 +48,7 @@ class HospitalReferenceSeeder extends Seeder
 
             for ($i = 1; $i <= min($def['lits'], 8); $i++) {
                 Lit::firstOrCreate(
-                    ['establishment_id' => $establishment->id, 'numero' => $def['code'] . '-' . str_pad((string) $i, 2, '0', STR_PAD_LEFT)],
+                    ['establishment_id' => $establishment->id, 'numero' => $def['code'].'-'.str_pad((string) $i, 2, '0', STR_PAD_LEFT)],
                     ['service_id' => $service->id, 'statut' => 'libre']
                 );
             }
@@ -54,8 +57,8 @@ class HospitalReferenceSeeder extends Seeder
 
     protected function seedMedicaments(Establishment $establishment): void
     {
-        $depot = \App\Models\Officine::where('type', 'depot_central')->first();
-        $ambulatoire = \App\Models\Officine::where('type', 'ambulatoire')->first();
+        $depot = Officine::where('type', 'depot_central')->first();
+        $ambulatoire = Officine::where('type', 'ambulatoire')->first();
 
         $meds = [
             ['denomination_commune' => 'Paracétamol', 'dosage' => '500 mg', 'forme' => 'comprime', 'prix' => 500, 'qte' => 5000],
@@ -116,12 +119,12 @@ class HospitalReferenceSeeder extends Seeder
     {
         // Structure pharmacie CSK : dépôt central + officine ambulatoire +
         // une officine par service d'hospitalisation
-        \App\Models\Officine::firstOrCreate(['nom' => 'Dépôt central'], ['type' => 'depot_central']);
-        \App\Models\Officine::firstOrCreate(['nom' => 'Officine ambulatoire'], ['type' => 'ambulatoire']);
+        Officine::firstOrCreate(['nom' => 'Dépôt central'], ['type' => 'depot_central']);
+        Officine::firstOrCreate(['nom' => 'Officine ambulatoire'], ['type' => 'ambulatoire']);
 
         foreach (Service::where('establishment_id', $establishment->id)->get() as $service) {
-            \App\Models\Officine::firstOrCreate(
-                ['nom' => 'Officine ' . $service->nom],
+            Officine::firstOrCreate(
+                ['nom' => 'Officine '.$service->nom],
                 ['type' => 'service', 'service_id' => $service->id]
             );
         }
@@ -148,7 +151,7 @@ class HospitalReferenceSeeder extends Seeder
         ];
 
         foreach ($types as $type) {
-            \App\Models\TypeConsultation::updateOrCreate(
+            TypeConsultation::updateOrCreate(
                 ['code' => $type['code']],
                 $type + ['est_actif' => true]
             );

@@ -1,11 +1,25 @@
 @extends('layouts.app')
 @section('title', 'Nouvel acte')
 @section('content')
+@php
+    $titreActe = match($domaine) {
+        'maternite' => 'Acte maternité',
+        'examen_specialise' => 'Examen spécialisé',
+        'dialyse' => 'Séance de dialyse',
+        default => 'Acte chirurgical',
+    };
+    $routeStore = match($domaine) {
+        'maternite' => 'maternite.store',
+        'examen_specialise' => 'examens-specialises.store',
+        'dialyse' => 'dialyse.store',
+        default => 'bloc.store',
+    };
+@endphp
 <div class="max-w-2xl mx-auto px-4 py-6">
-    <h2 class="text-2xl font-bold mb-2">{{ $domaine === 'maternite' ? 'Acte maternité' : 'Acte chirurgical' }}</h2>
+    <h2 class="text-2xl font-bold mb-2">{{ $titreActe }}</h2>
     <p class="text-sm text-gray-600 mb-6">Patient : <strong>{{ $visit->patient->nom_complet }}</strong></p>
 
-    <form method="POST" action="{{ $domaine === 'maternite' ? route('maternite.store') : route('bloc.store') }}" class="bg-white rounded-xl shadow p-6 space-y-4">
+    <form method="POST" action="{{ route($routeStore) }}" class="bg-white rounded-xl shadow p-6 space-y-4">
         @csrf
         <input type="hidden" name="visit_id" value="{{ $visit->id }}">
         <input type="hidden" name="domaine" value="{{ $domaine }}">

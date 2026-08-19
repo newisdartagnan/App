@@ -19,5 +19,10 @@ return [
         'hospitalisation_jour' => 35000,
         'chirurgie_minor' => 150000,
         'accouchement' => 200000,
+        'dialyse_seance' => 120000,
+        'dialyse_seance_epo' => 165000,
+        'dialyse_peritoneale' => 60000,
+        'dialyse_catheter' => 180000,
+        'dialyse_fistule' => 400000,
     ],
 ];

@@ -19,7 +19,8 @@ class PrescriptionDiete extends Model
     protected $table = 'prescriptions_diete';
 
     protected $fillable = [
-        'visit_id', 'type_diete_id', 'user_id', 'debut', 'fin', 'observation',
+        'visit_id', 'type_diete_id', 'user_id', 'facture_id',
+        'jours_factures', 'debut', 'fin', 'observation',
     ];
 
     protected function casts(): array
@@ -40,6 +41,16 @@ class PrescriptionDiete extends Model
     public function auteur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function facture(): BelongsTo
+    {
+        return $this->belongsTo(Facture::class);
+    }
+
+    public function estFacturee(): bool
+    {
+        return $this->facture_id !== null;
     }
 
     public function scopeEnCours(Builder $query): Builder

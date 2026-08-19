@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActeClinique;
+use App\Models\TypeConsultation;
+use App\Models\User;
 use App\Models\Visit;
 use App\Services\FacturationService;
 use Illuminate\Http\RedirectResponse;
@@ -34,7 +36,7 @@ class ActeCliniqueController extends Controller
             'realises' => $actes->whereIn('statut', ['realise', 'facture'])->take(50),
         ];
 
-        $operateurs = \App\Models\User::role(['medecin', 'infirmier_chef'])
+        $operateurs = User::role(['medecin', 'infirmier_chef'])
             ->orderBy('nom')
             ->get(['id', 'nom', 'prenom']);
 
@@ -81,14 +83,21 @@ class ActeCliniqueController extends Controller
         $tarifs = config('dpi.tarifs_cdf', []);
 
         $catalogue = match ($domaine) {
-            'examen_specialise' => \App\Models\TypeConsultation::where('categorie', 'specialisee')
+            'examen_specialise' => TypeConsultation::where('categorie', 'specialisee')
                 ->where('est_actif', true)
                 ->orderBy('libelle')
                 ->get()
                 ->map(fn ($tc) => [
-                    'libelle' => 'Examen spécialisé ' . $tc->libelle,
+                    'libelle' => 'Examen spécialisé '.$tc->libelle,
                     'prix' => $tc->prixCdf(),
                 ])->all(),
+            'dialyse' => [
+                ['libelle' => 'Séance d\'hémodialyse (4 h)', 'prix' => $tarifs['dialyse_seance'] ?? 120000],
+                ['libelle' => 'Séance d\'hémodialyse avec érythropoïétine', 'prix' => $tarifs['dialyse_seance_epo'] ?? 165000],
+                ['libelle' => 'Dialyse péritonéale — échange', 'prix' => $tarifs['dialyse_peritoneale'] ?? 60000],
+                ['libelle' => 'Pose de cathéter de dialyse', 'prix' => $tarifs['dialyse_catheter'] ?? 180000],
+                ['libelle' => 'Confection de fistule artério-veineuse', 'prix' => $tarifs['dialyse_fistule'] ?? 400000],
+            ],
             'maternite' => [
                 ['libelle' => 'Accouchement voie basse', 'prix' => $tarifs['accouchement'] ?? 200000],
                 ['libelle' => 'Césarienne', 'prix' => 350000],
@@ -108,7 +117,7 @@ class ActeCliniqueController extends Controller
     {
         $request->validate([
             'visit_id' => 'required|uuid|exists:visits,id',
-            'domaine' => 'required|in:chirurgie,maternite,examen_specialise',
+            'domaine' => 'required|in:chirurgie,maternite,examen_specialise,dialyse',
             'libelle' => 'required|string|max:255',
             'prix' => 'required|numeric|min:0',
             'compte_rendu' => 'nullable|string',
@@ -142,6 +151,7 @@ class ActeCliniqueController extends Controller
         $route = match ($request->domaine) {
             'maternite' => 'maternite.index',
             'examen_specialise' => 'examens-specialises.index',
+            'dialyse' => 'dialyse.index',
             default => 'bloc.index',
         };
 

@@ -98,6 +98,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/examens-specialises/nouveau', fn () => app(ActeCliniqueController::class)->create(request()->merge(['domaine' => 'examen_specialise'])))->name('examens-specialises.create');
     Route::post('/examens-specialises', [ActeCliniqueController::class, 'store'])->name('examens-specialises.store');
 
+    // Dialyse / néphrologie
+    Route::get('/dialyse', fn () => app(ActeCliniqueController::class)->index(request()->merge(['domaine' => 'dialyse'])))->name('dialyse.index');
+    Route::get('/dialyse/nouveau', fn () => app(ActeCliniqueController::class)->create(request()->merge(['domaine' => 'dialyse'])))->name('dialyse.create');
+    Route::post('/dialyse', [ActeCliniqueController::class, 'store'])->name('dialyse.store');
+
     Route::post('/actes/{acte}/realiser', [ActeCliniqueController::class, 'realiser'])->name('actes.realiser');
     Route::post('/actes/{acte}/facturer', [ActeCliniqueController::class, 'facturer'])->name('actes.facturer');
 

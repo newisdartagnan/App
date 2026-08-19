@@ -36,6 +36,7 @@
         @endif
         <a href="{{ route('bloc.create', ['visit_id' => $visit->id]) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">🏥 Bloc</a>
         <a href="{{ route('maternite.create', ['visit_id' => $visit->id]) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">👶 Maternité</a>
+        <a href="{{ route('dialyse.create', ['visit_id' => $visit->id]) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">🩸 Dialyse</a>
     </div>
 
     {{-- Hospitalisation --}}

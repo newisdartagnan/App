@@ -3,12 +3,25 @@
     $titre = match($domaine) {
         'maternite' => 'Maternité',
         'examen_specialise' => 'Examens spécialisés',
+        'dialyse' => 'Dialyse / Néphrologie',
         default => 'Bloc opératoire',
     };
     $routeCreate = match($domaine) {
         'maternite' => 'maternite.create',
         'examen_specialise' => 'examens-specialises.create',
+        'dialyse' => 'dialyse.create',
         default => 'bloc.create',
+    };
+    $icone = match($domaine) {
+        'maternite' => '👶',
+        'examen_specialise' => '🩺',
+        'dialyse' => '🩸',
+        default => '🏥',
+    };
+    $operateurLibelle = match($domaine) {
+        'maternite' => 'Accoucheur',
+        'dialyse' => 'Néphrologue',
+        default => 'Chirurgien',
     };
 @endphp
 @section('title', $titre)
@@ -16,7 +29,7 @@
 <div class="max-w-7xl mx-auto px-4 py-6">
     <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h2 class="text-2xl font-bold text-gray-800">
-            {{ $domaine === 'maternite' ? '👶' : ($domaine === 'examen_specialise' ? '🩺' : '🏥') }} {{ $titre }}
+            {{ $icone }} {{ $titre }}
         </h2>
         <a href="{{ route($routeCreate) }}" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Nouvel acte</a>
     </div>
@@ -69,7 +82,7 @@
                         <input id="dp-{{ $acte->id }}" type="datetime-local" name="date_prevue" required class="border border-gray-300 rounded px-2 py-1 text-sm">
                     </div>
                     <div>
-                        <label for="op-{{ $acte->id }}" class="block text-[11px] text-gray-500 mb-0.5">{{ $domaine === 'maternite' ? 'Accoucheur' : 'Chirurgien' }}</label>
+                        <label for="op-{{ $acte->id }}" class="block text-[11px] text-gray-500 mb-0.5">{{ $operateurLibelle }}</label>
                         <select id="op-{{ $acte->id }}" name="operateur_id" class="border border-gray-300 rounded px-2 py-1 text-sm">
                             <option value="">— À désigner —</option>
                             @foreach($operateurs as $op)
@@ -111,7 +124,7 @@
                         <th class="px-3 py-2 text-left">Patient</th>
                         <th class="px-3 py-2 text-left">Intervention</th>
                         <th class="px-3 py-2 text-left">Indication</th>
-                        <th class="px-3 py-2 text-left">{{ $domaine === 'maternite' ? 'Accoucheur' : 'Chirurgien' }}</th>
+                        <th class="px-3 py-2 text-left">{{ $operateurLibelle }}</th>
                         <th class="px-3 py-2 text-center">Durée</th>
                         <th class="px-3 py-2 text-center">Consent.</th>
                         <th class="px-3 py-2 text-center">Urgent</th>

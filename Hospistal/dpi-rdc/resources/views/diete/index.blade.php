@@ -117,7 +117,11 @@
                             </span>
                             <p class="text-[11px] text-gray-400 mt-1">
                                 depuis le {{ $diete->debut->format('d/m') }} · {{ $diete->joursServis() }} j servis
+                                · {{ number_format($diete->montant(), 0, ',', ' ') }} CDF
                             </p>
+                            @if($diete->estFacturee())
+                            <p class="text-[11px] text-green-700">✓ Portée sur la facture du séjour</p>
+                            @endif
                             @else
                             <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Aucune</span>
                             @endif
