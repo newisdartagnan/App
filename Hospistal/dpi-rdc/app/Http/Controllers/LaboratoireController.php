@@ -182,37 +182,87 @@ class LaboratoireController extends Controller
     }
 
     /**
-     * Rapport journalier des bilans par catégorie (modèle CSK rapport.php).
+     * Rapport journalier et registre par unité d'analyse
+     * (modèle CSK modules/labo/rapport.php).
+     *
+     * Le registre liste ligne par ligne chaque résultat du jour avec le nom
+     * du médecin prescripteur et celui du laborantin qui l'a analysé.
      */
     public function rapport(Request $request): View
     {
         $date = $request->query('date', now()->toDateString());
         $domaine = $request->query('domaine', 'labo');
 
-        $examens = ExamenLaboratoire::with(['resultats.typeExamen', 'patient', 'facture'])
+        $examens = ExamenLaboratoire::with([
+            'resultats.typeExamen', 'patient', 'facture.lignes',
+            'prescripteur', 'laborantin',
+        ])
             ->where('domaine', $domaine)
             ->whereDate('date_prescription', $date)
+            ->orderBy('date_prescription')
             ->get();
 
-        $parCategorie = $examens
-            ->flatMap(fn ($e) => $e->resultats->unique('type_examen_id'))
-            ->groupBy(fn ($r) => $r->typeExamen->categorie)
-            ->map(fn ($resultats, $categorie) => [
-                'total' => $resultats->count(),
-                'examens' => $resultats->groupBy(fn ($r) => $r->typeExamen->libelle)
-                    ->map(fn ($g) => $g->count()),
-            ]);
+        // Registre journalier : une ligne par examen réalisé, groupé par
+        // unité d'analyse (catégorie), comme le registre papier du labo.
+        $registre = $examens
+            ->flatMap(function (ExamenLaboratoire $examen) {
+                return $examen->resultats
+                    ->groupBy('type_examen_id')
+                    ->map(function ($resultats) use ($examen) {
+                        $type = $resultats->first()->typeExamen;
+                        $ligneFacture = $examen->facture?->lignes
+                            ->firstWhere('reference_id', $type->id);
+
+                        // Panel prescrit partiellement : le noter au registre
+                        $totalParametres = count($type->valeurs_reference['parametres'] ?? []);
+                        $partiel = $totalParametres > 1 && $resultats->count() < $totalParametres
+                            ? $resultats->count() . '/' . $totalParametres . ' sous-examens'
+                            : null;
+
+                        return [
+                            'categorie' => $type->categorie ?: 'Autres analyses',
+                            'examen' => $examen,
+                            'type' => $type,
+                            'partiel' => $partiel,
+                            'resultats' => $resultats,
+                            'montant' => (float) ($ligneFacture->total_ligne ?? 0),
+                            'heure' => $examen->date_resultat ?? $examen->date_prescription,
+                        ];
+                    })
+                    ->values();
+            })
+            ->groupBy('categorie')
+            ->sortKeys();
+
+        $interpretations = $examens->flatMap->resultats->pluck('interpretation')->filter();
 
         $stats = [
             'total' => $examens->count(),
             'valides' => $examens->where('statut', 'valide')->count(),
             'en_cours' => $examens->whereNotIn('statut', ['valide', 'annule'])->count(),
             'urgents' => $examens->where('urgence', true)->count(),
-            'recettes' => $examens->pluck('facture')->filter()
+            'critiques' => $interpretations->filter(fn ($i) => $i === 'critique')->count(),
+            'recettes' => $examens->pluck('facture')->filter()->unique('id')
                 ->where('statut', 'payee')->sum('total_ttc'),
         ];
 
-        return view('labo.rapport', compact('date', 'domaine', 'examens', 'parCategorie', 'stats'));
+        $stats['taux_completion'] = $stats['total'] > 0
+            ? round($stats['valides'] / $stats['total'] * 100, 1)
+            : 0;
+
+        // Activité par laborantin : nombre de bilans traités dans la journée
+        $parLaborantin = $examens->whereNotNull('laborantin_id')
+            ->groupBy('laborantin_id')
+            ->map(fn ($groupe) => [
+                'nom' => trim(($groupe->first()->laborantin->prenom ?? '') . ' ' . ($groupe->first()->laborantin->nom ?? '')),
+                'bilans' => $groupe->count(),
+                'examens' => $groupe->flatMap->resultats->unique('type_examen_id')->count(),
+            ])
+            ->sortByDesc('bilans');
+
+        return view('labo.rapport', compact(
+            'date', 'domaine', 'examens', 'registre', 'stats', 'parLaborantin'
+        ));
     }
 
     /**

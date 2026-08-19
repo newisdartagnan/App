@@ -104,6 +104,9 @@ class PharmacieService
                 ->update(['statut' => 'utilise', 'utilise_at' => now()]);
         });
 
+        // Prévenir le médecin prescripteur que les produits sont délivrés
+        app(NotificationService::class)->medicamentsDelivres($prescription);
+
         return [];
     }
 

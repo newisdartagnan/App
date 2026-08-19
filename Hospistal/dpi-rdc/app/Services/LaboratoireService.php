@@ -81,7 +81,12 @@ class LaboratoireService
                 }
             }
 
-            return $examen->fresh(['resultats.typeExamen', 'patient', 'visit']);
+            $examen = $examen->fresh(['resultats.typeExamen', 'patient', 'visit']);
+
+            // Prévenir l'équipe labo / imagerie de la nouvelle prescription
+            app(NotificationService::class)->prescriptionExamen($examen);
+
+            return $examen;
         });
     }
 
@@ -164,6 +169,9 @@ class LaboratoireService
             'statut' => 'valide',
             'conclusion' => $conclusion ?: $examen->conclusion,
         ]);
+
+        // Prévenir le médecin prescripteur que les résultats sont disponibles
+        app(NotificationService::class)->resultatsPrets($examen);
 
         return $examen->fresh(['resultats.typeExamen']);
     }

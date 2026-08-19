@@ -81,6 +81,9 @@ class PrescriptionController extends Controller
             return $prescription;
         });
 
+        // Prévenir la pharmacie de la nouvelle ordonnance
+        app(\App\Services\NotificationService::class)->prescriptionPharmacie($prescription);
+
         return redirect()->route('consultations.show', $consultation)
             ->with('success', 'Ordonnance enregistrée — le patient passe à la caisse pour la pharmacie.');
     }

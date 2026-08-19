@@ -33,6 +33,8 @@ class HospitalReferenceSeeder extends Seeder
             ['code' => 'CHIR', 'nom' => 'Chirurgie', 'type' => 'chirurgie', 'lits' => 12],
             ['code' => 'MAT', 'nom' => 'Maternité', 'type' => 'maternite', 'lits' => 15],
             ['code' => 'PED', 'nom' => 'Pédiatrie', 'type' => 'pediatrie', 'lits' => 10],
+            ['code' => 'REA', 'nom' => 'Réanimation', 'type' => 'reanimation', 'lits' => 6],
+            ['code' => 'NEO', 'nom' => 'Néonatologie', 'type' => 'neonatologie', 'lits' => 8],
         ];
 
         foreach ($defs as $def) {

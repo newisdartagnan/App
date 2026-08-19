@@ -32,6 +32,10 @@ class Consultation extends Model
     {
         return $this->belongsTo(Visit::class);
     }
+    public function prescriptions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Prescription::class);
+    }
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

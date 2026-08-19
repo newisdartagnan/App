@@ -92,6 +92,23 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/consultations/{consultation}/prescrire', [PrescriptionController::class, 'create'])->name('prescriptions.create');
     Route::post('/consultations/{consultation}/prescrire', [PrescriptionController::class, 'store'])->name('prescriptions.store');
 
+    // Services d'hospitalisation (réa, médecine interne, néonatologie…)
+    Route::get('/services', [\App\Http\Controllers\ServiceHospitalierController::class, 'index'])->name('services.index');
+    Route::get('/services/{service}', [\App\Http\Controllers\ServiceHospitalierController::class, 'show'])->name('services.show');
+    Route::get('/services/{service}/patient/{visit}', [\App\Http\Controllers\ServiceHospitalierController::class, 'dossier'])->name('services.dossier');
+    Route::post('/visites/{visit}/evolution', [\App\Http\Controllers\ServiceHospitalierController::class, 'storeNote'])->name('visites.evolution');
+    Route::post('/visites/{visit}/signes-vitaux', [\App\Http\Controllers\ServiceHospitalierController::class, 'storeSignesVitaux'])->name('visites.signes-vitaux');
+    Route::post('/lits/{lit}/statut', [\App\Http\Controllers\ServiceHospitalierController::class, 'statutLit'])->name('lits.statut');
+
+    // Notifications internes (labo / imagerie / pharmacie ↔ médecins)
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/tout-lu', [\App\Http\Controllers\NotificationController::class, 'toutMarquerLues'])->name('notifications.tout-lu');
+    Route::post('/notifications/{notification}/lue', [\App\Http\Controllers\NotificationController::class, 'marquerLue'])->name('notifications.lue');
+    Route::post('/notifications/{notification}/archiver', [\App\Http\Controllers\NotificationController::class, 'archiver'])->name('notifications.archiver');
+
+    // Programme opératoire (bloc)
+    Route::post('/bloc/{acte}/planifier', [ActeCliniqueController::class, 'planifier'])->name('bloc.planifier');
+
     // Équipements (machines labo / imagerie)
     Route::get('/equipements', [\App\Http\Controllers\EquipementController::class, 'index'])->name('equipements.index');
     Route::post('/equipements', [\App\Http\Controllers\EquipementController::class, 'store'])->name('equipements.store');
