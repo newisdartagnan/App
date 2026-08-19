@@ -166,6 +166,7 @@
                 <span>💊 Produits &amp; prescriptions</span>
                 <span class="flex gap-3">
                     <a href="{{ route('mar.index', ['visit' => $visit->id]) }}" class="text-xs text-blue-700 hover:underline">💉 Plan 24 h</a>
+                    <a href="{{ route('bilan-hydrique.index', ['visit' => $visit->id]) }}" class="text-xs text-blue-700 hover:underline">💧 Bilan hydrique</a>
                     @if($visit->consultations->first())
                     <a href="{{ route('prescriptions.create', $visit->consultations->first()) }}" class="text-xs text-blue-700 hover:underline">+ Prescrire</a>
                     @endif

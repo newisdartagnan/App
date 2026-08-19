@@ -140,6 +140,30 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/traitements/{plan}/basculer', [\App\Http\Controllers\PlanAdministrationController::class, 'basculer'])->name('mar.basculer');
     Route::delete('/traitements/{plan}', [\App\Http\Controllers\PlanAdministrationController::class, 'destroy'])->name('mar.destroy');
 
+    // Facturation société / convention et contrôle de caisse
+    Route::get('/conventions', [\App\Http\Controllers\ConventionController::class, 'index'])->name('conventions.index');
+    Route::post('/conventions/emettre', [\App\Http\Controllers\ConventionController::class, 'emettre'])->name('conventions.emettre');
+    Route::get('/conventions/dettes', [\App\Http\Controllers\ConventionController::class, 'dettes'])->name('conventions.dettes');
+    Route::get('/conventions/{facture}', [\App\Http\Controllers\ConventionController::class, 'show'])->name('conventions.show');
+    Route::get('/conventions/{facture}/imprimer', [\App\Http\Controllers\ConventionController::class, 'imprimer'])->name('conventions.imprimer');
+    Route::post('/conventions/{facture}/regler', [\App\Http\Controllers\ConventionController::class, 'regler'])->name('conventions.regler');
+    Route::get('/billetage', [\App\Http\Controllers\ConventionController::class, 'billetage'])->name('caisse.billetage');
+    Route::post('/billetage', [\App\Http\Controllers\ConventionController::class, 'storeBilletage'])->name('caisse.billetage.store');
+
+    // Statistiques de pilotage
+    Route::get('/statistiques', [\App\Http\Controllers\StatistiqueController::class, 'index'])->name('statistiques.index');
+
+    // Agenda des rendez-vous
+    Route::get('/agenda', [\App\Http\Controllers\AgendaController::class, 'index'])->name('agenda.index');
+    Route::post('/agenda', [\App\Http\Controllers\AgendaController::class, 'store'])->name('agenda.store');
+    Route::post('/agenda/bloquer', [\App\Http\Controllers\AgendaController::class, 'bloquer'])->name('agenda.bloquer');
+    Route::post('/agenda/{rendezVous}/statut', [\App\Http\Controllers\AgendaController::class, 'statut'])->name('agenda.statut');
+    Route::delete('/agenda/{rendezVous}', [\App\Http\Controllers\AgendaController::class, 'destroy'])->name('agenda.destroy');
+
+    // Bilan hydrique (dossier infirmier)
+    Route::get('/visites/{visit}/bilan-hydrique', [\App\Http\Controllers\BilanHydriqueController::class, 'index'])->name('bilan-hydrique.index');
+    Route::post('/visites/{visit}/bilan-hydrique', [\App\Http\Controllers\BilanHydriqueController::class, 'store'])->name('bilan-hydrique.store');
+
     // Équipements (machines labo / imagerie)
     Route::get('/equipements', [\App\Http\Controllers\EquipementController::class, 'index'])->name('equipements.index');
     Route::post('/equipements', [\App\Http\Controllers\EquipementController::class, 'store'])->name('equipements.store');
