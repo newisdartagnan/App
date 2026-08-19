@@ -199,7 +199,7 @@ class NotificationsServicesTest extends TestCase
             ->assertSee('REGISTRE JOURNALIER')
             ->assertSee('Dr Prescripteur')
             ->assertSee('Laborantin')
-            ->assertSee('MUKENDI KABASELE Jean')
+            ->assertSee('MUKENDI KABASELE JEAN')
             ->assertSee('Activité des laborantins');
     }
 
@@ -352,7 +352,7 @@ class NotificationsServicesTest extends TestCase
             'visit_id' => $this->visit->id,
             'user_id' => $this->user->id,
             'date_consultation' => now(),
-            'statut' => 'finalisee',
+            'statut' => 'finalise',
         ]);
 
         $medicament = \App\Models\Medicament::with('stock')->whereHas('stock')->firstOrFail();

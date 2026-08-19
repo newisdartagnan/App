@@ -100,7 +100,10 @@
                         </td>
                         <td class="border border-gray-300 px-2 py-1.5 text-center">{{ $examen->patient->sexe ?: '—' }}</td>
                         <td class="border border-gray-300 px-2 py-1.5 text-center">{{ $examen->patient->date_naissance?->age ?? '—' }} <span class="text-[9px]">ans</span></td>
-                        <td class="border border-gray-300 px-2 py-1.5 font-semibold">{{ $ligne['type']->libelle }}</td>
+                        <td class="border border-gray-300 px-2 py-1.5 font-semibold">
+                            {{ $ligne['type']->libelle }}
+                            @if($ligne['partiel'])<span class="block text-gray-500 font-normal text-[10px]">{{ $ligne['partiel'] }}</span>@endif
+                        </td>
                         <td class="border border-gray-300 px-2 py-1.5">
                             @forelse($ligne['resultats'] as $resultat)
                             <div class="mb-0.5">

@@ -311,7 +311,11 @@ class ParcoursPatientTest extends TestCase
             'motif' => 'Retour résultats',
         ])->assertRedirect(route('patients.show', $patient));
 
-        $controle = Visit::where('patient_id', $patient->id)->orderByDesc('date_entree')->first();
+        // Les deux visites peuvent partager la même seconde d'entrée :
+        // on désigne le contrôle par son identifiant, pas par la date.
+        $controle = Visit::where('patient_id', $patient->id)
+            ->whereKeyNot($visit->id)
+            ->firstOrFail();
         $this->assertTrue($controle->gratuite);
         $this->assertSame('en_cours', $controle->statut);
         $this->assertCount(0, $controle->factures);

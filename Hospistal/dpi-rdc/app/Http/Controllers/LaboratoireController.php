@@ -213,10 +213,17 @@ class LaboratoireController extends Controller
                         $ligneFacture = $examen->facture?->lignes
                             ->firstWhere('reference_id', $type->id);
 
+                        // Panel prescrit partiellement : le noter au registre
+                        $totalParametres = count($type->valeurs_reference['parametres'] ?? []);
+                        $partiel = $totalParametres > 1 && $resultats->count() < $totalParametres
+                            ? $resultats->count() . '/' . $totalParametres . ' sous-examens'
+                            : null;
+
                         return [
                             'categorie' => $type->categorie ?: 'Autres analyses',
                             'examen' => $examen,
                             'type' => $type,
+                            'partiel' => $partiel,
                             'resultats' => $resultats,
                             'montant' => (float) ($ligneFacture->total_ligne ?? 0),
                             'heure' => $examen->date_resultat ?? $examen->date_prescription,
