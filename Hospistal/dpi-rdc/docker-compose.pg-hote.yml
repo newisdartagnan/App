@@ -1,0 +1,46 @@
+# Surcouche : l'application utilise le PostgreSQL installé sur le poste
+# (par exemple PostgreSQL 18.6 sous Windows) au lieu du conteneur « db ».
+#
+#   docker compose -f docker-compose.yml -f docker-compose.pg-hote.yml up -d
+#
+# Prérequis, à faire une seule fois dans le PostgreSQL du poste :
+#
+#   CREATE USER dpi_user WITH PASSWORD 'le-mot-de-passe-du-.env';
+#   CREATE DATABASE dpi_hgr WITH OWNER dpi_user ENCODING 'UTF8';
+#
+# (« dpi_hgr » = dpi_ suivi de la valeur d'ESTABLISHMENT_CODE.)
+#
+# Puis, dans postgresql.conf : listen_addresses = '*'
+# et dans pg_hba.conf, autoriser le réseau Docker :
+#   host  all  dpi_user  172.16.0.0/12  scram-sha-256
+# Redémarrer le service PostgreSQL de Windows après ces deux modifications.
+#
+# Enfin, dans le fichier .env :
+#   DPI_DB_HOST=host.docker.internal
+#   DPI_DB_PORT_APP=5432
+services:
+  app:
+    depends_on: !reset null
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  horizon:
+    depends_on: !reset null
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  scheduler:
+    depends_on: !reset null
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  adminer:
+    depends_on: !reset null
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Le conteneur PostgreSQL n'est plus démarré : le profil « inutilise »
+  # n'est jamais activé. Ses données restent dans le volume pgdata.
+  db:
+    profiles:
+      - inutilise

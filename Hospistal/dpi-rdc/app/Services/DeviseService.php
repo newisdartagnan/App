@@ -16,10 +16,27 @@ use InvalidArgumentException;
  */
 class DeviseService
 {
-    /** @return array<string, array<string, mixed>> */
+    public function __construct(private readonly ParametreService $parametres) {}
+
+    /**
+     * Devises acceptées, avec le taux **paramétré dans l'application**.
+     *
+     * Le fichier de configuration ne fournit plus que les libellés, les
+     * coupures et les taux de départ : le taux effectif est celui que
+     * l'établissement a saisi depuis l'écran de paramétrage.
+     *
+     * @return array<string, array<string, mixed>>
+     */
     public function referentiel(): array
     {
-        return config('dpi.devises', []);
+        $taux = $this->parametres->tauxChange();
+
+        return collect(config('dpi.devises', []))
+            ->map(fn (array $definition, string $code) => [
+                ...$definition,
+                'taux_cdf' => $taux[$code] ?? $definition['taux_cdf'],
+            ])
+            ->all();
     }
 
     /** @return array<int, string> */

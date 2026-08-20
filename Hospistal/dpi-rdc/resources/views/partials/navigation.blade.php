@@ -111,6 +111,11 @@
         <a href="{{ route('pharmacie.dashboard') }}" class="nav-lien {{ request()->routeIs('pharmacie.*') || request()->routeIs('officines.*') ? 'est-actif' : '' }}">Pharmacie</a>
         <a href="{{ route('statistiques.index') }}" class="nav-lien {{ request()->routeIs('statistiques.*') ? 'est-actif' : '' }}">Statistiques</a>
 
+        @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'caissier']))
+        <a href="{{ route('parametres.index') }}" title="Paramétrage"
+           class="nav-lien {{ request()->routeIs('parametres.*') || request()->routeIs('utilisateurs.*') || request()->routeIs('assurances.*') || request()->routeIs('forfaits.*') ? 'est-actif' : '' }}">⚙️ Paramétrage</a>
+        @endif
+
         <a href="{{ route('notifications.index') }}" title="Notifications"
            class="nav-lien nav-cloche {{ request()->routeIs('notifications.*') ? 'est-actif' : '' }}">
             🔔@if($notifsNonLues > 0)<span class="nav-pastille">{{ $notifsNonLues }}</span>@endif
