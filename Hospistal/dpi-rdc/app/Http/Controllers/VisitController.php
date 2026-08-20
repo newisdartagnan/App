@@ -142,6 +142,12 @@ class VisitController extends Controller
 
         $facture = app(FacturationService::class)->creerFactureHospitalisation($visit);
 
+        if (! $facture) {
+            return back()->with('info',
+                'Rien de nouveau à facturer : les '.$visit->jours_factures
+                .' journée(s) du séjour et les diètes servies sont déjà portées sur une facture.');
+        }
+
         return redirect()->route('caisse.show', $facture)
             ->with('success', 'Facture hospitalisation émise.');
     }

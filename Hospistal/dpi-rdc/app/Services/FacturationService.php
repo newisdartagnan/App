@@ -282,6 +282,17 @@ class FacturationService
      */
     public function creerFactureConsultation(Visit $visit): Facture
     {
+        // Une consultation ne se facture qu'une fois : réémettre renvoie la
+        // facture existante plutôt que d'en créer une seconde.
+        $existante = Facture::where('visit_id', $visit->id)
+            ->whereHas('lignes', fn ($q) => $q->where('type', 'consultation'))
+            ->whereIn('statut', ['emise', 'partiellement_payee', 'payee'])
+            ->first();
+
+        if ($existante) {
+            return $existante;
+        }
+
         $visit->load(['patient', 'typeConsultation']);
         $tarifs = config('dpi.tarifs_cdf', []);
 
@@ -321,6 +332,11 @@ class FacturationService
      */
     public function creerFactureExamen(ExamenLaboratoire $examen): Facture
     {
+        // Un bon d'examen déjà facturé le reste : on renvoie sa facture.
+        if ($examen->facture_id && ($deja = Facture::find($examen->facture_id))) {
+            return $deja;
+        }
+
         return DB::transaction(function () use ($examen) {
             $examen->load(['patient', 'visit', 'resultats.typeExamen']);
             $visit = $examen->visit;
@@ -405,20 +421,30 @@ class FacturationService
      * part, pas un forfait noyé dans le prix du lit — le patient voit ce
      * qu'il a mangé, la cuisine retrouve ses journées.
      */
-    public function creerFactureHospitalisation(Visit $visit): Facture
+    public function creerFactureHospitalisation(Visit $visit): ?Facture
     {
         return DB::transaction(function () use ($visit) {
-            $visit->load('patient');
+            $visit->refresh()->load('patient');
             $tarifJour = config('dpi.tarifs_cdf.hospitalisation_jour', 35000);
-            $jours = $visit->joursHospitalisation();
 
-            $lignes = [[
-                'type' => 'hospitalisation',
-                'libelle' => "Hospitalisation ({$jours} jour(s))",
-                'reference_id' => $visit->id,
-                'quantite' => $jours,
-                'prix_unitaire' => (float) $tarifJour,
-            ]];
+            // Seules les journées écoulées depuis la dernière facture sont
+            // réclamées : réémettre une facture ne refacture pas le séjour.
+            $joursTotal = $visit->joursHospitalisation();
+            $joursDus = max(0, $joursTotal - (int) $visit->jours_factures);
+
+            $lignes = [];
+
+            if ($joursDus > 0) {
+                $lignes[] = [
+                    'type' => 'hospitalisation',
+                    'libelle' => $visit->jours_factures > 0
+                        ? "Hospitalisation ({$joursDus} jour(s) — du J".((int) $visit->jours_factures + 1)." au J{$joursTotal})"
+                        : "Hospitalisation ({$joursDus} jour(s))",
+                    'reference_id' => $visit->id,
+                    'quantite' => $joursDus,
+                    'prix_unitaire' => (float) $tarifJour,
+                ];
+            }
 
             $dietes = $this->dietesAFacturer($visit);
 
@@ -431,6 +457,12 @@ class FacturationService
                     'quantite' => $prescription->joursServis(),
                     'prix_unitaire' => (float) $prescription->typeDiete->prix_journalier,
                 ];
+            }
+
+            // Plus rien de neuf : on n'émet pas une facture vide, qui
+            // encombrerait le guichet et fausserait les statistiques.
+            if ($lignes === []) {
+                return null;
             }
 
             // Ce qu'un forfait couvre déjà ne se facture pas une seconde fois.
@@ -454,23 +486,46 @@ class FacturationService
                 ]);
             }
 
+            $visit->update(['jours_factures' => $joursTotal]);
+
             app(AcompteService::class)->imputer($facture);
 
-            ActeClinique::create([
-                'visit_id' => $visit->id,
-                'patient_id' => $visit->patient_id,
-                'prescripteur_id' => auth()->id(),
-                'domaine' => 'hospitalisation',
-                'libelle' => "Séjour hospitalisation — {$jours} jour(s)",
-                'prix' => $tarifJour,
-                'quantite' => $jours,
-                'statut' => 'facture',
-                'facture_id' => $facture->id,
-                'date_realisation' => now(),
-            ]);
+            if ($joursDus > 0) {
+                ActeClinique::create([
+                    'visit_id' => $visit->id,
+                    'patient_id' => $visit->patient_id,
+                    'prescripteur_id' => auth()->id(),
+                    'domaine' => 'hospitalisation',
+                    'libelle' => "Séjour hospitalisation — {$joursDus} jour(s)",
+                    'prix' => $tarifJour,
+                    'quantite' => $joursDus,
+                    'statut' => 'facture',
+                    'facture_id' => $facture->id,
+                    'date_realisation' => now(),
+                ]);
+            }
 
             return $facture;
         });
+    }
+
+    /**
+     * Reste-t-il quelque chose à facturer sur ce séjour ?
+     * Sert au guichet pour ne pas proposer une émission qui ne produirait
+     * qu'une facture vide.
+     */
+    public function resteAFacturer(Visit $visit): bool
+    {
+        $joursDus = $visit->joursHospitalisation() - (int) $visit->jours_factures;
+
+        if ($joursDus > 0) {
+            return true;
+        }
+
+        return $visit->prescriptionsDiete()
+            ->whereNull('facture_id')
+            ->whereHas('typeDiete', fn ($q) => $q->where('prix_journalier', '>', 0))
+            ->exists();
     }
 
     /**
@@ -588,6 +643,11 @@ class FacturationService
      */
     public function creerFactureActeClinique(ActeClinique $acte): Facture
     {
+        // Un acte déjà porté sur une facture n'en génère pas une seconde.
+        if ($acte->facture_id && ($deja = Facture::find($acte->facture_id))) {
+            return $deja;
+        }
+
         return DB::transaction(function () use ($acte) {
             $acte->load(['patient', 'visit']);
             $typeLigne = match ($acte->domaine) {

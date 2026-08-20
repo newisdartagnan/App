@@ -19,7 +19,7 @@ class Visit extends Model
         'poids_kg', 'taille_cm', 'imc', 'tension_systolique', 'tension_diastolique',
         'temperature', 'frequence_cardiaque', 'frequence_respiratoire', 'saturation_o2', 'glasgow',
         'motif_consultation', 'symptomes_principaux', 'tarif_consultation', 'est_payant', 'gratuite',
-        'triage_fait_at', 'triage_par', 'sync_status',
+        'triage_fait_at', 'triage_par', 'sync_status', 'jours_factures',
         'consultation_debutee_at', 'consultation_par',
         'forfait_id', 'forfait_montant', 'forfait_facture_id',
     ];
@@ -176,6 +176,12 @@ class Visit extends Model
     public function acomptes(): HasMany
     {
         return $this->hasMany(Caution::class);
+    }
+
+    /** Passages d'un service à l'autre au cours de ce séjour. */
+    public function transferts(): HasMany
+    {
+        return $this->hasMany(TransfertService::class);
     }
 
     /** Le patient est-il déjà au cabinet avec un médecin ? */

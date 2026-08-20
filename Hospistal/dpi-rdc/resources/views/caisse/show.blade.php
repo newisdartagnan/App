@@ -131,6 +131,45 @@
     </div>
     @endforeach
 
+    {{-- Acompte du patient mobilisable sur cette facture --}}
+    @if($facture->statut !== 'payee' && $acompteDisponible > 0)
+    <div class="bg-purple-50 border-2 border-purple-300 rounded-xl p-5 mb-4">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <h4 class="font-bold text-purple-900">
+                    💰 Ce patient dispose de {{ number_format($acompteDisponible, 0, ',', ' ') }} CDF d'acompte
+                </h4>
+                <p class="text-sm text-purple-800 mt-1">
+                    Avance versée lors d'un passage précédent. Elle peut régler tout ou partie de cette facture.
+                </p>
+            </div>
+            <form method="POST" action="{{ route('caisse.acompte', $facture) }}">
+                @csrf
+                <button class="bg-purple-700 hover:bg-purple-800 text-white font-semibold px-5 py-2.5 rounded-lg">
+                    Utiliser l'acompte
+                </button>
+            </form>
+        </div>
+    </div>
+    @endif
+
+    {{-- Acomptes déjà mobilisés sur cette facture --}}
+    @if($facture->imputations->isNotEmpty())
+    <div class="bg-white rounded-xl shadow p-4 mb-4">
+        <p class="text-sm font-semibold text-gray-700 mb-2">Acomptes imputés sur cette facture</p>
+        <ul class="text-xs text-gray-600 space-y-1">
+            @foreach($facture->imputations as $imputation)
+            <li>
+                {{ number_format((float) $imputation->montant, 0, ',', ' ') }} CDF
+                — acompte du {{ $imputation->acompte?->created_at->format('d/m/Y') }}
+                ({{ $imputation->acompte?->libelleType() }})
+                · imputé le {{ $imputation->created_at->format('d/m/Y à H:i') }}
+            </li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+
     {{-- Encaissement — formulaire classique, aucune dépendance JavaScript --}}
     @if($facture->statut !== 'payee')
     <form method="POST" action="{{ route('caisse.encaisser', $facture) }}" class="bg-white rounded-xl shadow p-6">

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\ExamenLaboratoire;
 use App\Models\Facture;
 use App\Models\Prescription;
+use App\Models\Visit;
+use App\Services\AcompteService;
 use App\Services\FacturationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,9 +26,44 @@ class CaisseController extends Controller
 
     public function show(Facture $facture): View
     {
-        $facture->load(['patient', 'lignes', 'lignesTiersPayant.assurance', 'prescription.lignes.medicament', 'paiements', 'bonsSortie']);
+        $facture->load([
+            'patient', 'lignes', 'lignesTiersPayant.assurance',
+            'prescription.lignes.medicament', 'paiements', 'bonsSortie',
+            'imputations.acompte',
+        ]);
 
-        return view('caisse.show', compact('facture'));
+        // Acompte encore disponible pour ce patient, tous séjours confondus :
+        // une avance laissée aux urgences doit pouvoir régler l'ordonnance
+        // délivrée le lendemain.
+        $acompteDisponible = app(AcompteService::class)->soldePatient($facture->patient_id);
+
+        return view('caisse.show', compact('facture', 'acompteDisponible'));
+    }
+
+    /**
+     * Mobilise l'acompte du patient sur cette facture, à la demande du
+     * guichet. L'imputation automatique se limite au séjour concerné ;
+     * ici le caissier décide d'utiliser l'avance disponible.
+     */
+    public function utiliserAcompte(Facture $facture): RedirectResponse
+    {
+        if ($facture->statut === 'payee') {
+            return back()->with('info', 'Cette facture est déjà soldée.');
+        }
+
+        $montant = app(AcompteService::class)->imputer($facture, toutLePatient: true);
+
+        if ($montant <= 0) {
+            return back()->with('error', 'Aucun acompte disponible pour ce patient.');
+        }
+
+        $facture->refresh();
+
+        return back()->with('success',
+            number_format($montant, 0, ',', ' ').' CDF d\'acompte imputés sur cette facture'
+            .($facture->statut === 'payee'
+                ? ' — elle est soldée.'
+                : ' — reste '.number_format($facture->soldeRestant(), 0, ',', ' ').' CDF à encaisser.'));
     }
 
     /**
@@ -64,7 +101,7 @@ class CaisseController extends Controller
 
         $message = 'Paiement enregistré.';
         if ($resultat['bon_sortie']) {
-            $message .= ' Bon ' . $resultat['bon_sortie']->type . ' émis : ' . $resultat['bon_sortie']->numero . '.';
+            $message .= ' Bon '.$resultat['bon_sortie']->type.' émis : '.$resultat['bon_sortie']->numero.'.';
         }
 
         return redirect()->route('caisse.show', $facture)->with('success', $message);
@@ -105,7 +142,7 @@ class CaisseController extends Controller
             ->with('success', 'Facture émise — le patient doit régler au guichet avant la dispensation.');
     }
 
-    public function facturerConsultation(\App\Models\Visit $visit): RedirectResponse
+    public function facturerConsultation(Visit $visit): RedirectResponse
     {
         $existante = Facture::where('visit_id', $visit->id)
             ->whereHas('lignes', fn ($q) => $q->where('type', 'consultation'))

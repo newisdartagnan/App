@@ -57,14 +57,19 @@ class AcompteService
     /**
      * Impute les acomptes disponibles sur une facture, du plus ancien au
      * plus récent, dans la limite de ce qui reste dû par le patient.
+     *
+     * Par défaut on ne mobilise que les acomptes du séjour concerné —
+     * l'imputation automatique ne doit pas piocher dans une avance versée
+     * pour autre chose. Le guichet peut en revanche mobiliser tous les
+     * acomptes du patient, à la demande, via $toutLePatient.
      */
-    public function imputer(Facture $facture): float
+    public function imputer(Facture $facture, bool $toutLePatient = false): float
     {
-        if (! $facture->visit_id) {
+        if (! $facture->visit_id && ! $toutLePatient) {
             return 0.0;
         }
 
-        return DB::transaction(function () use ($facture) {
+        return DB::transaction(function () use ($facture, $toutLePatient) {
             $facture->refresh();
             $restant = (float) $facture->patient_part
                 - (float) $facture->acompte_impute
@@ -76,7 +81,11 @@ class AcompteService
 
             $total = 0.0;
 
-            foreach ($this->disponibles($facture->visit_id) as $acompte) {
+            $mobilisables = $toutLePatient
+                ? $this->disponiblesPourPatient($facture->patient_id)
+                : $this->disponibles($facture->visit_id);
+
+            foreach ($mobilisables as $acompte) {
                 if ($restant <= 0) {
                     break;
                 }
@@ -148,10 +157,33 @@ class AcompteService
             ->values();
     }
 
+    /**
+     * Tous les acomptes mobilisables du patient, séjours confondus. Un
+     * patient qui a laissé une avance aux urgences doit pouvoir s'en servir
+     * pour régler l'ordonnance qu'on lui délivre le lendemain.
+     *
+     * @return Collection<int, Caution>
+     */
+    public function disponiblesPourPatient(string $patientId): Collection
+    {
+        return Caution::where('patient_id', $patientId)
+            ->whereIn('statut', ['versee', 'remboursee_partiel'])
+            ->orderBy('created_at')
+            ->get()
+            ->filter(fn (Caution $a) => $a->resteDisponible() > 0)
+            ->values();
+    }
+
     /** Somme encore disponible sur le séjour. */
     public function soldeDisponible(string $visitId): float
     {
         return (float) $this->disponibles($visitId)->sum(fn (Caution $a) => $a->resteDisponible());
+    }
+
+    /** Somme encore disponible pour le patient, tous séjours confondus. */
+    public function soldePatient(string $patientId): float
+    {
+        return (float) $this->disponiblesPourPatient($patientId)->sum(fn (Caution $a) => $a->resteDisponible());
     }
 
     /** Total avancé par le patient sur ce séjour, imputé ou non. */
