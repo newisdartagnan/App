@@ -32,6 +32,9 @@
                     {{ $facture->patient->nom_complet }}
                     <span class="text-gray-400">— {{ $facture->patient->dossier_number }}</span>
                 </p>
+                <p class="text-xs text-gray-500 mt-1">
+                    Prise en charge : <span class="font-semibold text-gray-700">{{ $facture->libellePriseEnCharge() }}</span>
+                </p>
             </div>
             <span class="px-3 py-1.5 rounded-full text-sm font-medium
                 {{ $facture->statut === 'payee' ? 'bg-green-100 text-green-700' : ($facture->statut === 'emise' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700') }}">
@@ -92,9 +95,17 @@
                     <td class="px-4 py-3 text-right font-bold text-green-600">{{ number_format($facture->assurance_part, 0, ',', '.') }} CDF</td>
                     <td class="px-4 py-3 text-right font-bold text-blue-700 text-base">{{ number_format($facture->patient_part, 0, ',', '.') }} CDF</td>
                 </tr>
-                @if($facture->montantPaye() > 0)
+                @if($facture->acompte_impute > 0)
                 <tr>
-                    <td colspan="5" class="px-4 py-2 text-right text-sm text-gray-500">Déjà payé</td>
+                    <td colspan="5" class="px-4 py-2 text-right text-sm text-purple-700">Acompte imputé</td>
+                    <td class="px-4 py-2 text-right text-sm font-semibold text-purple-700">
+                        − {{ number_format($facture->acompte_impute, 0, ',', '.') }} CDF
+                    </td>
+                </tr>
+                @endif
+                @if($facture->montantPaye() > 0 || $facture->acompte_impute > 0)
+                <tr>
+                    <td colspan="5" class="px-4 py-2 text-right text-sm text-gray-500">Déjà payé au guichet</td>
                     <td class="px-4 py-2 text-right text-sm text-gray-500">{{ number_format($facture->montantPaye(), 0, ',', '.') }} CDF</td>
                 </tr>
                 <tr>

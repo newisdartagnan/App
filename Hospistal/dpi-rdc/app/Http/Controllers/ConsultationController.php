@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Consultation;
@@ -8,6 +9,7 @@ use App\Models\Visit;
 use App\Services\FacturationService;
 use App\Services\VisiteService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ConsultationController extends Controller
@@ -35,6 +37,22 @@ class ConsultationController extends Controller
     }
 
     /**
+     * Le médecin rend la main sans avoir consulté : le patient retourne
+     * dans la file, faute de quoi il y resterait invisible pour tous.
+     */
+    public function liberer(Visit $visit): RedirectResponse
+    {
+        if ($visit->consultations()->exists()) {
+            return back()->with('error', 'La consultation est déjà enregistrée.');
+        }
+
+        $visit->update(['consultation_debutee_at' => null, 'consultation_par' => null]);
+
+        return redirect()->route('consultations.index')
+            ->with('success', $visit->patient->nom_complet.' est remis dans la file d\'attente.');
+    }
+
+    /**
      * Le médecin démarre la consultation d'une visite payée au guichet.
      */
     public function consulter(Visit $visit): View|RedirectResponse
@@ -54,6 +72,21 @@ class ConsultationController extends Controller
                 ->with('error', 'Consultation non réglée — le patient doit passer à la caisse avant de voir le médecin.');
         }
 
+        // Le patient entre au cabinet : il sort de la file d'attente, pour
+        // que deux médecins n'appellent pas la même personne. Un confrère
+        // déjà installé garde la main.
+        if ($visit->consultation_debutee_at === null) {
+            $visit->update([
+                'consultation_debutee_at' => now(),
+                'consultation_par' => auth()->id(),
+            ]);
+        } elseif ($visit->consultation_par && $visit->consultation_par !== auth()->id()) {
+            $confrere = $visit->medecinConsultant?->nom_complet ?? 'un confrère';
+
+            return redirect()->route('consultations.index')
+                ->with('error', "Ce patient est déjà au cabinet avec {$confrere}.");
+        }
+
         return view('consultations.create', ['visit' => $visit, 'patient' => $visit->patient]);
     }
 
@@ -61,7 +94,7 @@ class ConsultationController extends Controller
      * Enregistrement de la consultation du médecin (formulaire classique,
      * aucune dépendance JavaScript — remplace le wizard Livewire).
      */
-    public function store(\Illuminate\Http\Request $request, Visit $visit): RedirectResponse
+    public function store(Request $request, Visit $visit): RedirectResponse
     {
         if (! $visit->consultationPayee() && ! $visit->serviACredit()) {
             return redirect()->route('consultations.index')
@@ -128,6 +161,7 @@ class ConsultationController extends Controller
         $factureConsult = $consultation->visit->factures()
             ->whereHas('lignes', fn ($q) => $q->where('type', 'consultation'))
             ->first();
+
         return view('consultations.show', compact('consultation', 'factureConsult'));
     }
 

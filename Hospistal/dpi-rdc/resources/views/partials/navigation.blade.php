@@ -6,32 +6,114 @@
     $navImagerie = request()->routeIs('imagerie.*') || $domaineNav === 'imagerie';
     $navLabo = ! $navImagerie && (request()->routeIs('labo.*') || $domaineNav === 'labo');
 
+    // Une consultation reste une consultation, même si son URL commence par
+    // /visites : le menu Hospitalisation ne doit pas s'allumer pour elle.
+    $navConsultation = request()->routeIs('consultations.*')
+        || request()->routeIs('visites.consulter')
+        || request()->routeIs('visites.consultation.*')
+        || request()->routeIs('prescriptions.*')
+        || request()->routeIs('disponibilites.*');
+
+    $navHospitalisation = ! $navConsultation && (
+        request()->routeIs('visites.index')
+        || request()->routeIs('visites.show')
+        || request()->routeIs('visites.hospitaliser')
+        || request()->routeIs('visites.sortir')
+        || request()->routeIs('visites.facturer-sejour')
+        || request()->routeIs('services.*')
+        || request()->routeIs('infirmier.*')
+        || request()->routeIs('mar.*')
+        || request()->routeIs('bilan-hydrique.*')
+        || request()->routeIs('diete.*')
+    );
+
+    $navPlateau = $navLabo || $navImagerie
+        || request()->routeIs('bloc.*') || request()->routeIs('maternite.*')
+        || request()->routeIs('dialyse.*') || request()->routeIs('examens-specialises.*')
+        || request()->routeIs('equipements.*');
+
+    $navCaisse = request()->routeIs('caisse.*') || request()->routeIs('conventions.*')
+        || request()->routeIs('acomptes.*') || request()->routeIs('forfaits.*');
+
     $notifsNonLues = auth()->check()
         ? app(\App\Services\NotificationService::class)->nonLuesPour(auth()->user())
         : 0;
+
+    // Un groupe = un bouton de premier niveau + son volet déroulant.
+    // Tout est en CSS (hover + focus-within) : aucun script, donc rien à
+    // débloquer côté CSP sur les postes de l'hôpital.
+    $groupes = [
+        [
+            'libelle' => 'Consultations',
+            'actif' => $navConsultation,
+            'liens' => [
+                ['File d\'attente & consultations', route('consultations.index'), request()->routeIs('consultations.*')],
+                ['Agenda des rendez-vous', route('agenda.index'), request()->routeIs('agenda.*')],
+                ['Disponibilité des médecins', route('disponibilites.index'), request()->routeIs('disponibilites.*')],
+            ],
+        ],
+        [
+            'libelle' => 'Hospitalisation',
+            'actif' => $navHospitalisation,
+            'liens' => [
+                ['Admissions & lits', route('visites.index', ['type' => 'hospitalisation']), request()->routeIs('visites.*')],
+                ['Services d\'hospitalisation', route('services.index'), request()->routeIs('services.*')],
+                ['Diète et ménage', route('diete.index'), request()->routeIs('diete.*')],
+            ],
+        ],
+        [
+            'libelle' => 'Plateau technique',
+            'actif' => $navPlateau,
+            'liens' => [
+                ['Laboratoire', route('labo.index'), $navLabo],
+                ['Imagerie', route('imagerie.index'), $navImagerie],
+                ['Bloc opératoire', route('bloc.index'), request()->routeIs('bloc.*')],
+                ['Maternité', route('maternite.index'), request()->routeIs('maternite.*')],
+                ['Dialyse', route('dialyse.index'), request()->routeIs('dialyse.*')],
+                ['Équipements', route('equipements.index'), request()->routeIs('equipements.*')],
+            ],
+        ],
+        [
+            'libelle' => 'Caisse',
+            'actif' => $navCaisse,
+            'liens' => [
+                ['Guichet & factures', route('caisse.index'), request()->routeIs('caisse.index') || request()->routeIs('caisse.show')],
+                ['Acomptes de soins', route('acomptes.index'), request()->routeIs('acomptes.*')],
+                ['Forfaits', route('forfaits.index'), request()->routeIs('forfaits.*')],
+                ['Billetage de caisse', route('caisse.billetage'), request()->routeIs('caisse.billetage*')],
+                ['Conventions & sociétés', route('conventions.index'), request()->routeIs('conventions.index')],
+                ['Dettes à recouvrer', route('conventions.dettes'), request()->routeIs('conventions.dettes')],
+            ],
+        ],
+    ];
+
 @endphp
-<nav class="bg-blue-900 text-white border-t border-blue-700" style="background-color:#1e3a8a;color:#fff;">
-    <div class="max-w-7xl mx-auto px-4 flex flex-wrap gap-1 py-2 text-sm">
-        <a href="{{ route('dashboard') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('dashboard') ? 'bg-blue-700 font-semibold' : '' }}">Accueil</a>
-        <a href="{{ route('patients.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('patients.*') ? 'bg-blue-700 font-semibold' : '' }}">Patients</a>
-        <a href="{{ route('consultations.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('consultations.*') ? 'bg-blue-700 font-semibold' : '' }}">Consultations</a>
-        <a href="{{ route('urgences.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('urgences.*') ? 'bg-blue-700 font-semibold' : '' }}">Urgences</a>
-        <a href="{{ route('visites.index', ['type' => 'hospitalisation']) }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('visites.*') ? 'bg-blue-700 font-semibold' : '' }}">Hospitalisation</a>
-        <a href="{{ route('services.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('services.*') ? 'bg-blue-700 font-semibold' : '' }}">Services</a>
-        <a href="{{ route('labo.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ $navLabo ? 'bg-blue-700 font-semibold' : '' }}">Laboratoire</a>
-        <a href="{{ route('imagerie.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ $navImagerie ? 'bg-blue-700 font-semibold' : '' }}">Imagerie</a>
-        <a href="{{ route('bloc.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('bloc.*') ? 'bg-blue-700 font-semibold' : '' }}">Bloc op.</a>
-        <a href="{{ route('maternite.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('maternite.*') ? 'bg-blue-700 font-semibold' : '' }}">Maternité</a>
-        <a href="{{ route('pharmacie.dashboard') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('pharmacie.*') || request()->routeIs('officines.*') ? 'bg-blue-700 font-semibold' : '' }}">Pharmacie</a>
-        <a href="{{ route('agenda.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('agenda.*') ? 'bg-blue-700 font-semibold' : '' }}">Agenda</a>
-        <a href="{{ route('caisse.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('caisse.*') ? 'bg-blue-700 font-semibold' : '' }}">Caisse</a>
-        <a href="{{ route('conventions.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('conventions.*') ? 'bg-blue-700 font-semibold' : '' }}">Conventions</a>
-        <a href="{{ route('dialyse.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('dialyse.*') ? 'bg-blue-700 font-semibold' : '' }}">Dialyse</a>
-        <a href="{{ route('diete.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('diete.*') ? 'bg-blue-700 font-semibold' : '' }}">Diète</a>
-        <a href="{{ route('statistiques.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('statistiques.*') ? 'bg-blue-700 font-semibold' : '' }}">Statistiques</a>
-        <a href="{{ route('equipements.index') }}" style="color:#fff;display:inline-block;padding:6px 12px;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('equipements.*') ? 'bg-blue-700 font-semibold' : '' }}">Équipements</a>
-        <a href="{{ route('notifications.index') }}" title="Notifications" style="color:#fff;display:inline-block;padding:6px 12px;margin-left:auto;" class="px-3 py-1.5 rounded hover:bg-blue-800 {{ request()->routeIs('notifications.*') ? 'bg-blue-700 font-semibold' : '' }}">
-            🔔@if($notifsNonLues > 0)<span style="background:#dc2626;color:#fff;border-radius:9999px;padding:1px 6px;margin-left:4px;font-size:11px;font-weight:bold;">{{ $notifsNonLues }}</span>@endif
+<nav class="dpi-nav" style="background-color:#1e3a8a;color:#fff;">
+    <div class="dpi-nav-inner">
+        <a href="{{ route('dashboard') }}" class="nav-lien {{ request()->routeIs('dashboard') ? 'est-actif' : '' }}">Accueil</a>
+        <a href="{{ route('patients.index') }}" class="nav-lien {{ request()->routeIs('patients.*') ? 'est-actif' : '' }}">Patients</a>
+        <a href="{{ route('urgences.index') }}" class="nav-lien {{ request()->routeIs('urgences.*') ? 'est-actif' : '' }}">Urgences</a>
+
+        @foreach($groupes as $groupe)
+        <div class="nav-groupe">
+            <button type="button" class="nav-lien nav-bouton {{ $groupe['actif'] ? 'est-actif' : '' }}"
+                    aria-haspopup="true" aria-expanded="false">
+                {{ $groupe['libelle'] }}<span class="nav-chevron" aria-hidden="true">▾</span>
+            </button>
+            <div class="nav-volet">
+                @foreach($groupe['liens'] as [$libelle, $url, $lienActif])
+                <a href="{{ $url }}" class="nav-volet-lien {{ $lienActif ? 'est-actif' : '' }}">{{ $libelle }}</a>
+                @endforeach
+            </div>
+        </div>
+        @endforeach
+
+        <a href="{{ route('pharmacie.dashboard') }}" class="nav-lien {{ request()->routeIs('pharmacie.*') || request()->routeIs('officines.*') ? 'est-actif' : '' }}">Pharmacie</a>
+        <a href="{{ route('statistiques.index') }}" class="nav-lien {{ request()->routeIs('statistiques.*') ? 'est-actif' : '' }}">Statistiques</a>
+
+        <a href="{{ route('notifications.index') }}" title="Notifications"
+           class="nav-lien nav-cloche {{ request()->routeIs('notifications.*') ? 'est-actif' : '' }}">
+            🔔@if($notifsNonLues > 0)<span class="nav-pastille">{{ $notifsNonLues }}</span>@endif
         </a>
     </div>
 </nav>

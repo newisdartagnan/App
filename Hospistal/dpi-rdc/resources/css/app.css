@@ -9,3 +9,114 @@
     --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Barre de navigation principale.
+
+   Dix-huit onglets sur deux lignes serrées devenaient illisibles : les
+   rubriques sont maintenant regroupées derrière quatre volets. Tout est
+   en CSS pur — hover pour la souris, focus-within pour le clavier — pour
+   que les menus fonctionnent sur les postes où la politique de sécurité
+   interdit l'exécution de scripts.
+   ═══════════════════════════════════════════════════════════════════ */
+.dpi-nav {
+    background-color: #1e3a8a;
+    color: #fff;
+    border-top: 1px solid #1d4ed8;
+    position: relative;
+    z-index: 30;
+}
+
+.dpi-nav-inner {
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 0 1rem;
+    display: flex;
+    align-items: stretch;
+    gap: 0.125rem;
+    font-size: 0.875rem;
+}
+
+.nav-lien {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.6rem 0.85rem;
+    color: #fff;
+    white-space: nowrap;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    line-height: 1.2;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: background-color .12s ease, border-color .12s ease;
+}
+
+.nav-lien:hover { background-color: #1d4ed8; }
+.nav-lien:focus-visible { outline: 2px solid #bfdbfe; outline-offset: -2px; }
+
+.nav-lien.est-actif {
+    background-color: #1d4ed8;
+    border-bottom-color: #93c5fd;
+    font-weight: 600;
+}
+
+.nav-groupe { position: relative; display: flex; }
+
+.nav-chevron { font-size: 0.65em; opacity: .75; }
+
+.nav-volet {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 15rem;
+    background: #fff;
+    border-radius: 0 0 .5rem .5rem;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .22);
+    padding: .35rem;
+    display: none;
+    z-index: 40;
+}
+
+/* Ouverture à la souris comme au clavier, sans une ligne de script. */
+.nav-groupe:hover .nav-volet,
+.nav-groupe:focus-within .nav-volet { display: block; }
+
+.nav-volet-lien {
+    display: block;
+    padding: .5rem .75rem;
+    border-radius: .375rem;
+    color: #1e293b;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.nav-volet-lien:hover { background: #eff6ff; color: #1d4ed8; }
+.nav-volet-lien:focus-visible { outline: 2px solid #1d4ed8; outline-offset: -2px; }
+
+.nav-cloche { margin-left: auto; }
+
+.nav-pastille {
+    background: #dc2626;
+    color: #fff;
+    border-radius: 9999px;
+    padding: 1px 6px;
+    margin-left: 4px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* Sous les petits écrans la barre défile plutôt que de s'empiler. */
+@media (max-width: 1024px) {
+    .dpi-nav-inner { overflow-x: auto; }
+    .nav-volet { position: fixed; left: auto; }
+}
+
+/* Rubrique courante dans le volet déroulant : le laboratoire et l'imagerie
+   partagent le même groupe, il faut voir laquelle des deux on consulte. */
+.nav-volet-lien.est-actif {
+    background: #1d4ed8;
+    color: #fff;
+    font-weight: 600;
+}

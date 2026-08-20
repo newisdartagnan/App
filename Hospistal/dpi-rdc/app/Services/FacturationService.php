@@ -48,6 +48,7 @@ class FacturationService
                 'date_facture' => now(),
                 'statut' => 'emise',
                 'type_prise_en_charge' => $patient->type_prise_en_charge,
+                ...$this->identiteAssureur($patient),
                 'total_ht' => $montant,
                 'total_ttc' => $montant,
                 'patient_part' => $montant,
@@ -108,6 +109,7 @@ class FacturationService
                 'date_facture' => now(),
                 'statut' => 'emise',
                 'type_prise_en_charge' => $patient->type_prise_en_charge,
+                ...$this->identiteAssureur($patient),
                 'total_ht' => $totalMontant,
                 'total_ttc' => $totalMontant,
                 'patient_part' => $totalMontant,
@@ -143,6 +145,30 @@ class FacturationService
 
             return $facture->fresh();
         });
+    }
+
+    /**
+     * Identité de l'assureur à figer sur la facture.
+     *
+     * Une facture est une pièce comptable : elle doit porter le nom de la
+     * société ou de la mutuelle tel qu'il était à l'émission, et non le mot
+     * « assurance ». Un changement d'assureur plus tard ne réécrit pas les
+     * factures déjà remises au patient.
+     *
+     * @return array<string, ?string>
+     */
+    protected function identiteAssureur(Patient $patient): array
+    {
+        if ($patient->type_prise_en_charge !== 'assurance') {
+            return [];
+        }
+
+        $lien = $this->resolvePatientAssurance($patient);
+
+        return [
+            'assurance_nom' => $lien?->assurance?->nom ?: $patient->assurance_nom,
+            'assurance_numero' => $lien?->numero_police ?: $patient->assurance_numero,
+        ];
     }
 
     /**
@@ -332,6 +358,7 @@ class FacturationService
                 'date_facture' => now(),
                 'statut' => 'emise',
                 'type_prise_en_charge' => $patient->type_prise_en_charge,
+                ...$this->identiteAssureur($patient),
                 'total_ht' => $total,
                 'total_ttc' => $total,
                 'patient_part' => $total,
@@ -406,14 +433,28 @@ class FacturationService
                 ];
             }
 
-            $facture = $this->creerFactureLignes($visit->patient, $visit, $lignes);
+            // Ce qu'un forfait couvre déjà ne se facture pas une seconde fois.
+            $forfaits = app(ForfaitService::class);
+            $tri = $forfaits->filtrerLignes($visit, $lignes);
 
+            $facture = $this->creerFactureLignes(
+                $visit->patient,
+                $visit,
+                $tri['lignes'],
+                'CDF',
+                $tri['couvertes']
+            );
+
+            // Les diètes couvertes par le forfait sont marquées facturées
+            // elles aussi : elles ont bien été payées, dans le forfait.
             foreach ($dietes as $prescription) {
                 $prescription->update([
                     'facture_id' => $facture->id,
                     'jours_factures' => $prescription->joursServis(),
                 ]);
             }
+
+            app(AcompteService::class)->imputer($facture);
 
             ActeClinique::create([
                 'visit_id' => $visit->id,
@@ -466,9 +507,10 @@ class FacturationService
         Patient $patient,
         Visit $visit,
         array $lignes,
-        string $devise = 'CDF'
+        string $devise = 'CDF',
+        array $couvertesParForfait = []
     ): Facture {
-        return DB::transaction(function () use ($patient, $visit, $lignes, $devise) {
+        return DB::transaction(function () use ($patient, $visit, $lignes, $devise, $couvertesParForfait) {
             $total = array_sum(array_map(
                 fn ($l) => $l['quantite'] * $l['prix_unitaire'],
                 $lignes
@@ -482,6 +524,7 @@ class FacturationService
                 'date_facture' => now(),
                 'statut' => 'emise',
                 'type_prise_en_charge' => $patient->type_prise_en_charge,
+                ...$this->identiteAssureur($patient),
                 'total_ht' => $total,
                 'total_ttc' => $total,
                 'patient_part' => $total,
@@ -507,6 +550,21 @@ class FacturationService
                         $ligne['type'], $ligne['reference_id'] ?? null
                     );
                 }
+            }
+
+            // Les prestations prises en charge par le forfait figurent sur la
+            // facture à montant nul : le patient voit ce qu'il a reçu et ce
+            // que son forfait lui a évité de payer.
+            foreach ($couvertesParForfait as $ligne) {
+                LigneFacture::create([
+                    'facture_id' => $facture->id,
+                    'type' => $ligne['type'],
+                    'libelle' => $ligne['libelle'].' — inclus au forfait',
+                    'reference_id' => $ligne['reference_id'] ?? null,
+                    'quantite' => $ligne['quantite'],
+                    'prix_unitaire' => 0,
+                    'total_ligne' => 0,
+                ]);
             }
 
             if ($patient->type_prise_en_charge === 'assurance') {

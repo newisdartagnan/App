@@ -12,24 +12,52 @@ use Illuminate\View\View;
 
 class VisitController extends Controller
 {
+    /**
+     * Admissions et lits.
+     *
+     * Cet écran est celui de l'hospitalisation : les séjours et l'occupation
+     * des lits. Les consultations externes ont leur propre file et n'ont rien
+     * à faire ici — les mélanger ne faisait qu'allonger une liste que
+     * personne ne lisait.
+     */
     public function index(Request $request): View
     {
-        $query = Visit::with(['patient', 'service', 'lit'])
-            ->where('establishment_id', auth()->user()->establishment_id)
-            ->orderByDesc('date_entree');
+        $etablissement = auth()->user()->establishment_id;
 
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
-        if ($request->filled('statut')) {
-            $query->where('statut', $request->statut);
-        } else {
-            $query->where('statut', 'en_cours');
-        }
+        // Types relevant du séjour hospitalier, consultations exclues.
+        $typesSejour = ['hospitalisation', 'chirurgie', 'accouchement'];
+        $type = $request->query('type');
 
-        $visites = $query->paginate(20)->withQueryString();
+        $visites = Visit::with(['patient', 'service', 'lit', 'forfait'])
+            ->where('establishment_id', $etablissement)
+            ->whereIn('type', in_array($type, $typesSejour, true) ? [$type] : $typesSejour)
+            ->when(
+                ($statut = $request->query('statut', 'en_cours')) !== 'tous',
+                fn ($q) => $q->where('statut', $statut)
+            )
+            ->when($request->filled('service_id'), fn ($q) => $q->where('service_id', $request->service_id))
+            ->orderByDesc('date_entree')
+            ->paginate(20)
+            ->withQueryString();
 
-        return view('visites.index', compact('visites'));
+        // Occupation des lits, service par service : la donnée que le cadre
+        // de garde cherche en premier en arrivant sur cet écran.
+        $services = Service::where('establishment_id', $etablissement)
+            ->where('is_active', true)
+            ->whereNotIn('type', ['labo', 'pharmacie'])
+            ->withCount([
+                'lits as lits_total' => fn ($q) => $q->where('is_active', true),
+                'lits as lits_occupes' => fn ($q) => $q->where('is_active', true)->where('statut', 'occupe'),
+            ])
+            ->orderBy('nom')
+            ->get();
+
+        $totalLits = (int) $services->sum('lits_total');
+        $totalOccupes = (int) $services->sum('lits_occupes');
+
+        return view('visites.index', compact(
+            'visites', 'services', 'totalLits', 'totalOccupes', 'typesSejour'
+        ));
     }
 
     public function show(Visit $visit): View

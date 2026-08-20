@@ -6,6 +6,7 @@ use App\Models\ActeClinique;
 use App\Models\Consultation;
 use App\Models\Establishment;
 use App\Models\Lit;
+use App\Models\Medicament;
 use App\Models\NotificationInterne;
 use App\Models\Patient;
 use App\Models\Service;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Models\Visit;
 use App\Services\FacturationService;
 use App\Services\LaboratoireService;
+use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -172,12 +174,15 @@ class NotificationsServicesTest extends TestCase
 
         $html = $this->get(route('labo.show', $examen))->assertOk()->getContent();
 
-        // L'onglet actif porte bg-blue-700 : il doit être sur Imagerie, pas sur Laboratoire
+        // Laboratoire et Imagerie partagent le volet « Plateau technique » :
+        // la rubrique courante porte est-actif, l'autre non.
         $imagerie = strpos($html, 'Imagerie</a>');
         $laboratoire = strpos($html, 'Laboratoire</a>');
+
         $this->assertNotFalse($imagerie);
-        $this->assertStringContainsString('bg-blue-700', substr($html, $imagerie - 260, 260));
-        $this->assertStringNotContainsString('bg-blue-700 font-semibold', substr($html, $laboratoire - 260, 260));
+        $this->assertNotFalse($laboratoire);
+        $this->assertStringContainsString('est-actif', substr($html, $imagerie - 160, 160));
+        $this->assertStringNotContainsString('est-actif', substr($html, $laboratoire - 160, 160));
     }
 
     public function test_le_rapport_journalier_montre_prescripteur_et_laborantin(): void
@@ -355,7 +360,7 @@ class NotificationsServicesTest extends TestCase
             'statut' => 'finalise',
         ]);
 
-        $medicament = \App\Models\Medicament::with('stock')->whereHas('stock')->firstOrFail();
+        $medicament = Medicament::with('stock')->whereHas('stock')->firstOrFail();
 
         $this->post(route('prescriptions.store', $consultation), [
             'lignes' => [[
@@ -397,7 +402,7 @@ class NotificationsServicesTest extends TestCase
             ->firstOrFail()->groupe_destinataire);
 
         // Le manipulateur voit bien la notification qui lui est destinée
-        $this->assertSame(1, app(\App\Services\NotificationService::class)->nonLuesPour($manip));
+        $this->assertSame(1, app(NotificationService::class)->nonLuesPour($manip));
     }
 
     public function test_le_registre_nomme_les_unites_d_analyse(): void

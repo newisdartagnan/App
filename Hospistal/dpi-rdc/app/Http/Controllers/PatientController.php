@@ -4,7 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Establishment;
 use App\Models\Patient;
+use App\Models\PatientAssurance;
+use App\Models\TypeConsultation;
+use App\Services\DisponibiliteService;
 use App\Services\DossierNumberService;
+use App\Services\FacturationService;
 use App\Services\PatientDeduplicationService;
 use App\Services\VisiteService;
 use Illuminate\Http\RedirectResponse;
@@ -51,7 +55,7 @@ class PatientController extends Controller
             ->get()
             ->map(fn (Patient $p) => [
                 'id' => $p->id,
-                'nom_complet' => $p->nom . ' ' . $p->prenom,
+                'nom_complet' => $p->nom.' '.$p->prenom,
                 'dossier' => $p->dossier_number,
                 'date_naissance' => $p->date_naissance?->format('d/m/Y'),
                 'telephone' => $p->telephone,
@@ -64,7 +68,7 @@ class PatientController extends Controller
     protected function appliquerRecherche($query, string $terme)
     {
         return $query->where(function ($q) use ($terme) {
-            $like = '%' . strtolower($terme) . '%';
+            $like = '%'.strtolower($terme).'%';
             $q->whereRaw('LOWER(nom) LIKE ?', [$like])
                 ->orWhereRaw('LOWER(prenom) LIKE ?', [$like])
                 ->orWhereRaw("LOWER(nom || ' ' || prenom) LIKE ?", [$like])
@@ -86,7 +90,7 @@ class PatientController extends Controller
         ]);
 
         // Désactiver un éventuel ancien lien avant de re-résoudre
-        \App\Models\PatientAssurance::where('patient_id', $patient->id)->update(['est_actif' => false]);
+        PatientAssurance::where('patient_id', $patient->id)->update(['est_actif' => false]);
 
         $patient->update([
             'type_prise_en_charge' => 'assurance',
@@ -94,7 +98,7 @@ class PatientController extends Controller
             'assurance_numero' => $donnees['assurance_numero'] ?? null,
         ]);
 
-        $lien = app(\App\Services\FacturationService::class)->resolvePatientAssurance($patient->fresh());
+        $lien = app(FacturationService::class)->resolvePatientAssurance($patient->fresh());
 
         return back()->with('success', $lien
             ? "Assurance « {$lien->assurance->nom} » liée — prise en charge à {$lien->assurance->taux_couverture} % appliquée aux prochaines factures."
@@ -122,12 +126,28 @@ class PatientController extends Controller
                 ->with('info', 'Ce patient a déjà une visite en cours.');
         }
 
+        // Prévenir l'accueil quand la spécialité demandée n'est pas assurée :
+        // le patient est quand même enregistré, mais on ne l'envoie pas payer
+        // sans savoir qu'il devra attendre.
+        $avertissement = null;
+
+        if ($request->type === 'consultation_externe' && $request->filled('type_consultation_id')) {
+            $type = TypeConsultation::find($request->type_consultation_id);
+            $avertissement = $type
+                ? app(DisponibiliteService::class)->avertissementPour($type)
+                : null;
+        }
+
         $visit = $service->envoyerEnConsultation(
             $patient,
             $request->type,
             $request->motif,
             $request->type === 'urgence' ? null : $request->type_consultation_id,
         );
+
+        if ($avertissement) {
+            session()->flash('info', $avertissement);
+        }
 
         if ($visit->gratuite) {
             return redirect()->route('patients.show', $patient)
@@ -138,7 +158,7 @@ class PatientController extends Controller
 
         return redirect()->route('caisse.show', $facture)
             ->with('success', 'Patient envoyé à la caisse — après paiement il entrera dans la file d\'attente '
-                . ($visit->typeConsultation?->specialite ? 'de ' . $visit->typeConsultation->specialite : 'du médecin') . '.');
+                .($visit->typeConsultation?->specialite ? 'de '.$visit->typeConsultation->specialite : 'du médecin').'.');
     }
 
     public function create(): View

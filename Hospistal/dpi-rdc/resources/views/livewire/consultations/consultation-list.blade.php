@@ -1,12 +1,21 @@
 <div>
     {{-- File d'attente médecin : consultations payées à la caisse --}}
     <div class="bg-white rounded-xl shadow overflow-hidden mb-4 border-l-4 border-green-500">
-        <div class="px-4 py-3 border-b bg-green-50 flex items-center justify-between">
+        <div class="px-4 py-3 border-b bg-green-50 flex items-center justify-between flex-wrap gap-2">
             <h3 class="font-semibold text-green-800 text-sm">🩺 File d'attente — consultations payées ({{ $fileAttente->count() }})</h3>
-            <span class="text-xs text-green-700">Urgences en premier</span>
+            <div class="flex items-center gap-2">
+                <label for="filtre-specialite" class="text-xs text-green-800">Spécialité</label>
+                <select id="filtre-specialite" wire:model.live="specialite"
+                        class="border border-green-300 rounded-lg px-2 py-1 text-xs bg-white">
+                    <option value="">Toutes ({{ $fileAttente->count() }})</option>
+                    @foreach($specialitesEnFile as $s)
+                    <option value="{{ $s }}">{{ $s }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
         @forelse($fileParSpecialite as $specialite => $groupe)
-        <div class="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-wide {{ $specialite === '🚨 Urgences' ? 'text-red-700' : ($maSpecialite && $specialite === $maSpecialite ? 'text-green-700' : 'text-gray-500') }}">
+        <div class="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-wide {{ $maSpecialite && $specialite === $maSpecialite ? 'text-green-700' : 'text-gray-500' }}">
             {{ $specialite }} ({{ $groupe->count() }})
             @if($maSpecialite && $specialite === $maSpecialite) — votre spécialité @endif
         </div>
@@ -49,6 +58,38 @@
         <div class="px-4 py-6 text-center text-gray-400 text-sm">Aucun patient en attente — la file se remplit dès que la caisse valide un paiement de consultation.</div>
         @endforelse
     </div>
+
+    {{-- Patients déjà au cabinet : hors file, pour qu'un confrère ne les rappelle pas --}}
+    @if($auCabinet->count() > 0)
+    <div class="bg-white rounded-xl shadow overflow-hidden mb-4 border-l-4 border-blue-500">
+        <div class="px-4 py-3 border-b bg-blue-50">
+            <h3 class="font-semibold text-blue-800 text-sm">🚪 Au cabinet ({{ $auCabinet->count() }})</h3>
+        </div>
+        @foreach($auCabinet as $visit)
+        <div class="px-4 py-2.5 border-b last:border-0 flex items-center justify-between text-sm flex-wrap gap-2">
+            <span>
+                {{ $visit->patient->nom_complet }}
+                @if($visit->typeConsultation)
+                <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">{{ $visit->typeConsultation->libelle }}</span>
+                @endif
+                <span class="text-xs text-gray-500">
+                    avec {{ $visit->medecinConsultant?->nom_complet ?? 'un médecin' }}
+                    depuis {{ $visit->consultation_debutee_at->format('H:i') }}
+                </span>
+            </span>
+            <div class="flex gap-2">
+                @can('consultation.create')
+                <a href="{{ route('visites.consulter', $visit) }}" class="text-blue-700 hover:underline text-xs font-medium">Reprendre →</a>
+                <form method="POST" action="{{ route('visites.liberer', $visit) }}">
+                    @csrf
+                    <button class="text-gray-500 hover:text-gray-700 hover:underline text-xs">Remettre en file</button>
+                </form>
+                @endcan
+            </div>
+        </div>
+        @endforeach
+    </div>
+    @endif
 
     {{-- Patients envoyés à la caisse, paiement en attente --}}
     @if($enAttentePaiement->count() > 0)
