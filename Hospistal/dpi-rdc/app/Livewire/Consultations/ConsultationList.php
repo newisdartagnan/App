@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Livewire\Consultations;
 
 use App\Models\Visit;
@@ -10,29 +11,37 @@ class ConsultationList extends Component
     use WithPagination;
 
     public string $search = '';
+
     public string $statut = '';
+
     public string $date = '';
 
-    public function updatingSearch(): void { $this->resetPage(); }
+    public string $specialite = '';
+
+    public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
 
     public function render()
     {
         $base = fn () => Visit::with(['patient', 'user', 'consultations', 'typeConsultation'])
             ->when($this->search, function ($q) {
                 $q->whereHas('patient', function ($q) {
-                    $q->whereRaw('LOWER(nom) LIKE ?', ['%' . strtolower($this->search) . '%'])
-                      ->orWhereRaw('LOWER(prenom) LIKE ?', ['%' . strtolower($this->search) . '%'])
-                      ->orWhere('dossier_number', 'like', '%' . $this->search . '%');
+                    $q->whereRaw('LOWER(nom) LIKE ?', ['%'.strtolower($this->search).'%'])
+                        ->orWhereRaw('LOWER(prenom) LIKE ?', ['%'.strtolower($this->search).'%'])
+                        ->orWhere('dossier_number', 'like', '%'.$this->search.'%');
                 });
             })
-            ->whereIn('type', ['consultation_externe', 'urgence']);
+            // Un patient reçu aux urgences suit la file des urgences, pas
+            // celle des consultations : il n'a rien à faire dans les deux.
+            ->where('type', 'consultation_externe');
 
         // File d'attente : visites payées (ou contrôles gratuits), pas encore
-        // consultées — groupée par spécialité, la spécialité du médecin connecté
-        // en premier, urgences toujours en tête.
+        // consultées — groupée par spécialité, celle du médecin connecté en tête.
         $utilisateur = auth()->user();
         $maSpecialite = $utilisateur->specialite;
-        // Un médecin (non admin/directeur) ne voit que sa spécialité + urgences +
+        // Un médecin (non admin/directeur) ne voit que sa spécialité, ou la
         // médecine générale s'il est généraliste. Infirmiers et admin voient tout.
         $estMedecin = $utilisateur->hasRole('medecin')
             && ! $utilisateur->hasAnyRole(['super_admin', 'directeur']);
@@ -40,29 +49,44 @@ class ConsultationList extends Component
         $fileAttente = $base()
             ->where('statut', 'en_cours')
             ->whereDoesntHave('consultations')
-            ->orderByRaw("CASE WHEN type = 'urgence' THEN 0 ELSE 1 END")
+            // Patient déjà entré au cabinet : il est avec un médecin, il ne
+            // doit plus apparaître dans la file que les autres consultent.
+            ->whereNull('consultation_debutee_at')
             ->orderBy('date_entree')
             ->get();
 
         if ($estMedecin) {
             $fileAttente = $fileAttente->filter(function ($v) use ($maSpecialite) {
-                if ($v->type === 'urgence') {
-                    return true;
-                }
                 $specialite = $v->typeConsultation?->specialite ?: 'Médecine générale';
 
                 return $maSpecialite ? $specialite === $maSpecialite : $specialite === 'Médecine générale';
             });
         }
 
+        // Filtre explicite de spécialité, pour qu'un médecin puisse suivre
+        // une file précise même quand il en voit plusieurs.
+        if ($this->specialite !== '') {
+            $fileAttente = $fileAttente->filter(
+                fn ($v) => ($v->typeConsultation?->specialite ?: 'Médecine générale') === $this->specialite
+            );
+        }
+
+        $specialitesEnFile = $fileAttente
+            ->map(fn ($v) => $v->typeConsultation?->specialite ?: 'Médecine générale')
+            ->unique()->sort()->values();
+
         $fileParSpecialite = $fileAttente
-            ->groupBy(fn ($v) => $v->type === 'urgence' ? '🚨 Urgences'
-                : ($v->typeConsultation?->specialite ?: 'Médecine générale'))
-            ->sortBy(function ($groupe, $cle) use ($maSpecialite) {
-                if ($cle === '🚨 Urgences') return 0;
-                if ($maSpecialite && $cle === $maSpecialite) return 1;
-                return 2;
-            });
+            ->groupBy(fn ($v) => $v->typeConsultation?->specialite ?: 'Médecine générale')
+            ->sortBy(fn ($groupe, $cle) => $maSpecialite && $cle === $maSpecialite ? 0 : 1);
+
+        // Patients actuellement au cabinet : visibles, mais hors file.
+        $auCabinet = $base()
+            ->where('statut', 'en_cours')
+            ->whereDoesntHave('consultations')
+            ->whereNotNull('consultation_debutee_at')
+            ->with('medecinConsultant')
+            ->orderBy('consultation_debutee_at')
+            ->get();
 
         // Envoyés à la caisse, paiement non encore validé
         $enAttentePaiement = $base()
@@ -79,7 +103,9 @@ class ConsultationList extends Component
             ->orderByDesc('date_entree')
             ->paginate(20);
 
-        return view('livewire.consultations.consultation-list',
-            compact('visits', 'fileAttente', 'fileParSpecialite', 'enAttentePaiement', 'maSpecialite'));
+        return view('livewire.consultations.consultation-list', compact(
+            'visits', 'fileAttente', 'fileParSpecialite', 'enAttentePaiement',
+            'maSpecialite', 'auCabinet', 'specialitesEnFile'
+        ));
     }
 }

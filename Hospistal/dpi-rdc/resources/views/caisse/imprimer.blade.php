@@ -14,7 +14,7 @@
         <div><strong>Nom :</strong> {{ mb_strtoupper($facture->patient->nom) }} {{ $facture->patient->prenom }}</div>
         <div><strong>Dossier :</strong> {{ $facture->patient->dossier_number }}</div>
         <div><strong>Date facture :</strong> {{ $facture->date_facture->format('d/m/Y H:i') }}</div>
-        <div><strong>Prise en charge :</strong> {{ ucfirst($facture->type_prise_en_charge) }}</div>
+        <div><strong>Prise en charge :</strong> {{ $facture->libellePriseEnCharge() }}</div>
     </div>
 </div>
 
@@ -47,6 +47,16 @@
                 <td colspan="3">Part patient</td>
                 <td class="num">{{ number_format($facture->patient_part, 0, ',', '.') }}</td>
             </tr>
+            @if($facture->acompte_impute > 0)
+            <tr>
+                <td colspan="3">Acompte déjà versé, imputé sur cette facture</td>
+                <td class="num">− {{ number_format($facture->acompte_impute, 0, ',', '.') }}</td>
+            </tr>
+            <tr class="total-row">
+                <td colspan="3">Reste à payer au guichet</td>
+                <td class="num">{{ number_format($facture->soldeRestant(), 0, ',', '.') }}</td>
+            </tr>
+            @endif
         </tbody>
     </table>
 </div>

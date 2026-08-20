@@ -20,6 +20,8 @@ class Visit extends Model
         'temperature', 'frequence_cardiaque', 'frequence_respiratoire', 'saturation_o2', 'glasgow',
         'motif_consultation', 'symptomes_principaux', 'tarif_consultation', 'est_payant', 'gratuite',
         'triage_fait_at', 'triage_par', 'sync_status',
+        'consultation_debutee_at', 'consultation_par',
+        'forfait_id', 'forfait_montant', 'forfait_facture_id',
     ];
 
     protected function casts(): array
@@ -30,6 +32,7 @@ class Visit extends Model
             'est_payant' => 'boolean',
             'gratuite' => 'boolean',
             'triage_fait_at' => 'datetime',
+            'consultation_debutee_at' => 'datetime',
         ];
     }
 
@@ -157,6 +160,28 @@ class Visit extends Model
     public function triagePar(): BelongsTo
     {
         return $this->belongsTo(User::class, 'triage_par');
+    }
+
+    /** Médecin qui a fait entrer le patient au cabinet. */
+    public function medecinConsultant(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'consultation_par');
+    }
+
+    public function forfait(): BelongsTo
+    {
+        return $this->belongsTo(Forfait::class);
+    }
+
+    public function acomptes(): HasMany
+    {
+        return $this->hasMany(Caution::class);
+    }
+
+    /** Le patient est-il déjà au cabinet avec un médecin ? */
+    public function estAuCabinet(): bool
+    {
+        return $this->consultation_debutee_at !== null && $this->consultations()->doesntExist();
     }
 
     public function estTriee(): bool

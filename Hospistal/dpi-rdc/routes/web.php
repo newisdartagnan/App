@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AcompteController;
 use App\Http\Controllers\ActeCliniqueController;
 use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\Auth\LoginController;
@@ -9,9 +10,11 @@ use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConventionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DieteMenageController;
+use App\Http\Controllers\DisponibiliteController;
 use App\Http\Controllers\DossierInfirmierController;
 use App\Http\Controllers\DossierMedicalController;
 use App\Http\Controllers\EquipementController;
+use App\Http\Controllers\ForfaitController;
 use App\Http\Controllers\LaboratoireController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficineController;
@@ -102,6 +105,29 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dialyse', fn () => app(ActeCliniqueController::class)->index(request()->merge(['domaine' => 'dialyse'])))->name('dialyse.index');
     Route::get('/dialyse/nouveau', fn () => app(ActeCliniqueController::class)->create(request()->merge(['domaine' => 'dialyse'])))->name('dialyse.create');
     Route::post('/dialyse', [ActeCliniqueController::class, 'store'])->name('dialyse.store');
+
+    // Acomptes de soins (urgences et hospitalisation)
+    Route::get('/acomptes', [AcompteController::class, 'index'])->name('acomptes.index');
+    Route::get('/visites/{visit}/acomptes', [AcompteController::class, 'show'])->name('acomptes.show');
+    Route::post('/visites/{visit}/acomptes', [AcompteController::class, 'store'])->name('acomptes.store');
+    Route::post('/visites/{visit}/acomptes/rembourser', [AcompteController::class, 'rembourser'])->name('acomptes.rembourser');
+
+    // Forfaits : référentiel et application à un séjour
+    Route::get('/forfaits', [ForfaitController::class, 'index'])->name('forfaits.index');
+    Route::post('/forfaits', [ForfaitController::class, 'store'])->name('forfaits.store');
+    Route::post('/forfaits/{forfait}/basculer', [ForfaitController::class, 'basculer'])->name('forfaits.basculer');
+    Route::post('/visites/{visit}/forfait', [ForfaitController::class, 'appliquer'])->name('forfaits.appliquer');
+    Route::post('/visites/{visit}/forfait/retirer', [ForfaitController::class, 'retirer'])->name('forfaits.retirer');
+
+    // Disponibilité des médecins par spécialité
+    Route::get('/disponibilites', [DisponibiliteController::class, 'index'])->name('disponibilites.index');
+    Route::post('/disponibilites', [DisponibiliteController::class, 'store'])->name('disponibilites.store');
+    Route::delete('/disponibilites/{disponibilite}', [DisponibiliteController::class, 'destroy'])->name('disponibilites.destroy');
+    Route::post('/disponibilites/absence', [DisponibiliteController::class, 'absence'])->name('disponibilites.absence');
+    Route::delete('/disponibilites/absence/{absence}', [DisponibiliteController::class, 'supprimerAbsence'])->name('disponibilites.absence.destroy');
+
+    // Le médecin rend la main : le patient revient dans la file d'attente
+    Route::post('/visites/{visit}/liberer', [ConsultationController::class, 'liberer'])->name('visites.liberer');
 
     Route::post('/actes/{acte}/realiser', [ActeCliniqueController::class, 'realiser'])->name('actes.realiser');
     Route::post('/actes/{acte}/facturer', [ActeCliniqueController::class, 'facturer'])->name('actes.facturer');

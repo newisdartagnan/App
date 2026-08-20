@@ -37,7 +37,58 @@
         <a href="{{ route('bloc.create', ['visit_id' => $visit->id]) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">🏥 Bloc</a>
         <a href="{{ route('maternite.create', ['visit_id' => $visit->id]) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">👶 Maternité</a>
         <a href="{{ route('dialyse.create', ['visit_id' => $visit->id]) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">🩸 Dialyse</a>
+        @if(in_array($visit->type, \App\Services\AcompteService::TYPES_VISITE, true))
+        <a href="{{ route('acomptes.show', $visit) }}" class="bg-white border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">💰 Acomptes</a>
+        @endif
     </div>
+
+    {{-- Forfait du séjour --}}
+    @if(in_array($visit->type, \App\Services\AcompteService::TYPES_VISITE, true) && $visit->peutRecevoirServices())
+    @php $forfaitsDisponibles = app(\App\Services\ForfaitService::class)->disponiblesPour($visit); @endphp
+    <div class="bg-white rounded-xl shadow p-4 mb-4">
+        @if($visit->forfait)
+        <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+                <span class="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
+                    📦 Forfait {{ $visit->forfait->libelle }}
+                </span>
+                <span class="text-sm text-gray-600 ml-2">
+                    {{ number_format((float) $visit->forfait_montant, 0, ',', ' ') }} {{ $visit->forfait->devise }}
+                    — couvre {{ mb_strtolower(implode(', ', $visit->forfait->libellesCouverts())) }}
+                </span>
+                @unless($visit->forfait->couvreEncore($visit))
+                <p class="text-xs text-amber-700 mt-1">
+                    ⚠️ Les {{ $visit->forfait->jours_inclus }} journées incluses sont dépassées :
+                    les prestations redeviennent facturées à l'acte.
+                </p>
+                @endunless
+            </div>
+            <form method="POST" action="{{ route('forfaits.retirer', $visit) }}">
+                @csrf
+                <button class="text-xs text-red-700 hover:underline">Retirer le forfait</button>
+            </form>
+        </div>
+        @elseif($forfaitsDisponibles->isNotEmpty())
+        <form method="POST" action="{{ route('forfaits.appliquer', $visit) }}" class="flex flex-wrap gap-2 items-end">
+            @csrf
+            <div class="flex-1 min-w-60">
+                <label for="forfait-visite" class="block text-xs font-semibold text-gray-600 mb-1">Appliquer un forfait</label>
+                <select id="forfait-visite" name="forfait_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    @foreach($forfaitsDisponibles as $forfait)
+                    <option value="{{ $forfait->id }}">
+                        {{ $forfait->libelle }} — {{ number_format((float) $forfait->montant, 0, ',', ' ') }} {{ $forfait->devise }}
+                        ({{ $forfait->estGlobal() ? 'global' : 'partiel' }})
+                    </option>
+                    @endforeach
+                </select>
+            </div>
+            <button class="bg-purple-700 hover:bg-purple-800 text-white rounded-lg px-4 py-2 text-sm font-semibold">
+                Appliquer
+            </button>
+        </form>
+        @endif
+    </div>
+    @endif
 
     {{-- Hospitalisation --}}
     @if($visit->statut === 'en_cours')
