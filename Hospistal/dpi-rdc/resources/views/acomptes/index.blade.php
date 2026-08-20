@@ -12,7 +12,12 @@
         @endif
     @endforeach
 
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+@php $dev = app(\App\Services\DeviseService::class); @endphp
+    <p class="text-xs text-gray-500 mb-2">
+        Les totaux ci-dessous sont en contre-valeur francs congolais, au taux figé lors de
+        chaque versement. Le détail par devise indique ce que le guichet détient réellement.
+    </p>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
         <div class="bg-white rounded-xl shadow p-4 text-center">
             <p class="text-2xl font-bold text-blue-700">{{ number_format($totaux['verse'], 0, ',', ' ') }}</p>
             <p class="text-xs text-gray-500">Total encaissé</p>
@@ -30,6 +35,22 @@
             <p class="text-xs text-gray-500">Encore en caisse</p>
         </div>
     </div>
+
+    @if($parDevise->isNotEmpty())
+    <div class="bg-white rounded-xl shadow p-4 mb-5">
+        <p class="text-sm font-semibold text-gray-700 mb-2">Détenu par devise</p>
+        <div class="flex flex-wrap gap-3">
+            @foreach($parDevise as $ligne)
+            <span class="px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 text-sm">
+                <strong class="text-gray-800">{{ $dev->formater((float) $ligne->disponible, $ligne->devise) }}</strong>
+                <span class="text-xs text-gray-500">
+                    disponible sur {{ $dev->formater((float) $ligne->verse, $ligne->devise) }} versés
+                </span>
+            </span>
+            @endforeach
+        </div>
+    </div>
+    @endif
 
     <form method="GET" class="bg-white rounded-xl shadow p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div>
@@ -66,10 +87,18 @@
                         <td class="px-4 py-3 font-medium">{{ $acompte->patient?->nom_complet }}</td>
                         <td class="px-4 py-3 text-xs text-gray-600">{{ $acompte->visit?->service?->nom ?? '—' }}</td>
                         <td class="px-4 py-3 text-xs">{{ $acompte->libelleType() }}</td>
-                        <td class="px-4 py-3 text-right font-semibold">{{ number_format((float) $acompte->montant, 0, ',', ' ') }} {{ $acompte->devise }}</td>
-                        <td class="px-4 py-3 text-right text-purple-700">{{ number_format((float) $acompte->montant_impute, 0, ',', ' ') }}</td>
+                        <td class="px-4 py-3 text-right font-semibold">
+                            {{ $dev->formater((float) $acompte->montant, $acompte->devise) }}
+                            @if($acompte->devise !== $dev->pivot())
+                            <p class="text-[11px] font-normal text-gray-400">
+                                {{ $dev->formater((float) $acompte->montant_cdf, $dev->pivot()) }}
+                                au taux de {{ number_format($acompte->tauxApplique(), 2, ',', ' ') }}
+                            </p>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-right text-purple-700">{{ $dev->formater((float) $acompte->montant_impute, $acompte->devise) }}</td>
                         <td class="px-4 py-3 text-right font-semibold {{ $acompte->resteDisponible() > 0 ? 'text-green-700' : 'text-gray-400' }}">
-                            {{ number_format($acompte->resteDisponible(), 0, ',', ' ') }}
+                            {{ $dev->formater($acompte->resteDisponible(), $acompte->devise) }}
                         </td>
                         <td class="px-4 py-3">
                             <span class="px-2 py-0.5 rounded-full text-xs {{ $acompte->statut === 'versee' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600' }}">

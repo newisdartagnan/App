@@ -11,7 +11,42 @@ return [
     'backup_retention_days' => 7,
 
     // Taux appliqué aux tarifs exprimés en dollars (consultations 20 $/24 $)
-    'taux_usd_cdf' => env('DPI_TAUX_USD_CDF', 2800),
+    'taux_usd_cdf' => env('DPI_TAUX_USD_CDF', 2300),
+
+    /*
+     * Devises acceptées au guichet.
+     *
+     * Le franc congolais est la monnaie de compte : tout est ramené en CDF
+     * pour additionner et comparer. Chaque opération fige cependant le taux
+     * qu'elle a appliqué, de sorte qu'une révision du taux ne réécrive pas
+     * les acomptes et les encaissements déjà passés.
+     */
+    'devise_pivot' => 'CDF',
+
+    'devises' => [
+        'CDF' => [
+            'libelle' => 'Franc congolais',
+            'symbole' => 'CDF',
+            'taux_cdf' => 1,
+            'decimales' => 0,
+            // Le billet le plus petit réellement en circulation.
+            'coupures' => [20000, 10000, 5000, 1000, 500, 200, 100, 50],
+        ],
+        'USD' => [
+            'libelle' => 'Dollar américain',
+            'symbole' => '$',
+            'taux_cdf' => env('DPI_TAUX_USD_CDF', 2300),
+            'decimales' => 2,
+            'coupures' => [100, 50, 20, 10, 5, 2, 1],
+        ],
+        'EUR' => [
+            'libelle' => 'Euro',
+            'symbole' => '€',
+            'taux_cdf' => env('DPI_TAUX_EUR_CDF', 2681.50),
+            'decimales' => 2,
+            'coupures' => [500, 200, 100, 50, 20, 10, 5],
+        ],
+    ],
 
     'tarifs_cdf' => [
         'consultation_externe' => 15000,

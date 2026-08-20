@@ -7,6 +7,7 @@ use App\Models\Facture;
 use App\Models\Prescription;
 use App\Models\Visit;
 use App\Services\AcompteService;
+use App\Services\DeviseService;
 use App\Services\FacturationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,9 +36,11 @@ class CaisseController extends Controller
         // Acompte encore disponible pour ce patient, tous séjours confondus :
         // une avance laissée aux urgences doit pouvoir régler l'ordonnance
         // délivrée le lendemain.
-        $acompteDisponible = app(AcompteService::class)->soldePatient($facture->patient_id);
+        $acomptes = app(AcompteService::class);
+        $acompteDisponible = $acomptes->soldePatient($facture->patient_id);
+        $acompteParDevise = $acomptes->soldeParDevise($facture->patient_id);
 
-        return view('caisse.show', compact('facture', 'acompteDisponible'));
+        return view('caisse.show', compact('facture', 'acompteDisponible', 'acompteParDevise'));
     }
 
     /**
@@ -60,10 +63,10 @@ class CaisseController extends Controller
         $facture->refresh();
 
         return back()->with('success',
-            number_format($montant, 0, ',', ' ').' CDF d\'acompte imputés sur cette facture'
+            $facture->formater($montant).' d\'acompte imputés sur cette facture'
             .($facture->statut === 'payee'
                 ? ' — elle est soldée.'
-                : ' — reste '.number_format($facture->soldeRestant(), 0, ',', ' ').' CDF à encaisser.'));
+                : ' — reste '.$facture->formater($facture->soldeRestant()).' à encaisser.'));
     }
 
     /**
@@ -74,7 +77,7 @@ class CaisseController extends Controller
     {
         $request->validate([
             'montant' => 'required|numeric|min:0.01',
-            'devise' => 'required|in:CDF,USD',
+            'devise' => 'required|'.app(DeviseService::class)->regleValidation(),
             'mode_paiement' => 'required|in:especes,mobile_money,virement,cheque',
             'reference' => 'nullable|string|max:200',
         ], [

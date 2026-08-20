@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Caution;
 use App\Models\Visit;
 use App\Services\AcompteService;
+use App\Services\DeviseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -31,14 +32,21 @@ class AcompteController extends Controller
             ->paginate(25)
             ->withQueryString();
 
+        // Les totaux du registre sont en monnaie de compte : additionner des
+        // francs et des dollars n'a de sens qu'après conversion.
         $totaux = [
-            'verse' => (float) Caution::sum('montant'),
-            'impute' => (float) Caution::sum('montant_impute'),
-            'rembourse' => (float) Caution::sum('montant_rembourse'),
+            'verse' => (float) Caution::sum('montant_cdf'),
+            'impute' => (float) Caution::sum('montant_impute_cdf'),
+            'rembourse' => (float) Caution::sum('montant_rembourse_cdf'),
         ];
         $totaux['disponible'] = $totaux['verse'] - $totaux['impute'] - $totaux['rembourse'];
 
-        return view('acomptes.index', compact('acomptes', 'statut', 'totaux'));
+        // Détail par devise réellement détenue au guichet.
+        $parDevise = Caution::selectRaw(
+            'devise, SUM(montant) AS verse, SUM(montant - montant_impute - montant_rembourse) AS disponible'
+        )->groupBy('devise')->get();
+
+        return view('acomptes.index', compact('acomptes', 'statut', 'totaux', 'parDevise'));
     }
 
     /** Acomptes d'un séjour, avec le détail de chaque imputation. */
@@ -56,6 +64,7 @@ class AcompteController extends Controller
             'acomptes' => $acomptes,
             'disponible' => $this->acomptes->soldeDisponible($visit->id),
             'totalVerse' => $this->acomptes->totalVerse($visit->id),
+            'parDevise' => $this->acomptes->soldeParDevise($visit->patient_id),
         ]);
     }
 
@@ -63,7 +72,7 @@ class AcompteController extends Controller
     {
         $donnees = $request->validate([
             'montant' => 'required|numeric|min:1|max:100000000',
-            'devise' => 'required|in:CDF,USD',
+            'devise' => 'required|'.app(DeviseService::class)->regleValidation(),
             'mode_paiement' => 'required|in:'.implode(',', array_keys(Caution::MODES_PAIEMENT)),
             'type' => 'required|in:'.implode(',', array_keys(Caution::TYPES)),
             'motif' => 'nullable|string|max:500',
@@ -88,12 +97,15 @@ class AcompteController extends Controller
             $donnees['reference'] ?? null,
         );
 
-        $impute = (float) $acompte->fresh()->montant_impute;
+        $acompte->refresh();
+        $devises = app(DeviseService::class);
+        $impute = (float) $acompte->montant_impute;
 
         return back()->with('success', $impute > 0
-            ? 'Acompte de '.number_format((float) $acompte->montant, 0, ',', ' ').' CDF encaissé, dont '
-                .number_format($impute, 0, ',', ' ').' CDF imputés immédiatement sur les factures ouvertes.'
-            : 'Acompte de '.number_format((float) $acompte->montant, 0, ',', ' ').' CDF encaissé.');
+            ? 'Acompte de '.$acompte->montantFormate().' encaissé, dont '
+                .$devises->formater($impute, $acompte->devise)
+                .' imputés immédiatement sur les factures ouvertes.'
+            : 'Acompte de '.$acompte->montantFormate().' encaissé.');
     }
 
     /** Rend au patient ce qui reste de ses avances, après imputation. */
@@ -101,10 +113,19 @@ class AcompteController extends Controller
     {
         $request->validate(['reference' => 'nullable|string|max:200']);
 
-        $montant = $this->acomptes->rembourser($visit, $request->input('reference'));
+        // Le reliquat est rendu dans la devise de chaque versement : une
+        // avance en dollars se rembourse en dollars, pas en francs.
+        $rendus = $this->acomptes->rembourser($visit, $request->input('reference'));
 
-        return back()->with($montant > 0 ? 'success' : 'error', $montant > 0
-            ? 'Reliquat de '.number_format($montant, 0, ',', ' ').' CDF remboursé au patient.'
-            : 'Aucun reliquat à rembourser : les acomptes ont tous été imputés.');
+        if ($rendus === []) {
+            return back()->with('error', 'Aucun reliquat à rembourser : les acomptes ont tous été imputés.');
+        }
+
+        $devises = app(DeviseService::class);
+        $detail = collect($rendus)
+            ->map(fn ($montant, $devise) => $devises->formater((float) $montant, $devise))
+            ->implode(' et ');
+
+        return back()->with('success', 'Reliquat de '.$detail.' remboursé au patient.');
     }
 }

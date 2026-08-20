@@ -190,7 +190,7 @@ class AcomptesForfaitsFileTest extends TestCase
         $this->post(route('acomptes.rembourser', $visite))->assertSessionHas('success');
 
         $this->assertSame(0.0, app(AcompteService::class)->soldeDisponible($visite->id));
-        $this->assertSame($disponible, (float) Caution::where('visit_id', $visite->id)->sum('montant_rembourse'));
+        $this->assertSame($disponible, (float) Caution::where('visit_id', $visite->id)->sum('montant_rembourse_cdf'));
 
         $this->post(route('acomptes.rembourser', $visite))->assertSessionHas('error');
     }

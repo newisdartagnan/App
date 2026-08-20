@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Billetage')
 @section('content')
+@php $dev = app(\App\Services\DeviseService::class); @endphp
 <div class="max-w-5xl mx-auto px-4 py-6">
     <div class="flex items-center gap-3 mb-6 flex-wrap">
         <a href="{{ route('caisse.index') }}" class="text-blue-700 hover:underline text-sm">← Caisse</a>
@@ -23,8 +24,9 @@
         <div>
             <label for="devise" class="block text-xs text-gray-500 mb-1">Devise comptée</label>
             <select id="devise" name="devise" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                <option value="CDF" @selected($devise === 'CDF')>Franc congolais</option>
-                <option value="USD" @selected($devise === 'USD')>Dollar américain</option>
+                @foreach($devises as $code => $definition)
+                <option value="{{ $code }}" @selected($devise === $code)>{{ $definition['libelle'] }}</option>
+                @endforeach
             </select>
         </div>
         <div>
@@ -45,7 +47,7 @@
         <input type="hidden" name="fin" value="{{ str_replace('T', ' ', $fin) }}:59">
 
         <div class="px-4 py-3 border-b font-semibold text-gray-700">
-            Comptage physique — {{ $devise === 'USD' ? 'dollars' : 'francs congolais' }}
+            Comptage physique — {{ mb_strtolower($dev->libelle($devise)) }}
         </div>
 
         <table class="w-full text-sm">
@@ -59,7 +61,7 @@
             <tbody class="divide-y divide-gray-100">
                 @foreach($coupures as $coupure)
                 <tr>
-                    <td class="px-4 py-2 font-semibold">{{ number_format($coupure, 0, ',', ' ') }} {{ $devise }}</td>
+                    <td class="px-4 py-2 font-semibold">{{ $dev->formater((float) $coupure, $devise) }}</td>
                     <td class="px-4 py-2 text-right">
                         <label for="c-{{ $coupure }}" class="sr-only">Nombre de coupures de {{ $coupure }}</label>
                         <input id="c-{{ $coupure }}" type="number" min="0" step="1"
@@ -73,13 +75,11 @@
         </table>
 
         <div class="px-4 py-3 border-t bg-gray-50 space-y-3">
-            @if($devise === 'CDF')
             <p class="text-sm text-gray-600">
-                Recettes espèces attendues sur la période :
-                <strong class="text-blue-800">{{ number_format($theorique, 0, ',', ' ') }} CDF</strong>
+                Recettes espèces attendues sur la période, en {{ mb_strtolower($dev->libelle($devise)) }} :
+                <strong class="text-blue-800">{{ $dev->formater($theorique, $devise) }}</strong>
                 <span class="text-xs text-gray-400">— l'écart sera calculé à l'enregistrement.</span>
             </p>
-            @endif
             <div>
                 <label for="observation" class="block text-xs text-gray-500 mb-1">Observation</label>
                 <input id="observation" name="observation" placeholder="Fond de caisse, remise à la banque…"
@@ -109,7 +109,7 @@
                 <tr class="{{ $b->ecartSignificatif() ? 'bg-amber-50' : '' }}">
                     <td class="px-4 py-2 text-xs">{{ $b->created_at->format('d/m/Y H:i') }}</td>
                     <td class="px-4 py-2 text-xs">{{ $b->caissier?->nom }}</td>
-                    <td class="px-4 py-2 text-right font-semibold">{{ number_format((float) $b->total_compte, 0, ',', ' ') }} {{ $b->devise }}</td>
+                    <td class="px-4 py-2 text-right font-semibold">{{ $dev->formater((float) $b->total_compte, $b->devise) }}</td>
                     <td class="px-4 py-2 text-right text-gray-500">{{ number_format((float) $b->total_theorique, 0, ',', ' ') }}</td>
                     <td class="px-4 py-2 text-right font-semibold {{ $b->ecartSignificatif() ? ((float) $b->ecart < 0 ? 'text-red-700' : 'text-amber-700') : 'text-green-700' }}">
                         {{ (float) $b->ecart > 0 ? '+' : '' }}{{ number_format((float) $b->ecart, 0, ',', ' ') }}

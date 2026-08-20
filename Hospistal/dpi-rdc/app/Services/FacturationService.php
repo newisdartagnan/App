@@ -48,6 +48,7 @@ class FacturationService
                 'date_facture' => now(),
                 'statut' => 'emise',
                 'type_prise_en_charge' => $patient->type_prise_en_charge,
+                ...$this->empreinteDevise($devise),
                 ...$this->identiteAssureur($patient),
                 'total_ht' => $montant,
                 'total_ttc' => $montant,
@@ -109,6 +110,7 @@ class FacturationService
                 'date_facture' => now(),
                 'statut' => 'emise',
                 'type_prise_en_charge' => $patient->type_prise_en_charge,
+                ...$this->empreinteDevise($devise),
                 ...$this->identiteAssureur($patient),
                 'total_ht' => $totalMontant,
                 'total_ttc' => $totalMontant,
@@ -145,6 +147,23 @@ class FacturationService
 
             return $facture->fresh();
         });
+    }
+
+    /**
+     * Devise de la facture et taux figé à l'émission.
+     *
+     * Les tarifs de l'établissement sont en francs congolais ; une facture
+     * libellée dans une autre devise conserve le taux du jour, pour que sa
+     * contre-valeur ne bouge plus après coup.
+     *
+     * @return array<string, mixed>
+     */
+    protected function empreinteDevise(string $devise): array
+    {
+        $devises = app(DeviseService::class);
+        $devise = $devises->existe($devise) ? $devise : $devises->pivot();
+
+        return ['devise' => $devise, 'taux_change' => $devises->taux($devise)];
     }
 
     /**
@@ -330,14 +349,14 @@ class FacturationService
     /**
      * Facture examens labo ou imagerie
      */
-    public function creerFactureExamen(ExamenLaboratoire $examen): Facture
+    public function creerFactureExamen(ExamenLaboratoire $examen, string $devise = 'CDF'): Facture
     {
         // Un bon d'examen déjà facturé le reste : on renvoie sa facture.
         if ($examen->facture_id && ($deja = Facture::find($examen->facture_id))) {
             return $deja;
         }
 
-        return DB::transaction(function () use ($examen) {
+        return DB::transaction(function () use ($examen, $devise) {
             $examen->load(['patient', 'visit', 'resultats.typeExamen']);
             $visit = $examen->visit;
             $patient = $examen->patient;
@@ -374,6 +393,7 @@ class FacturationService
                 'date_facture' => now(),
                 'statut' => 'emise',
                 'type_prise_en_charge' => $patient->type_prise_en_charge,
+                ...$this->empreinteDevise($devise),
                 ...$this->identiteAssureur($patient),
                 'total_ht' => $total,
                 'total_ttc' => $total,
@@ -579,6 +599,7 @@ class FacturationService
                 'date_facture' => now(),
                 'statut' => 'emise',
                 'type_prise_en_charge' => $patient->type_prise_en_charge,
+                ...$this->empreinteDevise($devise),
                 ...$this->identiteAssureur($patient),
                 'total_ht' => $total,
                 'total_ttc' => $total,
@@ -685,21 +706,37 @@ class FacturationService
         ?ExamenLaboratoire $examen = null
     ): array {
         return DB::transaction(function () use (
-            $facture, $montantRecu,
+            $facture, $montantRecu, $devise,
             $modePaiement, $reference, $prescription, $examen
         ) {
             // Enregistrer le paiement
+            // La devise reçue au guichet est enregistrée avec le taux du
+            // jour et sa contre-valeur : un encaissement de 100 $ ne vaut
+            // pas 100 CDF, et l'écriture ne doit plus jamais le laisser croire.
+            $devises = app(DeviseService::class);
+            $empreinte = $devises->empreinte($montantRecu, $devise);
+
             Paiement::create([
                 'facture_id' => $facture->id,
                 'caissier_id' => auth()->id(),
                 'date_paiement' => now(),
                 'montant' => $montantRecu,
+                'devise' => $empreinte['devise'],
+                'taux_change' => $empreinte['taux_change'],
+                'montant_cdf' => $empreinte['montant_cdf'],
                 'mode_paiement' => $modePaiement,
                 'reference_paiement' => $reference,
                 'recu_numero' => 'REC-'.now()->format('YmdHis'),
             ]);
 
-            $facture->update(['statut' => 'payee']);
+            $facture->refresh();
+
+            // Un règlement partiel ne solde pas la facture : le guichet
+            // encaisse parfois en plusieurs fois, et parfois dans plusieurs
+            // devises. Le statut suit ce qui reste réellement dû.
+            $facture->update([
+                'statut' => $facture->estSoldee() ? 'payee' : 'partiellement_payee',
+            ]);
 
             // Générer bon de sortie pharmacie ou labo/imagerie
             $bonSortie = null;

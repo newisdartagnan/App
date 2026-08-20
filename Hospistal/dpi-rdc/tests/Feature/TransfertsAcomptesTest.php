@@ -268,7 +268,8 @@ class TransfertsAcomptesTest extends TestCase
         // Le guichet, lui, peut la mobiliser.
         $this->get(route('caisse.show', $facture))
             ->assertOk()
-            ->assertSee('dispose de')
+            ->assertSee('dispose d', false)
+            ->assertSee('acompte')
             ->assertSee('Utiliser l\'acompte', false);
 
         $this->post(route('caisse.acompte', $facture))->assertSessionHas('success');

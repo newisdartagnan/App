@@ -6,6 +6,7 @@
 @endsection
 
 @section('contenu')
+@php $dev = app(\App\Services\DeviseService::class); $devFact = $facture->deviseFacture(); @endphp
 <h2 class="titre-doc">{{ $facture->statut === 'payee' ? 'Reçu de paiement' : 'Facture' }}</h2>
 
 <div class="bloc">
@@ -15,6 +16,7 @@
         <div><strong>Dossier :</strong> {{ $facture->patient->dossier_number }}</div>
         <div><strong>Date facture :</strong> {{ $facture->date_facture->format('d/m/Y H:i') }}</div>
         <div><strong>Prise en charge :</strong> {{ $facture->libellePriseEnCharge() }}</div>
+        <div><strong>Devise :</strong> {{ $dev->libelle($devFact) }}@if($devFact !== $dev->pivot()) — 1 {{ $devFact }} = {{ number_format($facture->tauxApplique(), 2, ',', ' ') }} CDF @endif</div>
     </div>
 </div>
 
@@ -22,7 +24,8 @@
     <div class="bloc-titre">Détail</div>
     <table class="donnees">
         <thead><tr>
-            <th>Désignation</th><th class="num">Qté</th><th class="num">P.U. (CDF)</th><th class="num">Total (CDF)</th>
+            <th>Désignation</th><th class="num">Qté</th>
+            <th class="num">P.U. ({{ $devFact }})</th><th class="num">Total ({{ $devFact }})</th>
         </tr></thead>
         <tbody>
             @foreach($facture->lignes as $ligne)
@@ -50,11 +53,11 @@
             @if($facture->acompte_impute > 0)
             <tr>
                 <td colspan="3">Acompte déjà versé, imputé sur cette facture</td>
-                <td class="num">− {{ number_format($facture->acompte_impute, 0, ',', '.') }}</td>
+                <td class="num">− {{ number_format($facture->acompte_impute, 2, ',', '.') }}</td>
             </tr>
             <tr class="total-row">
                 <td colspan="3">Reste à payer au guichet</td>
-                <td class="num">{{ number_format($facture->soldeRestant(), 0, ',', '.') }}</td>
+                <td class="num">{{ number_format($facture->soldeRestant(), 2, ',', '.') }}</td>
             </tr>
             @endif
         </tbody>
@@ -85,7 +88,7 @@
 <div class="bloc">
     <div class="bloc-titre vert">Paiements</div>
     <table class="donnees">
-        <thead><tr><th>Date</th><th>Mode</th><th>Reçu n°</th><th>Caissier</th><th class="num">Montant (CDF)</th></tr></thead>
+        <thead><tr><th>Date</th><th>Mode</th><th>Reçu n°</th><th>Caissier</th><th class="num">Montant reçu</th></tr></thead>
         <tbody>
             @foreach($facture->paiements as $p)
             <tr>
@@ -93,7 +96,7 @@
                 <td>{{ ucfirst(str_replace('_', ' ', $p->mode_paiement)) }}{{ $p->reference_paiement ? ' (' . $p->reference_paiement . ')' : '' }}</td>
                 <td>{{ $p->recu_numero }}</td>
                 <td>{{ $p->caissier?->nom }}</td>
-                <td class="num">{{ number_format($p->montant, 0, ',', '.') }}</td>
+                <td class="num">{{ $p->montantFormate() }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -107,7 +110,7 @@
         {{ $facture->statut === 'payee' ? '✓ PAYÉE' : mb_strtoupper(str_replace('_', ' ', $facture->statut)) }}
     </span>
     @if($facture->soldeRestant() > 0)
-    — Solde restant : {{ number_format($facture->soldeRestant(), 0, ',', '.') }} CDF
+    — Solde restant : {{ $facture->formater($facture->soldeRestant()) }}
     @endif
 </p>
 
