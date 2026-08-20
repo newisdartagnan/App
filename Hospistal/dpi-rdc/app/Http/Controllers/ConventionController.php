@@ -6,6 +6,7 @@ use App\Models\Assurance;
 use App\Models\Billetage;
 use App\Models\FactureConvention;
 use App\Services\ConventionService;
+use App\Services\DeviseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -130,15 +131,17 @@ class ConventionController extends Controller
             ->limit(20)
             ->get();
 
-        $theorique = $devise === 'CDF'
-            ? $this->conventions->recettesEspeces(
-                str_replace('T', ' ', $debut) . ':00',
-                str_replace('T', ' ', $fin) . ':59'
-            )
-            : 0.0;
+        // Le théorique se calcule devise par devise : on compte un tiroir
+        // de francs, pas un agrégat de francs, de dollars et d'euros.
+        $theorique = $this->conventions->recettesEspeces(
+            str_replace('T', ' ', $debut).':00',
+            str_replace('T', ' ', $fin).':59',
+            $devise
+        );
 
         return view('caisse.billetage', [
             'devise' => $devise,
+            'devises' => app(DeviseService::class)->referentiel(),
             'debut' => $debut,
             'fin' => $fin,
             'coupures' => Billetage::coupuresPour($devise),
@@ -150,7 +153,7 @@ class ConventionController extends Controller
     public function storeBilletage(Request $request): RedirectResponse
     {
         $request->validate([
-            'devise' => 'required|in:CDF,USD',
+            'devise' => 'required|'.app(DeviseService::class)->regleValidation(),
             'debut' => 'required|date',
             'fin' => 'required|date|after_or_equal:debut',
             'coupures' => 'required|array',
@@ -166,11 +169,12 @@ class ConventionController extends Controller
             $request->observation
         );
 
+        $devises = app(DeviseService::class);
+
         return back()->with('success', sprintf(
-            'Billetage enregistré : %s %s comptés, écart de %s.',
-            number_format((float) $billetage->total_compte, 0, ',', ' '),
-            $billetage->devise,
-            number_format((float) $billetage->ecart, 0, ',', ' ')
+            'Billetage enregistré : %s comptés, écart de %s.',
+            $devises->formater((float) $billetage->total_compte, $billetage->devise),
+            $devises->formater((float) $billetage->ecart, $billetage->devise)
         ));
     }
 }

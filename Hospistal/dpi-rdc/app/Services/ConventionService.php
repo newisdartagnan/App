@@ -28,7 +28,7 @@ class ConventionService
             ->pluck('lignes_facture_convention.facture_id');
 
         return Facture::with(['patient', 'lignesTiersPayant', 'visit'])
-            ->whereBetween('date_facture', [$debut . ' 00:00:00', $fin . ' 23:59:59'])
+            ->whereBetween('date_facture', [$debut.' 00:00:00', $fin.' 23:59:59'])
             ->where('assurance_part', '>', 0)
             ->whereNotIn('id', $dejaFacturees)
             ->whereHas('lignesTiersPayant', fn ($q) => $q->where('assurance_id', $assurance->id))
@@ -156,13 +156,17 @@ class ConventionService
     // ══════════════════════════════════════════════════════════════
 
     /**
-     * Recettes réellement encaissées en espèces sur la période, pour
-     * rapprochement avec le comptage physique.
+     * Espèces théoriquement en caisse pour une devise donnée.
+     *
+     * Le comptage porte sur des billets bien réels : un tiroir de francs se
+     * compare aux encaissements en francs, pas à la somme de toutes les
+     * devises confondues.
      */
-    public function recettesEspeces(string $debut, string $fin): float
+    public function recettesEspeces(string $debut, string $fin, string $devise = 'CDF'): float
     {
         return (float) Paiement::whereBetween('date_paiement', [$debut, $fin])
             ->where('mode_paiement', 'especes')
+            ->where('devise', $devise)
             ->sum('montant');
     }
 
@@ -189,7 +193,7 @@ class ConventionService
             }
         }
 
-        $theorique = $devise === 'CDF' ? $this->recettesEspeces($debut, $fin) : 0.0;
+        $theorique = $this->recettesEspeces($debut, $fin, $devise);
 
         return Billetage::create([
             'establishment_id' => auth()->user()->establishment_id,

@@ -22,6 +22,7 @@
     </div>
     @endif
 
+@php $dev = app(\App\Services\DeviseService::class); @endphp
     {{-- En-tête facture --}}
     <div class="bg-white rounded-xl shadow p-6 mb-4">
         <div class="flex justify-between items-start">
@@ -34,6 +35,7 @@
                 </p>
                 <p class="text-xs text-gray-500 mt-1">
                     Prise en charge : <span class="font-semibold text-gray-700">{{ $facture->libellePriseEnCharge() }}</span>
+                    · Facture libellée en <span class="font-semibold text-gray-700">{{ $dev->libelle($facture->deviseFacture()) }}</span>
                 </p>
             </div>
             <span class="px-3 py-1.5 rounded-full text-sm font-medium
@@ -79,11 +81,11 @@
                         @endif
                     </td>
                     <td class="px-4 py-3 text-center">{{ $ligne->quantite + 0 }}</td>
-                    <td class="px-4 py-3 text-right">{{ number_format($ligne->prix_unitaire, 0, ',', '.') }}</td>
-                    <td class="px-4 py-3 text-right font-medium">{{ number_format($ligne->total_ligne, 0, ',', '.') }}</td>
-                    <td class="px-4 py-3 text-right text-green-600">{{ $tp ? number_format($tp->part_assurance, 0, ',', '.') : '—' }}</td>
+                    <td class="px-4 py-3 text-right">{{ $facture->formater((float) $ligne->prix_unitaire) }}</td>
+                    <td class="px-4 py-3 text-right font-medium">{{ $facture->formater((float) $ligne->total_ligne) }}</td>
+                    <td class="px-4 py-3 text-right text-green-600">{{ $tp ? $facture->formater((float) $tp->part_assurance) : '—' }}</td>
                     <td class="px-4 py-3 text-right font-bold text-blue-700">
-                        {{ $tp ? number_format($tp->part_patient, 0, ',', '.') : number_format($ligne->total_ligne, 0, ',', '.') }}
+                        {{ $facture->formater((float) ($tp->part_patient ?? $ligne->total_ligne)) }}
                     </td>
                 </tr>
                 @endforeach
@@ -91,26 +93,26 @@
             <tfoot class="bg-gray-50 border-t">
                 <tr>
                     <td colspan="3" class="px-4 py-3 text-right font-semibold text-gray-700">Total actes</td>
-                    <td class="px-4 py-3 text-right font-bold">{{ number_format($facture->total_ttc, 0, ',', '.') }} CDF</td>
-                    <td class="px-4 py-3 text-right font-bold text-green-600">{{ number_format($facture->assurance_part, 0, ',', '.') }} CDF</td>
-                    <td class="px-4 py-3 text-right font-bold text-blue-700 text-base">{{ number_format($facture->patient_part, 0, ',', '.') }} CDF</td>
+                    <td class="px-4 py-3 text-right font-bold">{{ $facture->formater((float) $facture->total_ttc) }}</td>
+                    <td class="px-4 py-3 text-right font-bold text-green-600">{{ $facture->formater((float) $facture->assurance_part) }}</td>
+                    <td class="px-4 py-3 text-right font-bold text-blue-700 text-base">{{ $facture->formater((float) $facture->patient_part) }}</td>
                 </tr>
                 @if($facture->acompte_impute > 0)
                 <tr>
                     <td colspan="5" class="px-4 py-2 text-right text-sm text-purple-700">Acompte imputé</td>
                     <td class="px-4 py-2 text-right text-sm font-semibold text-purple-700">
-                        − {{ number_format($facture->acompte_impute, 0, ',', '.') }} CDF
+                        − {{ $facture->formater((float) $facture->acompte_impute) }}
                     </td>
                 </tr>
                 @endif
                 @if($facture->montantPaye() > 0 || $facture->acompte_impute > 0)
                 <tr>
                     <td colspan="5" class="px-4 py-2 text-right text-sm text-gray-500">Déjà payé au guichet</td>
-                    <td class="px-4 py-2 text-right text-sm text-gray-500">{{ number_format($facture->montantPaye(), 0, ',', '.') }} CDF</td>
+                    <td class="px-4 py-2 text-right text-sm text-gray-500">{{ $facture->formater($facture->montantPaye()) }}</td>
                 </tr>
                 <tr>
                     <td colspan="5" class="px-4 py-2 text-right font-bold text-red-600">Solde restant</td>
-                    <td class="px-4 py-2 text-right font-bold text-red-600">{{ number_format($facture->soldeRestant(), 0, ',', '.') }} CDF</td>
+                    <td class="px-4 py-2 text-right font-bold text-red-600">{{ $facture->formater($facture->soldeRestant()) }}</td>
                 </tr>
                 @endif
             </tfoot>
@@ -137,10 +139,13 @@
         <div class="flex items-center justify-between flex-wrap gap-3">
             <div>
                 <h4 class="font-bold text-purple-900">
-                    💰 Ce patient dispose de {{ number_format($acompteDisponible, 0, ',', ' ') }} CDF d'acompte
+                    💰 Ce patient dispose d'un acompte :
+                    @foreach($acompteParDevise as $code => $montant){{ $loop->first ? '' : ' + ' }}{{ $dev->formater((float) $montant, $code) }}@endforeach
                 </h4>
                 <p class="text-sm text-purple-800 mt-1">
-                    Avance versée lors d'un passage précédent. Elle peut régler tout ou partie de cette facture.
+                    Avance versée lors d'un passage précédent, soit
+                    <strong>{{ $dev->formater($acompteDisponible, $dev->pivot()) }}</strong> de contre-valeur.
+                    Elle peut régler tout ou partie de cette facture, quelle que soit la devise.
                 </p>
             </div>
             <form method="POST" action="{{ route('caisse.acompte', $facture) }}">
@@ -160,7 +165,10 @@
         <ul class="text-xs text-gray-600 space-y-1">
             @foreach($facture->imputations as $imputation)
             <li>
-                {{ number_format((float) $imputation->montant, 0, ',', ' ') }} CDF
+                {{ $imputation->montantFormate() }} portés sur la facture
+                @if($imputation->acompte && $imputation->acompte->devise !== $imputation->devise)
+                <span class="text-gray-400">(prélevés : {{ $imputation->preleveFormate() }})</span>
+                @endif
                 — acompte du {{ $imputation->acompte?->created_at->format('d/m/Y') }}
                 ({{ $imputation->acompte?->libelleType() }})
                 · imputé le {{ $imputation->created_at->format('d/m/Y à H:i') }}
@@ -178,15 +186,22 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label for="montant" class="block text-sm font-medium text-gray-700 mb-1">Montant reçu <span class="text-red-500">*</span></label>
-                <input id="montant" name="montant" type="number" step="1" min="1"
+                <input id="montant" name="montant" type="number" step="0.01" min="0.01"
                     value="{{ old('montant', $facture->soldeRestant() + 0) }}"
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
+                <p class="text-xs text-gray-500 mt-1">
+                    Reste dû : {{ $facture->formater($facture->soldeRestant()) }}.
+                    Payé dans une autre devise, le montant est converti au taux du jour.
+                </p>
             </div>
             <div>
                 <label for="devise" class="block text-sm font-medium text-gray-700 mb-1">Devise</label>
                 <select id="devise" name="devise" class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
-                    <option value="CDF">Francs Congolais (CDF)</option>
-                    <option value="USD">Dollars USD</option>
+                    @foreach($dev->referentiel() as $code => $definition)
+                    <option value="{{ $code }}" @selected(old('devise', $facture->deviseFacture()) === $code)>
+                        {{ $definition['libelle'] }} ({{ $code }}){{ $code === $dev->pivot() ? '' : ' — 1 '.$code.' = '.number_format($definition['taux_cdf'], 2, ',', ' ').' CDF' }}
+                    </option>
+                    @endforeach
                 </select>
             </div>
             <div>

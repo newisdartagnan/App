@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\DeviseService;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,11 +18,35 @@ class ImputationAcompte extends Model
 
     protected $table = 'imputations_acompte';
 
-    protected $fillable = ['caution_id', 'facture_id', 'user_id', 'montant'];
+    protected $fillable = [
+        'caution_id', 'facture_id', 'user_id',
+        'montant', 'devise', 'taux_change', 'montant_cdf', 'montant_acompte',
+    ];
 
     protected function casts(): array
     {
-        return ['montant' => 'decimal:2'];
+        return [
+            'montant' => 'decimal:2',
+            'taux_change' => 'decimal:4',
+            'montant_cdf' => 'decimal:2',
+            'montant_acompte' => 'decimal:2',
+        ];
+    }
+
+    /** Ce que l'imputation apporte à la facture, dans la devise de celle-ci. */
+    public function montantFormate(): string
+    {
+        return app(DeviseService::class)
+            ->formater((float) $this->montant, $this->devise);
+    }
+
+    /** Ce qu'elle a prélevé sur l'acompte, dans la devise du versement. */
+    public function preleveFormate(): string
+    {
+        $devise = $this->acompte?->devise ?? $this->devise;
+
+        return app(DeviseService::class)
+            ->formater((float) $this->montant_acompte, $devise);
     }
 
     public function acompte(): BelongsTo

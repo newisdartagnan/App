@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\DeviseService;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,15 +33,16 @@ class Billetage extends Model
         ];
     }
 
-    /** Coupures du franc congolais, de la plus grosse à la plus petite. */
-    public const COUPURES_CDF = [20000, 10000, 5000, 1000, 500, 200, 100, 50, 20, 10, 5, 1];
-
-    /** Coupures du dollar américain. */
-    public const COUPURES_USD = [100, 50, 20, 10, 5, 1];
-
+    /**
+     * Coupures réellement en circulation, de la plus grosse à la plus
+     * petite. Elles viennent du référentiel des devises : le franc
+     * congolais s'arrête à 50 CDF, les pièces de 1 à 20 ne circulant plus.
+     */
     public static function coupuresPour(string $devise): array
     {
-        return $devise === 'USD' ? self::COUPURES_USD : self::COUPURES_CDF;
+        return app(DeviseService::class)->existe($devise)
+            ? app(DeviseService::class)->coupures($devise)
+            : app(DeviseService::class)->coupures('CDF');
     }
 
     public function caissier(): BelongsTo

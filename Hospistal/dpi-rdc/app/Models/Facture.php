@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Syncable;
+use App\Services\DeviseService;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,14 +16,14 @@ class Facture extends Model
     protected $fillable = [
         'patient_id', 'visit_id', 'prescription_id', 'establishment_id', 'numero_facture',
         'date_facture', 'statut', 'type_prise_en_charge',
-        'assurance_nom', 'assurance_numero',
+        'devise', 'taux_change', 'assurance_nom', 'assurance_numero',
         'assurance_part', 'patient_part', 'remise', 'acompte_impute',
         'total_ht', 'total_ttc', 'observations', 'sync_status',
     ];
 
     protected function casts(): array
     {
-        return ['date_facture' => 'datetime'];
+        return ['date_facture' => 'datetime', 'taux_change' => 'decimal:4'];
     }
 
     /** Libellés lisibles des modes de prise en charge. */
@@ -96,9 +97,34 @@ class Facture extends Model
             ?? ucfirst((string) $this->type_prise_en_charge);
     }
 
+    /** Devise de la facture, francs congolais par défaut. */
+    public function deviseFacture(): string
+    {
+        return $this->devise ?: config('dpi.devise_pivot', 'CDF');
+    }
+
+    public function tauxApplique(): float
+    {
+        return (float) ($this->taux_change ?: 1);
+    }
+
+    /** Montant formaté dans la devise de la facture. */
+    public function formater(float $montant): string
+    {
+        return app(DeviseService::class)->formater($montant, $this->deviseFacture());
+    }
+
+    /**
+     * Total encaissé, ramené dans la devise de la facture : le patient peut
+     * avoir réglé une partie en dollars et le reste en francs.
+     */
     public function montantPaye(): float
     {
-        return (float) $this->paiements()->sum('montant');
+        $devises = app(DeviseService::class);
+
+        $cdf = (float) $this->paiements()->sum('montant_cdf');
+
+        return $devises->depuisCdf($cdf, $this->deviseFacture(), $this->tauxApplique());
     }
 
     /**
