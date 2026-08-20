@@ -6,6 +6,7 @@ use App\Models\Lit;
 use App\Models\NoteEvolution;
 use App\Models\Service;
 use App\Models\SigneVital;
+use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,6 +86,8 @@ class ServiceHospitalierController extends Controller
             'notesEvolution.auteur',
             'signesVitaux.auteur',
             'factures.lignes',
+            'transferts.serviceSource', 'transferts.serviceDestination',
+            'transferts.litDestination', 'transferts.auteur',
         ]);
 
         $prescriptions = $visit->consultations->flatMap->prescriptions
@@ -92,7 +95,25 @@ class ServiceHospitalierController extends Controller
 
         $impayees = $visit->factures->whereNotIn('statut', ['payee', 'annulee']);
 
-        return view('services.dossier', compact('service', 'visit', 'prescriptions', 'impayees'));
+        // Services d'accueil possibles pour un transfert interne, avec leurs
+        // lits libres : on ne propose pas d'envoyer un patient là où il n'y
+        // a pas de place.
+        $servicesAccueil = Service::where('establishment_id', $visit->establishment_id)
+            ->where('is_active', true)
+            ->whereNotIn('type', ['labo', 'pharmacie'])
+            ->where('id', '!=', $visit->service_id)
+            ->with(['lits' => fn ($q) => $q->where('statut', 'libre')->where('is_active', true)->orderBy('numero')])
+            ->orderBy('nom')
+            ->get();
+
+        $medecins = User::role(['medecin', 'infirmier_chef'])
+            ->where('is_active', true)
+            ->orderBy('nom')
+            ->get(['id', 'nom', 'prenom']);
+
+        return view('services.dossier', compact(
+            'service', 'visit', 'prescriptions', 'impayees', 'servicesAccueil', 'medecins'
+        ));
     }
 
     /**
@@ -180,6 +201,6 @@ class ServiceHospitalierController extends Controller
 
         $lit->update(['statut' => $request->statut]);
 
-        return back()->with('success', 'Lit ' . $lit->numero . ' : ' . str_replace('_', ' ', $request->statut) . '.');
+        return back()->with('success', 'Lit '.$lit->numero.' : '.str_replace('_', ' ', $request->statut).'.');
     }
 }

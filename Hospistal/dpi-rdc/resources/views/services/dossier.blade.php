@@ -47,6 +47,105 @@
     </div>
     @endif
 
+    {{-- ── Transfert interne : le séjour ne se ferme pas ─────────── --}}
+    <details class="bg-white rounded-xl shadow mb-4" {{ $errors->has('motif') || $errors->has('service_destination_id') ? 'open' : '' }}>
+        <summary class="px-4 py-3 font-semibold text-gray-700 cursor-pointer select-none flex items-center justify-between">
+            <span>🔄 Transfert vers un autre service</span>
+            @if($visit->transferts->isNotEmpty())
+            <span class="text-xs font-normal text-gray-500">{{ $visit->transferts->count() }} transfert(s) au cours du séjour</span>
+            @endif
+        </summary>
+
+        <div class="px-4 pb-4 border-t pt-4">
+            <p class="text-xs text-gray-500 mb-3">
+                Le patient reste hospitalisé : même admission, même dossier, mêmes factures.
+                Seuls le service et le lit changent. Pour orienter le patient vers un autre
+                établissement, utilisez plutôt la sortie avec mode « transfert ».
+            </p>
+
+            @if($visit->peutRecevoirServices())
+            @if($servicesAccueil->isEmpty())
+            <p class="text-sm text-amber-700">Aucun autre service d'hospitalisation actif.</p>
+            @else
+            <form method="POST" action="{{ route('transferts.store', $visit) }}" class="grid md:grid-cols-2 gap-3">
+                @csrf
+                <div>
+                    <label for="t-service" class="block text-xs font-semibold text-gray-600 mb-1">Service d'accueil <span class="text-red-500">*</span></label>
+                    <select id="t-service" name="service_destination_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        @foreach($servicesAccueil as $accueil)
+                        <option value="{{ $accueil->id }}" @selected(old('service_destination_id') === $accueil->id)>
+                            {{ $accueil->nom }} — {{ $accueil->lits->count() }} lit(s) libre(s)
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="t-lit" class="block text-xs font-semibold text-gray-600 mb-1">Lit d'accueil</label>
+                    <select id="t-lit" name="lit_destination_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">Sans lit assigné pour l'instant</option>
+                        @foreach($servicesAccueil as $accueil)
+                        @foreach($accueil->lits as $lit)
+                        <option value="{{ $lit->id }}" @selected(old('lit_destination_id') === $lit->id)>
+                            {{ $accueil->nom }} · lit {{ $lit->numero }}
+                        </option>
+                        @endforeach
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="t-demandeur" class="block text-xs font-semibold text-gray-600 mb-1">Demandé par</label>
+                    <select id="t-demandeur" name="demandeur_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— praticien hors application, à nommer ci-contre —</option>
+                        @foreach($medecins as $medecin)
+                        <option value="{{ $medecin->id }}" @selected(old('demandeur_id') === $medecin->id)>{{ $medecin->nom_complet }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="t-nom" class="block text-xs font-semibold text-gray-600 mb-1">Nom du demandeur (si hors liste)</label>
+                    <input id="t-nom" name="demandeur_nom" maxlength="150" value="{{ old('demandeur_nom') }}"
+                           placeholder="Dr NGOY, chef de service"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="t-motif" class="block text-xs font-semibold text-gray-600 mb-1">Raison du transfert <span class="text-red-500">*</span></label>
+                    <textarea id="t-motif" name="motif" rows="2" required maxlength="1000"
+                              placeholder="Ex. état stabilisé, poursuite des soins en médecine interne"
+                              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{{ old('motif') }}</textarea>
+                </div>
+                <div class="md:col-span-2">
+                    <button class="bg-blue-700 hover:bg-blue-800 text-white rounded-lg px-5 py-2 text-sm font-semibold">
+                        Transférer le patient
+                    </button>
+                </div>
+            </form>
+            @endif
+            @else
+            <p class="text-sm text-gray-500">Séjour terminé — plus aucun transfert possible.</p>
+            @endif
+
+            @if($visit->transferts->isNotEmpty())
+            <div class="mt-4 pt-4 border-t">
+                <p class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Parcours dans l'hôpital</p>
+                <ol class="space-y-2">
+                    @foreach($visit->transferts->sortBy('transfere_a') as $transfert)
+                    <li class="text-sm text-gray-700 border-l-2 border-blue-300 pl-3">
+                        <span class="font-semibold">{{ $transfert->trajet() }}</span>
+                        @if($transfert->litDestination)<span class="text-gray-500">· lit {{ $transfert->litDestination->numero }}</span>@endif
+                        <p class="text-xs text-gray-500">
+                            {{ $transfert->transfere_a->format('d/m/Y à H:i') }}
+                            · demandé par {{ $transfert->demandeur_nom }}
+                            · enregistré par {{ $transfert->auteur?->nom_complet }}
+                        </p>
+                        <p class="text-xs text-gray-600 italic">{{ $transfert->motif }}</p>
+                    </li>
+                    @endforeach
+                </ol>
+            </div>
+            @endif
+        </div>
+    </details>
+
     <div class="grid lg:grid-cols-2 gap-4">
 
         {{-- ── Évolution & transmissions ─────────────────────────── --}}

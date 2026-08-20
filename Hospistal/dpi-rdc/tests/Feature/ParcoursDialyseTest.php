@@ -372,9 +372,102 @@ class ParcoursDialyseTest extends TestCase
 
         $this->assertNotNull($premiere->lignes->firstWhere('type', 'diete'));
         $this->assertNull(
-            $seconde->lignes->firstWhere('type', 'diete'),
-            'Une diète déjà portée sur une facture ne repasse pas sur la suivante.'
+            $seconde,
+            'Séjour et diète déjà facturés : aucune seconde facture n\'est émise.'
         );
+        $this->assertSame(1, Facture::where('visit_id', $visite->id)->count());
+    }
+
+    public function test_seules_les_journees_ecoulees_depuis_la_derniere_facture_sont_reclamees(): void
+    {
+        $visite = Visit::create([
+            'patient_id' => $this->patiente->id,
+            'establishment_id' => $this->etab->id,
+            'user_id' => $this->medecin->id,
+            'type' => 'hospitalisation',
+            'statut' => 'en_cours',
+            'date_entree' => now()->subDays(2),
+            'service_id' => Service::where('code', 'DIAL')->firstOrFail()->id,
+            'motif_consultation' => 'Insuffisance rénale chronique',
+        ]);
+
+        $tarif = (float) config('dpi.tarifs_cdf.hospitalisation_jour');
+
+        // Facture intermédiaire à J3.
+        $premiere = app(FacturationService::class)->creerFactureHospitalisation($visite);
+        $this->assertSame(3.0, (float) $premiere->lignes->firstWhere('type', 'hospitalisation')->quantite);
+        $this->assertSame(3, (int) $visite->fresh()->jours_factures);
+
+        // Réémettre le même jour ne réclame rien de plus.
+        $this->assertNull(app(FacturationService::class)->creerFactureHospitalisation($visite->fresh()));
+
+        // Deux jours plus tard, seules les deux journées nouvelles le sont.
+        $visite->update(['date_entree' => now()->subDays(4)]);
+        $seconde = app(FacturationService::class)->creerFactureHospitalisation($visite->fresh());
+
+        $ligne = $seconde->lignes->firstWhere('type', 'hospitalisation');
+        $this->assertSame(2.0, (float) $ligne->quantite);
+        $this->assertSame(2 * $tarif, (float) $ligne->total_ligne);
+        $this->assertStringContainsString('du J4 au J5', $ligne->libelle);
+
+        // Au total, cinq journées facturées une seule fois chacune.
+        $this->assertSame(
+            5 * $tarif,
+            (float) LigneFacture::whereIn('facture_id', $visite->factures()->pluck('id'))
+                ->where('type', 'hospitalisation')->sum('total_ligne')
+        );
+    }
+
+    public function test_un_acte_deja_facture_ne_genere_pas_une_seconde_facture(): void
+    {
+        $visite = Visit::create([
+            'patient_id' => $this->patiente->id,
+            'establishment_id' => $this->etab->id,
+            'user_id' => $this->medecin->id,
+            'type' => 'hospitalisation',
+            'statut' => 'en_cours',
+            'date_entree' => now()->subDay(),
+            'service_id' => Service::where('code', 'DIAL')->firstOrFail()->id,
+            'motif_consultation' => 'Séance de dialyse',
+        ]);
+
+        $seance = ActeClinique::create([
+            'visit_id' => $visite->id,
+            'patient_id' => $this->patiente->id,
+            'prescripteur_id' => $this->medecin->id,
+            'domaine' => 'dialyse',
+            'libelle' => 'Séance d\'hémodialyse (4 h)',
+            'prix' => config('dpi.tarifs_cdf.dialyse_seance'),
+            'statut' => 'realise',
+            'date_realisation' => now(),
+        ]);
+
+        $service = app(FacturationService::class);
+        $premiere = $service->creerFactureActeClinique($seance);
+        $seconde = $service->creerFactureActeClinique($seance->fresh());
+
+        $this->assertSame($premiere->id, $seconde->id, 'La même facture est renvoyée.');
+        $this->assertSame(1, Facture::where('visit_id', $visite->id)->count());
+    }
+
+    public function test_une_consultation_deja_facturee_ne_genere_pas_une_seconde_facture(): void
+    {
+        $visite = Visit::create([
+            'patient_id' => $this->patiente->id,
+            'establishment_id' => $this->etab->id,
+            'user_id' => $this->medecin->id,
+            'type' => 'consultation_externe',
+            'statut' => 'en_cours',
+            'date_entree' => now(),
+            'motif_consultation' => 'Contrôle',
+        ]);
+
+        $service = app(FacturationService::class);
+        $premiere = $service->creerFactureConsultation($visite);
+        $seconde = $service->creerFactureConsultation($visite->fresh());
+
+        $this->assertSame($premiere->id, $seconde->id);
+        $this->assertSame(1, Facture::where('visit_id', $visite->id)->count());
     }
 
     public function test_une_mise_a_jeun_nalourdit_pas_la_facture(): void

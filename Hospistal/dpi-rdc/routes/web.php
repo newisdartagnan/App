@@ -24,6 +24,7 @@ use App\Http\Controllers\PlanAdministrationController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\ServiceHospitalierController;
 use App\Http\Controllers\StatistiqueController;
+use App\Http\Controllers\TransfertServiceController;
 use App\Http\Controllers\UrgenceController;
 use App\Http\Controllers\VisitController;
 use Illuminate\Support\Facades\Route;
@@ -125,6 +126,9 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/disponibilites/{disponibilite}', [DisponibiliteController::class, 'destroy'])->name('disponibilites.destroy');
     Route::post('/disponibilites/absence', [DisponibiliteController::class, 'absence'])->name('disponibilites.absence');
     Route::delete('/disponibilites/absence/{absence}', [DisponibiliteController::class, 'supprimerAbsence'])->name('disponibilites.absence.destroy');
+
+    // Transfert d'un service à un autre, sans clore le séjour
+    Route::post('/visites/{visit}/transfert-service', [TransfertServiceController::class, 'store'])->name('transferts.store');
 
     // Le médecin rend la main : le patient revient dans la file d'attente
     Route::post('/visites/{visit}/liberer', [ConsultationController::class, 'liberer'])->name('visites.liberer');
@@ -242,6 +246,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/caisse/{facture}', [CaisseController::class, 'show'])->name('caisse.show');
     Route::get('/caisse/{facture}/imprimer', [CaisseController::class, 'imprimer'])->name('caisse.imprimer');
     Route::post('/caisse/{facture}/encaisser', [CaisseController::class, 'encaisser'])->name('caisse.encaisser');
+    Route::post('/caisse/{facture}/utiliser-acompte', [CaisseController::class, 'utiliserAcompte'])->name('caisse.acompte');
     Route::post('/caisse/facturer/{prescription}', [CaisseController::class, 'facturer'])->name('caisse.facturer');
     Route::post('/caisse/prescription/{prescription}', [CaisseController::class, 'creerDepuisPrescription'])->name('caisse.prescription');
 });
