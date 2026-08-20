@@ -20,7 +20,52 @@ chmod +x deploy.sh backup.sh
 ./deploy.sh
 ```
 
-Accès : `http://localhost` — compte seed : `admin@dpi-rdc.local` / `dpi-admin-2024`
+Accès : `http://localhost:8080` — compte seed : `admin@dpi-rdc.local` / `dpi-admin-2024`
+
+## Base de données : administrer avec pgAdmin, DBeaver ou psql
+
+Deux façons de faire, au choix.
+
+### 1. Garder la base du conteneur et s'y brancher (le plus simple)
+
+La base du conteneur est publiée sur le poste au port **5433**, pour laisser
+le 5432 à un PostgreSQL déjà installé (par exemple PostgreSQL 18.6 sous
+Windows). Rien à changer : après `docker compose up -d`, on se connecte avec
+
+| Champ         | Valeur                            |
+|---------------|-----------------------------------|
+| Hôte          | `localhost`                       |
+| Port          | `5433` (variable `DPI_DB_PORT`)   |
+| Base          | `dpi_<ESTABLISHMENT_CODE>`        |
+| Utilisateur   | `dpi_user`                        |
+| Mot de passe  | la valeur de `DB_PASSWORD` du `.env` |
+
+Adminer est également servi sur `http://localhost:8081`.
+
+### 2. Faire tourner l'application sur le PostgreSQL du poste
+
+L'application utilise alors le serveur installé sous Windows, et le conteneur
+`db` ne démarre plus. Dans le `.env` :
+
+```
+DPI_DB_HOST=host.docker.internal
+DPI_DB_PORT_APP=5432
+```
+
+puis
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.pg-hote.yml up -d
+docker compose exec app php artisan migrate --force
+docker compose exec app php artisan db:seed --force
+```
+
+Les prérequis côté PostgreSQL de Windows (rôle, base, `listen_addresses`,
+`pg_hba.conf`) sont détaillés en tête de `docker-compose.pg-hote.yml`.
+
+> À noter : le schéma est écrit pour PostgreSQL 14 et suit ; la version 18.6
+> le fait tourner sans réserve. Les deux montages ne partagent pas les mêmes
+> données — passer de l'un à l'autre demande un `pg_dump` / `pg_restore`.
 
 ## Commandes utiles
 

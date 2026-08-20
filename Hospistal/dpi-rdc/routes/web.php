@@ -3,6 +3,7 @@
 use App\Http\Controllers\AcompteController;
 use App\Http\Controllers\ActeCliniqueController;
 use App\Http\Controllers\AgendaController;
+use App\Http\Controllers\AssuranceController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BilanHydriqueController;
 use App\Http\Controllers\CaisseController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\ForfaitController;
 use App\Http\Controllers\LaboratoireController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficineController;
+use App\Http\Controllers\ParametreController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PharmacieController;
 use App\Http\Controllers\PlanAdministrationController;
@@ -26,6 +28,7 @@ use App\Http\Controllers\ServiceHospitalierController;
 use App\Http\Controllers\StatistiqueController;
 use App\Http\Controllers\TransfertServiceController;
 use App\Http\Controllers\UrgenceController;
+use App\Http\Controllers\UtilisateurController;
 use App\Http\Controllers\VisitController;
 use Illuminate\Support\Facades\Route;
 
@@ -126,6 +129,28 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/disponibilites/{disponibilite}', [DisponibiliteController::class, 'destroy'])->name('disponibilites.destroy');
     Route::post('/disponibilites/absence', [DisponibiliteController::class, 'absence'])->name('disponibilites.absence');
     Route::delete('/disponibilites/absence/{absence}', [DisponibiliteController::class, 'supprimerAbsence'])->name('disponibilites.absence.destroy');
+
+    // ══════════════════════════════════════════════════════════════
+    // Paramétrage de l'établissement
+    // ══════════════════════════════════════════════════════════════
+    Route::get('/parametres', [ParametreController::class, 'index'])->name('parametres.index');
+    Route::post('/parametres/taux', [ParametreController::class, 'reviserTaux'])->name('parametres.taux');
+
+    // Comptes du personnel et profils d'utilisation
+    Route::get('/utilisateurs', [UtilisateurController::class, 'index'])->name('utilisateurs.index');
+    Route::post('/utilisateurs', [UtilisateurController::class, 'store'])->name('utilisateurs.store');
+    Route::post('/utilisateurs/{utilisateur}', [UtilisateurController::class, 'update'])->name('utilisateurs.update');
+    Route::post('/utilisateurs/{utilisateur}/basculer', [UtilisateurController::class, 'basculer'])->name('utilisateurs.basculer');
+    Route::post('/utilisateurs/{utilisateur}/mot-de-passe', [UtilisateurController::class, 'motDePasse'])->name('utilisateurs.mot-de-passe');
+
+    // Sociétés conventionnées : contrat, modalités et règles de couverture
+    Route::get('/assurances', [AssuranceController::class, 'index'])->name('assurances.index');
+    Route::post('/assurances', [AssuranceController::class, 'store'])->name('assurances.store');
+    Route::get('/assurances/{assurance}', [AssuranceController::class, 'show'])->name('assurances.show');
+    Route::post('/assurances/{assurance}', [AssuranceController::class, 'update'])->name('assurances.update');
+    Route::post('/assurances/{assurance}/basculer', [AssuranceController::class, 'basculer'])->name('assurances.basculer');
+    Route::post('/assurances/{assurance}/couvertures', [AssuranceController::class, 'ajouterCouverture'])->name('assurances.couvertures');
+    Route::delete('/couvertures/{couverture}', [AssuranceController::class, 'supprimerCouverture'])->name('assurances.couvertures.destroy');
 
     // Transfert d'un service à un autre, sans clore le séjour
     Route::post('/visites/{visit}/transfert-service', [TransfertServiceController::class, 'store'])->name('transferts.store');
