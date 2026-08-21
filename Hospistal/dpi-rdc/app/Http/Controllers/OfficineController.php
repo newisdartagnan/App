@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Medicament;
-use App\Models\Officine;
 use App\Models\MouvementStock;
+use App\Models\Officine;
 use App\Models\Requisition;
+use App\Models\StockMedicament;
 use App\Services\OfficineService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,77 @@ use Illuminate\View\View;
 class OfficineController extends Controller
 {
     public function __construct(protected OfficineService $officines) {}
+
+    /**
+     * Vue d'ensemble des officines.
+     *
+     * Le responsable de la pharmacie doit voir, d'un seul écran, ce que
+     * chacune détient, ce qui lui manque, ce qu'elle a demandé et ce qu'elle
+     * a sorti. Sans cette vue, contrôler l'ensemble demandait d'entrer dans
+     * chaque officine l'une après l'autre.
+     */
+    public function tableau(Request $request): View
+    {
+        $debut = $request->query('debut', now()->startOfMonth()->toDateString());
+        $fin = $request->query('fin', now()->toDateString());
+
+        $officines = Officine::with('service')
+            ->where('est_actif', true)
+            ->orderByRaw("CASE type WHEN 'depot_central' THEN 0 WHEN 'ambulatoire' THEN 1 ELSE 2 END")
+            ->orderBy('nom')
+            ->get();
+
+        // Un seul passage sur chaque table, puis on répartit : l'écran doit
+        // rester rapide même avec dix officines et mille références.
+        $stocks = StockMedicament::with('medicament')->get()->groupBy('officine_id');
+
+        $sorties = MouvementStock::with('medicament')
+            ->whereBetween('created_at', [$debut.' 00:00:00', $fin.' 23:59:59'])
+            ->get()
+            ->groupBy('officine_id');
+
+        $requisitions = Requisition::with(['lignes', 'demandeur'])
+            ->orderByDesc('date_demande')
+            ->get()
+            ->groupBy('officine_id');
+
+        $lignes = $officines->map(function (Officine $officine) use ($stocks, $sorties, $requisitions) {
+            $sonStock = $stocks[$officine->id] ?? collect();
+            $sesMouvements = $sorties[$officine->id] ?? collect();
+            $sesRequisitions = $requisitions[$officine->id] ?? collect();
+
+            $enRupture = $sonStock->filter(fn ($s) => (float) $s->quantite_disponible <= 0);
+            $sousAlerte = $sonStock->filter(fn ($s) => (float) $s->quantite_disponible > 0
+                && (float) $s->quantite_disponible <= (float) $s->quantite_alerte);
+
+            return [
+                'officine' => $officine,
+                'references' => $sonStock->count(),
+                'unites' => (float) $sonStock->sum('quantite_disponible'),
+                // Ce que vaut le tiroir, au prix de vente.
+                'valeur' => (float) $sonStock->sum(fn ($s) => (float) $s->quantite_disponible * (float) $s->prix_unitaire_vente),
+                'ruptures' => $enRupture->count(),
+                'alertes' => $sousAlerte->count(),
+                'sorties' => (float) $sesMouvements->filter(fn ($m) => str_starts_with($m->type, 'sortie'))->sum('quantite'),
+                'entrees' => (float) $sesMouvements->filter(fn ($m) => in_array($m->type, ['entree', 'transfert_entree'], true))->sum('quantite'),
+                'requisitions_ouvertes' => $sesRequisitions->whereIn('statut', ['envoyee', 'partiellement_servie'])->count(),
+                'requisitions_periode' => $sesRequisitions->count(),
+                'produits_en_rupture' => $enRupture->take(6)->map(fn ($s) => $s->medicament?->designation())->filter()->values(),
+            ];
+        });
+
+        return view('officines.tableau', [
+            'lignes' => $lignes,
+            'debut' => $debut,
+            'fin' => $fin,
+            'active' => $this->officines->officineActive(),
+            // Les demandes que le dépôt doit encore servir, tous services confondus.
+            'requisitionsOuvertes' => Requisition::with(['officine', 'lignes.medicament', 'demandeur'])
+                ->whereIn('statut', ['envoyee', 'partiellement_servie'])
+                ->orderBy('date_demande')
+                ->get(),
+        ]);
+    }
 
     /**
      * Choix de l'officine de travail — préalable obligatoire à l'affichage

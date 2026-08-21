@@ -11,6 +11,7 @@ use App\Models\Patient;
 use App\Models\TypeExamen;
 use App\Models\User;
 use App\Models\Visit;
+use App\Services\FacturationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -69,7 +70,9 @@ class ModulesHospitaliersTest extends TestCase
 
         $acte = ActeClinique::where('visit_id', $this->visit->id)->firstOrFail();
         $this->assertSame('maternite', $acte->domaine);
-        $this->assertSame('facture', $acte->statut);
+        // Payer d'avance au guichet ne rend pas l'acte réalisé : il reste une
+        // demande, à programmer puis à clôturer par un compte rendu.
+        $this->assertSame('prescrit', $acte->statut);
         $this->assertNotNull($acte->facture_id);
 
         // Paiement au guichet (formulaire classique) puis compte-rendu
@@ -98,8 +101,12 @@ class ModulesHospitaliersTest extends TestCase
             'prix' => 150000,
         ])->assertRedirect();
 
+        // Un acte naît comme une demande : ni salle, ni créneau, ni opérateur.
+        // C'est le bloc qui le programmera.
         $acte = ActeClinique::where('domaine', 'chirurgie')->firstOrFail();
-        $this->assertSame('planifie', $acte->statut);
+        $this->assertSame('prescrit', $acte->statut);
+        $this->assertNull($acte->date_prevue);
+        $this->assertNull($acte->salle_id);
 
         $this->post(route('actes.facturer', $acte))->assertRedirect();
         $this->assertNotNull($acte->fresh()->facture_id);
@@ -176,7 +183,7 @@ class ModulesHospitaliersTest extends TestCase
             'assurance_numero' => 'POL-12345',
         ]);
 
-        $facture = app(\App\Services\FacturationService::class)
+        $facture = app(FacturationService::class)
             ->creerFactureConsultation($this->visit->fresh());
 
         // L'assureur est créé, le lien établi, et 80 % pris en charge
@@ -231,7 +238,7 @@ class ModulesHospitaliersTest extends TestCase
         ]);
 
         // La facture suivante applique bien la prise en charge
-        $facture = app(\App\Services\FacturationService::class)
+        $facture = app(FacturationService::class)
             ->creerFactureConsultation($this->visit->fresh());
         $this->assertSame(12000.0, (float) $facture->assurance_part);
     }
@@ -246,7 +253,7 @@ class ModulesHospitaliersTest extends TestCase
         $p = Patient::where('nom', 'KABEYA')->firstOrFail();
         $this->assertSame('TSHIMANGA', $p->postnom);
         $this->assertSame('KABEYA TSHIMANGA Didier', $p->nom_complet);
-        $this->assertStringStartsWith('PAT-' . now()->format('Y') . '-', $p->dossier_number);
+        $this->assertStringStartsWith('PAT-'.now()->format('Y').'-', $p->dossier_number);
     }
 
     public function test_panel_partiel_sous_examens_coches(): void
@@ -307,7 +314,7 @@ class ModulesHospitaliersTest extends TestCase
     {
         $this->patient->update(['type_prise_en_charge' => 'autre']);
 
-        $facture = app(\App\Services\FacturationService::class)
+        $facture = app(FacturationService::class)
             ->creerFactureConsultation($this->visit->fresh());
 
         $this->assertInstanceOf(Facture::class, $facture);

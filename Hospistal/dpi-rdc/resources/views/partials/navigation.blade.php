@@ -68,17 +68,13 @@
             'liens' => [
                 ['Laboratoire', route('labo.index'), $navLabo],
                 ['Imagerie', route('imagerie.index'), $navImagerie],
-                ['Bloc — programme opératoire', route('bloc.programme'), request()->routeIs('bloc.programme')],
-                ['Bloc — horaire des salles', route('bloc.horaire'), request()->routeIs('bloc.horaire')],
-                ['Bloc — interventions à clôturer', route('bloc.interventions'), request()->routeIs('bloc.interventions')],
-                ['Bloc — registre', route('bloc.registre'), request()->routeIs('bloc.registre')],
-                ['Actes chirurgicaux', route('bloc.index'), request()->routeIs('bloc.index') || request()->routeIs('bloc.create')],
-                ['Maternité — grossesses', route('maternite.index'), request()->routeIs('maternite.index') || request()->routeIs('maternite.show')],
-                ['Maternité — registre des accouchements', route('maternite.registre'), request()->routeIs('maternite.registre')],
-                ['Dialyse — calendrier', route('dialyse.index'), request()->routeIs('dialyse.index')],
-                ['Dialyse — séances du jour', route('dialyse.seances'), request()->routeIs('dialyse.seances')],
-                ['Dialyse — registre', route('dialyse.registre'), request()->routeIs('dialyse.registre')],
+                // Chaque plateau n'a qu'une entrée : ses sous-onglets sont
+                // dans sa page, le menu n'a pas à les répéter.
+                ['Bloc opératoire', route('bloc.programme'), request()->routeIs('bloc.*')],
+                ['Maternité', route('maternite.index'), request()->routeIs('maternite.*')],
+                ['Dialyse', route('dialyse.index'), request()->routeIs('dialyse.*')],
                 ['Banque de sang', route('banque-sang.index'), request()->routeIs('banque-sang.*')],
+                ['Examens spécialisés', route('examens-specialises.index'), request()->routeIs('examens-specialises.*')],
                 ['Équipements', route('equipements.index'), request()->routeIs('equipements.*')],
             ],
         ],
@@ -117,7 +113,7 @@
         </div>
         @endforeach
 
-        <a href="{{ route('pharmacie.dashboard') }}" class="nav-lien {{ request()->routeIs('pharmacie.*') || request()->routeIs('officines.*') ? 'est-actif' : '' }}">Pharmacie</a>
+        <a href="{{ route('officines.tableau') }}" class="nav-lien {{ request()->routeIs('pharmacie.*') || request()->routeIs('officines.*') ? 'est-actif' : '' }}">Pharmacie</a>
         <a href="{{ route('statistiques.index') }}" class="nav-lien {{ request()->routeIs('statistiques.*') ? 'est-actif' : '' }}">Statistiques</a>
 
         @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'caissier']))

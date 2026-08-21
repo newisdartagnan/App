@@ -18,6 +18,9 @@
         'dialyse' => '🩸',
         default => '🏥',
     };
+    // Chirurgie et maternité passent par le bloc opératoire : leur
+    // programmation demande une salle, que cet écran ne connaît pas.
+    $passeParLeBloc = in_array($domaine, ['chirurgie', 'maternite'], true);
     $operateurLibelle = match($domaine) {
         'maternite' => 'Accoucheur',
         'dialyse' => 'Néphrologue',
@@ -26,26 +29,35 @@
 @endphp
 @section('title', $titre)
 @section('content')
-@if(in_array($domaine, ['chirurgie', 'maternite'], true))
-<div class="max-w-7xl mx-auto px-4 pt-6">
-    <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-900 flex flex-wrap gap-3 items-center">
-        <span>
-            <strong>La programmation se fait au bloc opératoire :</strong>
-            salle, créneau, chirurgien, anesthésiste, kit, puis compte rendu et registre.
-        </span>
-        <a href="{{ route('bloc.programme') }}" class="underline font-semibold">Programme préopératoire →</a>
-        <a href="{{ route('bloc.horaire') }}" class="underline">Horaire des salles</a>
-        <a href="{{ route('bloc.registre') }}" class="underline">Registre</a>
-    </div>
-</div>
-@endif
 <div class="max-w-7xl mx-auto px-4 py-6">
-    <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    @if($domaine === 'chirurgie')
+        @include('bloc._onglets')
+    @elseif($domaine === 'maternite')
+        @include('maternite._onglets')
+    @elseif($domaine === 'dialyse')
+        @include('dialyse._onglets')
+    @endif
+
+    <div class="flex items-center justify-between mb-1 flex-wrap gap-3">
         <h2 class="text-2xl font-bold text-gray-800">
-            {{ $icone }} {{ $titre }}
+            {{ $icone }} {{ $titre }} — actes
         </h2>
-        <a href="{{ route($routeCreate) }}" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Nouvel acte</a>
+        @if($passeParLeBloc)
+        <div class="flex flex-wrap gap-3 text-sm">
+            <a href="{{ route('bloc.programme') }}" class="text-blue-700 hover:underline">Programme préopératoire →</a>
+            <a href="{{ route('bloc.horaire') }}" class="text-blue-700 hover:underline">Horaire des salles</a>
+            <a href="{{ route('bloc.registre') }}" class="text-blue-700 hover:underline">Registre</a>
+        </div>
+        @endif
     </div>
+    <p class="text-sm text-gray-500 mb-5">
+        @if($passeParLeBloc)
+            Les demandes se programment au bloc : salle, créneau, chirurgien et
+            anesthésiste, puis compte rendu et registre.
+        @else
+            Les demandes se programment ici : date, opérateur et durée, puis compte rendu.
+        @endif
+    </p>
 
     @foreach(['success','error'] as $t)
         @if(session($t))
@@ -58,6 +70,16 @@
         @foreach ($errors->all() as $err)<p>{{ $err }}</p>@endforeach
     </div>
     @endif
+
+    {{-- Demande d'acte : le point de départ du circuit --}}
+    <details class="bg-white rounded-xl shadow mb-6" {{ $errors->any() ? 'open' : '' }}>
+        <summary class="px-5 py-3 font-semibold text-gray-700 cursor-pointer select-none">
+            ➕ Nouvelle demande d'acte
+        </summary>
+        <div class="px-5 pb-5 border-t pt-4">
+            @include('actes._formulaire-demande', ['visit' => null])
+        </div>
+    </details>
 
     {{-- Compteurs --}}
     <div class="grid grid-cols-3 gap-3 mb-6">
@@ -88,7 +110,21 @@
                     <span class="text-gray-500 text-xs">Demandé par {{ $acte->prescripteur ? 'Dr ' . $acte->prescripteur->nom : '—' }}</span>
                     <span class="ml-auto font-semibold text-gray-700">{{ number_format($acte->montantTotal(), 0, ',', ' ') }} CDF</span>
                 </div>
-                <form method="POST" action="{{ route('bloc.planifier', $acte) }}" class="flex flex-wrap gap-2 items-end bg-gray-50 rounded-lg p-3">
+                @if($passeParLeBloc)
+                {{-- La salle est obligatoire : la programmation se fait au bloc,
+                     qui seul sait quels créneaux sont libres. --}}
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900 flex flex-wrap gap-3 items-center">
+                    <span>À programmer : salle, créneau, chirurgien et anesthésiste.</span>
+                    <a href="{{ route('bloc.programme') }}" class="underline font-semibold">Programmer au bloc →</a>
+                    @unless($acte->facture_id)
+                    <form method="POST" action="{{ route('actes.facturer', $acte) }}" class="inline">
+                        @csrf
+                        <button class="underline">Facturer au guichet</button>
+                    </form>
+                    @endunless
+                </div>
+                @else
+                <form method="POST" action="{{ route('actes.planifier', $acte) }}" class="flex flex-wrap gap-2 items-end bg-gray-50 rounded-lg p-3">
                     @csrf
                     <div>
                         <label for="dp-{{ $acte->id }}" class="block text-[11px] text-gray-500 mb-0.5">Date d'échéance</label>
@@ -119,6 +155,7 @@
                     </label>
                     <button class="bg-blue-700 hover:bg-blue-800 text-white text-sm px-4 py-1.5 rounded-lg font-semibold">Programmer</button>
                 </form>
+                @endif
             </div>
             @empty
             <p class="px-4 py-8 text-center text-sm text-gray-400">Aucune demande en attente de programmation</p>
@@ -147,7 +184,12 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse($programme['planifies'] as $acte)
                     <tr class="{{ $acte->urgence ? 'bg-red-50' : '' }}">
-                        <td class="px-3 py-2 whitespace-nowrap font-semibold">{{ $acte->date_prevue->format('d/m/Y H:i') }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap font-semibold">
+                            {{-- Un acte marqué programmé sans date reste possible
+                                 (reprise d'anciennes données) : on le dit plutôt
+                                 que de laisser la page tomber. --}}
+                            {{ $acte->date_prevue?->format('d/m/Y H:i') ?? 'date à fixer' }}
+                        </td>
                         <td class="px-3 py-2">
                             {{ $acte->patient->nom_complet }}
                             <span class="block text-xs text-gray-400">{{ $acte->patient->sexe }} {{ $acte->patient->date_naissance?->age }} ans · {{ $acte->visit?->service?->nom ?? 'Ambulatoire' }}</span>

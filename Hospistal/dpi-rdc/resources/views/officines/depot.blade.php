@@ -2,6 +2,8 @@
 @section('title', 'Dépôt central')
 @section('content')
 <div class="max-w-7xl mx-auto px-4 py-6">
+
+    @include('pharmacie._onglets')
     <div class="flex items-center gap-3 mb-6 flex-wrap">
         <a href="{{ route('officines.index') }}" class="text-blue-700 hover:underline text-sm">← Officines</a>
         <h2 class="text-2xl font-bold text-gray-800">🏛 {{ $depot->nom }}</h2>

@@ -2,6 +2,8 @@
 @section('title', 'Pharmacie — officines')
 @section('content')
 <div class="max-w-5xl mx-auto px-4 py-6">
+
+    @include('pharmacie._onglets')
     <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h2 class="text-2xl font-bold text-gray-800">💊 Pharmacie — choix de l'officine</h2>
         <a href="{{ route('officines.depot') }}" class="text-sm text-blue-700 hover:underline">Dépôt central →</a>

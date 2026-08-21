@@ -7,6 +7,7 @@ use App\Models\Establishment;
 use App\Models\KitOperatoire;
 use App\Models\SalleOperation;
 use App\Models\User;
+use App\Models\Visit;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,6 +54,17 @@ class BlocOperatoireController extends Controller
 
         return view('bloc.programme', [
             'interventions' => $interventions,
+            // Le bloc doit pouvoir inscrire lui-même une demande : un
+            // chirurgien qui passe annonce son intervention sur place.
+            'catalogue' => array_merge(
+                config('dpi.actes.chirurgie', []),
+                config('dpi.actes.maternite', [])
+            ),
+            'sejoursOuverts' => Visit::with('patient', 'service')
+                ->where('statut', 'en_cours')
+                ->orderByDesc('date_entree')
+                ->limit(300)
+                ->get(),
             'debut' => $debut,
             'fin' => $fin,
             'vue' => $vue,

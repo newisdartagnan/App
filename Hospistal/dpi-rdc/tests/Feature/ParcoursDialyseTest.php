@@ -5,11 +5,13 @@ namespace Tests\Feature;
 use App\Models\ActeClinique;
 use App\Models\Establishment;
 use App\Models\Facture;
+use App\Models\GenerateurDialyse;
 use App\Models\LigneFacture;
 use App\Models\Lit;
 use App\Models\NoteEvolution;
 use App\Models\Patient;
 use App\Models\PrescriptionDiete;
+use App\Models\SeanceDialyse;
 use App\Models\Service;
 use App\Models\TypeConsultation;
 use App\Models\TypeDiete;
@@ -158,13 +160,29 @@ class ParcoursDialyseTest extends TestCase
         // ═══════════════════════════════════════════════════════
         // 4. Séances de dialyse
         // ═══════════════════════════════════════════════════════
+        // La séance se programme sur un générateur, puis se clôture avec ses
+        // poids d'entrée et de sortie : c'est elle qui engendre l'acte
+        // facturable, pas l'inverse.
+        $generateur = GenerateurDialyse::where('code', 'GEN-1')->firstOrFail();
+
         foreach ([3, 1] as $joursAvant) {
-            $this->post(route('dialyse.store'), [
-                'visit_id' => $visite->id,
-                'domaine' => 'dialyse',
-                'libelle' => 'Séance d\'hémodialyse (4 h)',
-                'prix' => config('dpi.tarifs_cdf.dialyse_seance'),
-                'compte_rendu' => 'Séance de 4 h, ultrafiltration 2 500 mL, bien tolérée. J-'.$joursAvant,
+            $this->post(route('dialyse.planifier'), [
+                'patient_id' => $this->patiente->id,
+                'generateur_id' => $generateur->id,
+                'date_seance' => now()->subDays($joursAvant)->setTime(8, 0)->format('Y-m-d\TH:i'),
+                'duree_minutes' => 240,
+                'type' => 'hemodialyse',
+                'abord' => 'fistule',
+            ])->assertSessionHas('success');
+
+            $seance = SeanceDialyse::where('statut', 'planifiee')->firstOrFail();
+
+            $this->post(route('dialyse.realiser', $seance), [
+                'poids_avant_kg' => 70.5,
+                'poids_apres_kg' => 68.0,
+                'ta_avant_systolique' => 150, 'ta_avant_diastolique' => 85,
+                'ta_apres_systolique' => 120, 'ta_apres_diastolique' => 75,
+                'observations' => 'Séance de 4 h, bien tolérée. J-'.$joursAvant,
             ])->assertSessionHas('success');
         }
 
@@ -172,6 +190,12 @@ class ParcoursDialyseTest extends TestCase
 
         $this->assertCount(2, $seances);
         $this->assertTrue($seances->every(fn ($a) => $a->statut === 'realise'), 'Les séances sont réalisées.');
+        // Deux kilos et demi retirés à chaque séance.
+        $this->assertTrue(
+            SeanceDialyse::where('statut', 'realisee')->get()
+                ->every(fn ($s) => $s->ultrafiltration_ml === 2500),
+            'L\'ultrafiltration se déduit du poids perdu.'
+        );
 
         // ═══════════════════════════════════════════════════════
         // 5. Bilans biologiques de surveillance

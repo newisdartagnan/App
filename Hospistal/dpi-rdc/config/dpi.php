@@ -60,4 +60,57 @@ return [
         'dialyse_catheter' => 180000,
         'dialyse_fistule' => 400000,
     ],
+
+    /**
+     * Catalogue des actes cliniques, par domaine.
+     *
+     * C'est d'ici que se remplit la liste proposée au prescripteur. Ajouter
+     * une intervention ne demande pas de toucher au code : une ligne suffit,
+     * avec sa durée habituelle en salle, qui pré-remplit la réservation.
+     */
+    'actes' => [
+        'chirurgie' => [
+            ['libelle' => 'Cure de hernie inguinale', 'prix' => 350000, 'duree' => 90],
+            ['libelle' => 'Cure de hernie ombilicale', 'prix' => 300000, 'duree' => 75],
+            ['libelle' => 'Appendicectomie', 'prix' => 400000, 'duree' => 60],
+            ['libelle' => 'Laparotomie exploratrice', 'prix' => 600000, 'duree' => 120],
+            ['libelle' => 'Cholécystectomie', 'prix' => 750000, 'duree' => 120],
+            ['libelle' => 'Herniorraphie étranglée (urgence)', 'prix' => 500000, 'duree' => 120],
+            ['libelle' => 'Cure d\'hydrocèle', 'prix' => 250000, 'duree' => 60],
+            ['libelle' => 'Thyroïdectomie', 'prix' => 900000, 'duree' => 180],
+            ['libelle' => 'Splénectomie', 'prix' => 850000, 'duree' => 150],
+            ['libelle' => 'Colostomie', 'prix' => 700000, 'duree' => 120],
+            ['libelle' => 'Prostatectomie', 'prix' => 950000, 'duree' => 150],
+            ['libelle' => 'Ostéosynthèse de fracture', 'prix' => 800000, 'duree' => 150],
+            ['libelle' => 'Amputation de membre', 'prix' => 600000, 'duree' => 120],
+            ['libelle' => 'Parage et suture de plaie profonde', 'prix' => 150000, 'duree' => 45],
+            ['libelle' => 'Drainage d\'abcès profond', 'prix' => 200000, 'duree' => 45],
+            ['libelle' => 'Circoncision', 'prix' => 120000, 'duree' => 30],
+            ['libelle' => 'Biopsie chirurgicale', 'prix' => 180000, 'duree' => 45],
+            ['libelle' => 'Petite chirurgie sous anesthésie locale', 'prix' => 150000, 'duree' => 30],
+        ],
+        'maternite' => [
+            ['libelle' => 'Césarienne', 'prix' => 450000, 'duree' => 90],
+            ['libelle' => 'Césarienne en urgence', 'prix' => 550000, 'duree' => 90],
+            ['libelle' => 'Accouchement voie basse', 'prix' => 200000, 'duree' => 60],
+            ['libelle' => 'Accouchement assisté (ventouse ou forceps)', 'prix' => 280000, 'duree' => 60],
+            ['libelle' => 'Révision utérine', 'prix' => 200000, 'duree' => 45],
+            ['libelle' => 'Délivrance artificielle', 'prix' => 180000, 'duree' => 45],
+            ['libelle' => 'Réparation de déchirure périnéale', 'prix' => 150000, 'duree' => 45],
+            ['libelle' => 'Cerclage du col', 'prix' => 300000, 'duree' => 45],
+            ['libelle' => 'Curetage évacuateur', 'prix' => 220000, 'duree' => 45],
+            ['libelle' => 'Grossesse extra-utérine — laparotomie', 'prix' => 650000, 'duree' => 120],
+            ['libelle' => 'Hystérectomie d\'hémostase', 'prix' => 900000, 'duree' => 150],
+            ['libelle' => 'Myomectomie', 'prix' => 700000, 'duree' => 120],
+            ['libelle' => 'Ligature des trompes', 'prix' => 350000, 'duree' => 60],
+        ],
+        'dialyse' => [
+            ['libelle' => 'Séance d\'hémodialyse (4 h)', 'prix' => 120000, 'duree' => 240],
+            ['libelle' => 'Séance d\'hémodialyse avec érythropoïétine', 'prix' => 165000, 'duree' => 240],
+            ['libelle' => 'Dialyse péritonéale — échange', 'prix' => 60000, 'duree' => 60],
+            ['libelle' => 'Pose de cathéter de dialyse', 'prix' => 180000, 'duree' => 60],
+            ['libelle' => 'Confection de fistule artério-veineuse', 'prix' => 400000, 'duree' => 120],
+            ['libelle' => 'Réfection de fistule', 'prix' => 350000, 'duree' => 90],
+        ],
+    ],
 ];

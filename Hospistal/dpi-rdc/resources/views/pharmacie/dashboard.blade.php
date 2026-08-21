@@ -2,6 +2,8 @@
 @section('title', 'Pharmacie')
 @section('content')
 <div class="max-w-7xl mx-auto px-4 py-6">
+
+    @include('pharmacie._onglets')
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-gray-800">Pharmacie</h2>
         <div class="flex gap-3">

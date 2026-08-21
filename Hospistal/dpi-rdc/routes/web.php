@@ -192,6 +192,8 @@ Route::middleware(['auth'])->group(function () {
     // Le médecin rend la main : le patient revient dans la file d'attente
     Route::post('/visites/{visit}/liberer', [ConsultationController::class, 'liberer'])->name('visites.liberer');
 
+    // Programmation simple, hors bloc opératoire (examens spécialisés).
+    Route::post('/actes/{acte}/planifier', [ActeCliniqueController::class, 'planifier'])->name('actes.planifier');
     Route::post('/actes/{acte}/realiser', [ActeCliniqueController::class, 'realiser'])->name('actes.realiser');
     Route::post('/actes/{acte}/facturer', [ActeCliniqueController::class, 'facturer'])->name('actes.facturer');
 
@@ -237,6 +239,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dossier/document/{document}/imprimer', [DossierMedicalController::class, 'imprimerDocument'])->name('dossier.document.imprimer');
 
     // Pharmacie à deux niveaux : officines et dépôt central
+    // Vue d'ensemble : stocks, ruptures, réquisitions et sorties de chaque officine.
+    Route::get('/officines/tableau', [OfficineController::class, 'tableau'])->name('officines.tableau');
     Route::get('/officines', [OfficineController::class, 'index'])->name('officines.index');
     Route::post('/officines/{officine}/activer', [OfficineController::class, 'activer'])->name('officines.activer');
     Route::get('/officines/stock', [OfficineController::class, 'stock'])->name('officines.stock');
