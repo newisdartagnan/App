@@ -8,8 +8,10 @@
             <h2 class="text-2xl font-bold">{{ $examen->domaine === 'imagerie' ? 'Imagerie' : 'Bilan' }} — {{ $examen->patient->nom_complet }}</h2>
         </div>
         <div class="flex gap-2">
-            <a href="{{ route('patients.bulletin-jour', ['patient' => $examen->patient_id, 'date' => $examen->date_prescription->toDateString()]) }}" target="_blank"
-               class="border border-green-700 text-green-700 hover:bg-green-50 text-sm font-medium px-4 py-2 rounded-lg">📄 Bulletin du jour</a>
+            <a href="{{ route('patients.bulletin-jour', ['patient' => $examen->patient_id, 'date' => $examen->date_prescription->toDateString(), 'domaine' => $examen->domaine]) }}" target="_blank"
+               class="border border-green-700 text-green-700 hover:bg-green-50 text-sm font-medium px-4 py-2 rounded-lg">
+                📄 {{ $examen->domaine === 'imagerie' ? 'Comptes rendus du jour' : 'Bulletin du jour' }}
+            </a>
             <a href="{{ route('labo.bon', $examen) }}" target="_blank"
                class="border border-blue-700 text-blue-700 hover:bg-blue-50 text-sm font-medium px-4 py-2 rounded-lg">🖨️ Bon d'examen</a>
             @if(in_array($examen->statut, ['resultat_disponible', 'valide']))

@@ -9,9 +9,12 @@ use App\Models\ExamenLaboratoire;
 use App\Models\Facture;
 use App\Models\Lit;
 use App\Models\Medicament;
+use App\Models\Officine;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Service;
+use App\Models\StockMedicament;
+use App\Models\TypeConsultation;
 use App\Models\TypeExamen;
 use App\Models\User;
 use App\Models\Visit;
@@ -206,11 +209,16 @@ class ParcoursPatientTest extends TestCase
 
         // ── 6. Pharmacie (hospitalisé) : servi à crédit, facturé ensuite ─────
         $medicament = Medicament::where('denomination_commune', 'Artéméther-Luméfantrine')->firstOrFail();
-        $stockAvant = (float) $medicament->stock->quantite_disponible;
+
+        // Un patient hospitalisé est servi par l'officine de son service, et
+        // non par l'officine ambulatoire : c'est ce stock-là qui doit bouger.
+        $officine = Officine::pourVisite($visit->fresh());
+        $stockAvant = (float) StockMedicament::where('officine_id', $officine->id)
+            ->where('medicament_id', $medicament->id)->sum('quantite_disponible');
 
         $this->post(route('prescriptions.store', $consultation), [
             'lignes' => [
-                ['medicament_id' => $medicament->id, 'dose' => '4 comprimés', 'frequence' => '2 fois/jour', 'duree_jours' => 3, 'quantite_totale' => 24],
+                ['medicament_id' => $medicament->id, 'dose' => 4, 'frequence' => 2, 'duree_jours' => 3],
                 ['medicament_id' => '', 'dose' => '', 'frequence' => '', 'duree_jours' => '', 'quantite_totale' => ''],
             ],
         ])->assertRedirect(route('consultations.show', $consultation));
@@ -219,12 +227,22 @@ class ParcoursPatientTest extends TestCase
         $this->assertSame('brouillon', $prescription->statut);
 
         // Patient HOSPITALISÉ : servi à crédit — dispensation sans bon ni paiement
-        $quantites = $prescription->lignes->mapWithKeys(fn ($l) => [$l->id => $l->quantite_totale])->all();
+        $quantites = $prescription->lignes->mapWithKeys(fn ($l) => [$l->id => $l->quantiteADelivrer()])->all();
         $this->post(route('pharmacie.dispenser', $prescription), ['quantites' => $quantites])
             ->assertSessionHas('success');
 
         $this->assertSame('dispensee', $prescription->fresh()->statut);
-        $this->assertSame($stockAvant - 24, (float) $medicament->stock->fresh()->quantite_disponible);
+
+        // Quatre comprimés deux fois par jour trois jours font vingt-quatre
+        // comprimés, servis en trois plaquettes de dix.
+        $ligne = $prescription->lignes->first();
+        $this->assertSame(24.0, (float) $ligne->quantite_totale);
+        $this->assertSame(30.0, $ligne->quantiteADelivrer());
+        $this->assertSame(
+            $stockAvant - 30,
+            (float) StockMedicament::where('officine_id', $officine->id)
+                ->where('medicament_id', $medicament->id)->sum('quantite_disponible')
+        );
 
         // L'ordonnance dispensée reste facturable (règlement avant la sortie)
         $this->post(route('caisse.facturer', $prescription))->assertRedirect();
@@ -270,7 +288,7 @@ class ParcoursPatientTest extends TestCase
             'type_prise_en_charge' => 'prive',
         ]);
 
-        $ophtalmo = \App\Models\TypeConsultation::where('code', 'CONS-OPH')->firstOrFail();
+        $ophtalmo = TypeConsultation::where('code', 'CONS-OPH')->firstOrFail();
         $this->assertSame(24.0, (float) $ophtalmo->prix_usd);
 
         // 1. Envoi en caisse : consultation spécialisée 24 $ → 67 200 CDF

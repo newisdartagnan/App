@@ -224,21 +224,38 @@
                         Facturer →
                     </a>
                     @endif
+                    <a href="{{ route('prescriptions.ordonnance', $prescription) }}" target="_blank"
+                       class="text-gray-600 hover:underline text-xs font-medium">🖨️ Ordonnance</a>
+                    @if($prescription->lignesExternes()->isNotEmpty())
+                    <a href="{{ route('prescriptions.ordonnance', ['prescription' => $prescription, 'type' => 'externe']) }}"
+                       target="_blank" class="text-amber-700 hover:underline text-xs font-medium">
+                        🖨️ Ordonnance externe ({{ $prescription->lignesExternes()->count() }})
+                    </a>
+                    @endif
                 </div>
             </div>
             <ul class="space-y-1">
                 @foreach($prescription->lignes as $ligne)
-                <li class="text-sm text-gray-600 flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0"></span>
-                    <span class="font-medium">{{ $ligne->medicament->denomination_commune }}</span>
+                <li class="text-sm text-gray-600 flex items-center gap-2 flex-wrap">
+                    <span class="w-1.5 h-1.5 rounded-full {{ $ligne->est_externe ? 'bg-amber-500' : 'bg-gray-400' }} flex-shrink-0"></span>
+                    <span class="font-medium">{{ $ligne->designation() }}</span>
                     <span class="text-gray-400">—</span>
-                    <span>{{ $ligne->dose }}, {{ $ligne->frequence }}</span>
-                    @if($ligne->duree_jours)
-                    <span class="text-gray-400">pendant {{ $ligne->duree_jours }}j</span>
-                    @endif
-                    <span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">
-                        {{ $ligne->quantite_totale }} {{ $ligne->medicament->unite_dispensation }}
+                    <span>{{ $ligne->posologie() }}</span>
+                    @if($ligne->est_externe)
+                    <span class="text-xs bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded">
+                        à acheter à l'extérieur
                     </span>
+                    @else
+                    <span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">
+                        {{ $ligne->quantite_totale + 0 }} {{ $ligne->medicament?->unite($ligne->quantite_totale) }}
+                    </span>
+                    @if($ligne->estMajoree())
+                    <span class="text-xs bg-blue-100 text-blue-900 px-1.5 py-0.5 rounded"
+                          title="Le conditionnement ne se coupe pas">
+                        servi : {{ $ligne->libelleConditionnement() }} ({{ $ligne->quantite_facturee + 0 }})
+                    </span>
+                    @endif
+                    @endif
                 </li>
                 @endforeach
             </ul>

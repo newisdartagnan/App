@@ -65,10 +65,18 @@
                 <p class="text-sm {{ $notif->lu ? 'text-gray-600' : 'font-semibold text-gray-900' }}">{{ $notif->titre }}</p>
                 <p class="text-xs text-gray-500">{{ $notif->message }}</p>
                 @if($notif->lien())
-                <form method="POST" action="{{ route('notifications.lue', $notif) }}" class="mt-1.5">
+                <form method="POST" action="{{ route('notifications.lue', $notif) }}" class="mt-1.5"
+                      @if($notif->lienEstDocument()) target="_blank" @endif>
                     @csrf
                     <input type="hidden" name="ouvrir" value="1">
-                    <button class="text-xs text-blue-700 border border-blue-300 rounded px-2 py-1 hover:bg-blue-50">→ Voir {{ $notif->code_reference ?: 'le détail' }}</button>
+                    <button class="text-xs text-blue-700 border border-blue-300 rounded px-2 py-1 hover:bg-blue-50">
+                        @if($notif->lienEstDocument())
+                            📄 Ouvrir le {{ $notif->service === 'imagerie' ? 'compte rendu' : 'bulletin' }}
+                            {{ $notif->code_reference }}
+                        @else
+                            → Voir {{ $notif->code_reference ?: 'le détail' }}
+                        @endif
+                    </button>
                 </form>
                 @endif
             </div>

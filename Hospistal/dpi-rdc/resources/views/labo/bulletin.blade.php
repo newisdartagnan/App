@@ -9,32 +9,46 @@
 @section('contenu')
 <h2 class="titre-doc">{{ $examen->domaine === 'imagerie' ? 'Compte-rendu d\'examen d\'imagerie' : 'Bulletin de résultats d\'analyses' }}</h2>
 
-<div class="bloc">
-    <div class="bloc-titre">Patient</div>
-    <div class="info-patient">
-        <div><strong>Nom :</strong> {{ mb_strtoupper($examen->patient->nom) }} {{ $examen->patient->prenom }}</div>
-        <div><strong>Dossier :</strong> {{ $examen->patient->dossier_number }}</div>
-        <div><strong>Sexe / Âge :</strong> {{ $examen->patient->sexe === 'F' ? 'Féminin' : 'Masculin' }}
-            @if($examen->patient->date_naissance) / {{ $examen->patient->date_naissance->age }} ans @endif</div>
-        <div><strong>Prescripteur :</strong> {{ $examen->prescripteur ? 'Dr ' . $examen->prescripteur->nom : '—' }}</div>
-        <div><strong>Prélèvement / examen :</strong> {{ ($examen->date_prelevement ?? $examen->date_prescription)?->format('d/m/Y H:i') }}</div>
-        <div><strong>Résultats du :</strong> {{ $examen->date_resultat?->format('d/m/Y H:i') ?? '—' }}</div>
-        @php $bonCaisse = \App\Models\BonSortie::where('examen_id', $examen->id)->latest('created_at')->first(); @endphp
-        @if($bonCaisse)<div><strong>Bon caisse :</strong> <span style="font-family:'Courier New',monospace;">{{ $bonCaisse->numero }}</span></div>@endif
-    </div>
-</div>
+@php
+    $estImagerie = $examen->domaine === 'imagerie';
+    $bonCaisse = \App\Models\BonSortie::where('examen_id', $examen->id)->latest('created_at')->first();
+@endphp
+@include('partials.bandeau-patient-impression', [
+    'patient' => $examen->patient,
+    'lignes' => array_filter([
+        'Prescripteur' => $examen->prescripteur ? 'Dr '.$examen->prescripteur->nom.' '.$examen->prescripteur->prenom : '—',
+        ($estImagerie ? 'Examen réalisé le' : 'Prélèvement le')
+            => ($examen->date_prelevement ?? $examen->date_prescription)?->format('d/m/Y H:i'),
+        ($estImagerie ? 'Compte rendu du' : 'Résultats du') => $examen->date_resultat?->format('d/m/Y H:i') ?? '—',
+        'Bon caisse' => $bonCaisse?->numero,
+    ]),
+])
 
 <div class="bloc">
-    <div class="bloc-titre">Résultats</div>
+    <div class="bloc-titre">{{ $estImagerie ? 'Examens réalisés' : 'Résultats' }}</div>
     <table class="donnees">
+        @if($estImagerie)
+        {{-- Un examen d'imagerie ne rend pas de valeur mesurée : il n'a donc
+             ni unité ni norme, seulement un compte rendu signé plus bas. --}}
+        <thead><tr><th>Examen</th><th>Modalité</th><th>Incidence / observation</th></tr></thead>
+        <tbody>
+            @foreach($examen->resultats->unique('type_examen_id') as $r)
+            <tr>
+                <td>{{ $r->typeExamen?->libelle ?? $r->parametre }}</td>
+                <td>{{ $r->typeExamen?->libelleModalite() ?? '—' }}</td>
+                <td>{{ $r->valeur_brute ?: ($r->commentaire ?: '—') }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+        @else
         <thead><tr>
             <th>Examen / paramètre</th><th class="num">Résultat</th><th>Unité</th><th>Valeurs de référence</th><th>Interprétation</th>
         </tr></thead>
         <tbody>
             @foreach($examen->resultats as $r)
-            @php $anormal = in_array($r->interpretation, ['bas', 'eleve', 'critique', 'positif']); @endphp
+            @php $anormal = in_array($r->interpretation, ['bas', 'eleve', 'critique', 'positif'], true); @endphp
             <tr>
-                <td>{{ $r->typeExamen->libelle }}@if($r->parametre) — {{ $r->parametre }}@endif</td>
+                <td>{{ $r->typeExamen?->libelle }}@if($r->parametre) — {{ $r->parametre }}@endif</td>
                 <td class="num {{ $anormal ? 'anormal' : 'normal' }}">
                     {{ $r->valeur_brute ?? ($r->valeur_numerique !== null ? $r->valeur_numerique + 0 : '—') }}
                 </td>
@@ -48,6 +62,7 @@
             </tr>
             @endforeach
         </tbody>
+        @endif
     </table>
 </div>
 

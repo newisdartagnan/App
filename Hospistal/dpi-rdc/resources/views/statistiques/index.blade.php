@@ -60,6 +60,7 @@
             'activite' => 'Activité',
             'occupation' => 'Occupation des lits',
             'labo' => 'Laboratoire',
+            'imagerie' => 'Imagerie',
             'pharmacie' => 'Pharmacie',
         ] as $cle => $libelle)
         <a href="{{ route('statistiques.index', ['onglet' => $cle, 'debut' => $debut, 'fin' => $fin]) }}"
@@ -156,25 +157,46 @@
             </table>
         </div>
 
-    @elseif($onglet === 'labo')
-        <div class="grid md:grid-cols-2 gap-4">
+    @elseif($onglet === 'labo' || $onglet === 'imagerie')
+        @php
+            $plateau = $onglet === 'labo' ? $labo : $imagerie;
+            $couleur = $onglet === 'labo' ? 'bg-purple-600' : 'bg-teal-600';
+            $repartitions = $onglet === 'labo'
+                ? ['unite' => 'Par unité d\'analyse', 'test' => 'Examens les plus demandés',
+                   'statut' => 'Par étape', 'laborantin' => 'Par laborantin']
+                : ['modalite' => 'Par modalité', 'test' => 'Examens les plus demandés',
+                   'statut' => 'Par étape', 'radiologue' => 'Par radiologue'];
+        @endphp
+
+        {{-- Chiffres de tête du plateau technique --}}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             @foreach([
-                'domaine' => 'Par domaine',
-                'unite' => 'Par unité d\'analyse',
-                'test' => 'Examens les plus demandés',
-                'laborantin' => 'Par laborantin',
-            ] as $cle => $titre)
-            @php $donnees = $labo[$cle] ?? collect(); $max = $donnees->max() ?: 1; @endphp
+                ['Examens prescrits', $plateau['total'], ''],
+                ['Dont urgents', $plateau['urgents'], ''],
+                [$onglet === 'labo' ? 'Résultats rendus' : 'Comptes rendus signés',
+                 $onglet === 'labo' ? ($plateau['statut']['valide'] ?? 0) : $plateau['comptes_rendus'], ''],
+                ['Délai moyen de rendu', $plateau['delai_moyen'] ?? '—', $plateau['delai_moyen'] !== null ? ' h' : ''],
+            ] as [$libelle, $valeur, $suffixe])
+            <div class="bg-white rounded-xl shadow p-4">
+                <p class="text-2xl font-bold text-gray-800">{{ $valeur }}{{ $suffixe }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ $libelle }}</p>
+            </div>
+            @endforeach
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+            @foreach($repartitions as $cle => $titre)
+            @php $donnees = collect($plateau[$cle] ?? []); $max = $donnees->max() ?: 1; @endphp
             <div class="bg-white rounded-xl shadow overflow-hidden">
                 <div class="px-4 py-3 border-b font-semibold text-gray-700 text-sm">{{ $titre }}</div>
                 <div class="p-4 space-y-2 max-h-72 overflow-y-auto">
                     @forelse($donnees as $libelle => $nombre)
                     <div>
                         <div class="flex justify-between text-xs mb-0.5">
-                            <span class="text-gray-700">{{ $libelle }}</span>
+                            <span class="text-gray-700 capitalize">{{ str_replace('_', ' ', $libelle) }}</span>
                             <span class="font-semibold">{{ $nombre }}</span>
                         </div>
-                        {!! $barre($nombre, $max, 'bg-purple-600') !!}
+                        {!! $barre($nombre, $max, $couleur) !!}
                     </div>
                     @empty
                     <p class="text-xs text-gray-400 text-center py-4">Aucune donnée</p>

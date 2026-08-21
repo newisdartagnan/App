@@ -6,6 +6,7 @@ use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\AssuranceController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BilanHydriqueController;
+use App\Http\Controllers\BlocOperatoireController;
 use App\Http\Controllers\CaisseController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConventionController;
@@ -79,6 +80,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/labo/{examen}', [LaboratoireController::class, 'show'])->name('labo.show');
     Route::get('/labo/{examen}/bon', [LaboratoireController::class, 'bon'])->name('labo.bon');
     Route::get('/labo/{examen}/bulletin', [LaboratoireController::class, 'bulletin'])->name('labo.bulletin');
+    // Résultats en PDF pour le prescripteur : il lit sans entrer au plateau technique.
+    Route::get('/examens/{examen}/resultat.pdf', [LaboratoireController::class, 'pdfResultat'])->name('examens.pdf');
     Route::post('/labo/{examen}/resultats', [LaboratoireController::class, 'saisirResultats'])->name('labo.resultats');
     Route::post('/labo/{examen}/valider', [LaboratoireController::class, 'valider'])->name('labo.valider');
     Route::post('/labo/{examen}/rouvrir', [LaboratoireController::class, 'rouvrir'])->name('labo.rouvrir');
@@ -179,8 +182,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notifications/{notification}/lue', [NotificationController::class, 'marquerLue'])->name('notifications.lue');
     Route::post('/notifications/{notification}/archiver', [NotificationController::class, 'archiver'])->name('notifications.archiver');
 
-    // Programme opératoire (bloc)
-    Route::post('/bloc/{acte}/planifier', [ActeCliniqueController::class, 'planifier'])->name('bloc.planifier');
+    // Bloc opératoire : demande → planification → intervention → registre
+    Route::get('/bloc/programme', [BlocOperatoireController::class, 'programme'])->name('bloc.programme');
+    Route::get('/bloc/horaire', [BlocOperatoireController::class, 'horaire'])->name('bloc.horaire');
+    Route::get('/bloc/interventions', [BlocOperatoireController::class, 'interventions'])->name('bloc.interventions');
+    Route::get('/bloc/registre', [BlocOperatoireController::class, 'registre'])->name('bloc.registre');
+    Route::get('/bloc/{acte}/feuille', [BlocOperatoireController::class, 'feuille'])->name('bloc.feuille');
+    Route::post('/bloc/{acte}/planifier', [BlocOperatoireController::class, 'planifier'])->name('bloc.planifier');
+    Route::post('/bloc/{acte}/cloturer', [BlocOperatoireController::class, 'cloturer'])->name('bloc.cloturer');
 
     // Urgences — triage structuré puis prise en charge
     Route::get('/urgences', [UrgenceController::class, 'index'])->name('urgences.index');
@@ -261,6 +270,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/pharmacie/stock', [PharmacieController::class, 'stock'])->name('pharmacie.stock');
     Route::get('/pharmacie/prescriptions', [PharmacieController::class, 'prescriptions'])->name('pharmacie.prescriptions');
     Route::get('/pharmacie/prescriptions/{prescription}', [PharmacieController::class, 'showPrescription'])->name('pharmacie.prescription');
+    // Ordonnance imprimable ; ?type=externe pour les produits achetés en ville, sans prix.
+    Route::get('/prescriptions/{prescription}/ordonnance', [PharmacieController::class, 'ordonnance'])->name('prescriptions.ordonnance');
     Route::get('/pharmacie/medicaments', [PharmacieController::class, 'medicaments'])->name('pharmacie.medicaments');
     Route::post('/pharmacie/medicaments', [PharmacieController::class, 'storeMedicament'])->name('pharmacie.medicaments.store');
     Route::post('/pharmacie/prescriptions/{prescription}/dispenser', [PharmacieController::class, 'dispenser'])->name('pharmacie.dispenser');

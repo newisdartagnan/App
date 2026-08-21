@@ -9,6 +9,7 @@ use App\Models\Lit;
 use App\Models\Medicament;
 use App\Models\NotificationInterne;
 use App\Models\Patient;
+use App\Models\SalleOperation;
 use App\Models\Service;
 use App\Models\TypeExamen;
 use App\Models\User;
@@ -313,22 +314,29 @@ class NotificationsServicesTest extends TestCase
             ->assertSee('à programmer')
             ->assertSee('Herniorraphie inguinale');
 
+        // La programmation passe désormais par le bloc : une salle et un
+        // créneau, sans quoi deux équipes se retrouveraient devant la même porte.
+        $salle = SalleOperation::where('code', 'SOP-1')->firstOrFail();
+
         $this->post(route('bloc.planifier', $acte), [
+            'salle_id' => $salle->id,
             'date_prevue' => now()->addDay()->format('Y-m-d\TH:i'),
             'operateur_id' => $this->user->id,
             'duree_minutes' => 90,
-            'indication' => 'Hernie inguinale droite',
+            'diagnostic_preop' => 'Hernie inguinale droite',
             'consentement' => '1',
             'urgence' => '1',
         ])->assertRedirect();
 
         $acte->refresh();
         $this->assertNotNull($acte->date_prevue);
+        $this->assertSame($salle->id, $acte->salle_id);
         $this->assertTrue($acte->consentement);
         $this->assertTrue($acte->urgence);
         $this->assertSame(90, $acte->duree_minutes);
 
-        $this->get(route('bloc.index'))->assertOk()->assertSee('Hernie inguinale droite');
+        $this->get(route('bloc.programme', ['vue' => 'planifiees']))
+            ->assertOk()->assertSee('Hernie inguinale droite');
 
         $this->post(route('actes.realiser', $acte), [
             'compte_rendu' => 'Intervention sans complication, sortie de bloc à 11h.',
@@ -365,10 +373,9 @@ class NotificationsServicesTest extends TestCase
         $this->post(route('prescriptions.store', $consultation), [
             'lignes' => [[
                 'medicament_id' => $medicament->id,
-                'dose' => '1 cp',
-                'frequence' => '3x/jour',
+                'dose' => 1,
+                'frequence' => 3,
                 'duree_jours' => 5,
-                'quantite_totale' => 15,
             ]],
         ])->assertRedirect();
 

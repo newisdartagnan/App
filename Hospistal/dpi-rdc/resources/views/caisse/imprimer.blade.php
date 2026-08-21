@@ -30,7 +30,14 @@
         <tbody>
             @foreach($facture->lignes as $ligne)
             <tr>
-                <td>{{ $ligne->libelle }}</td>
+                <td>
+                    {{ $ligne->libelle }}
+                    @if(!empty($sousExamens[$ligne->reference_id]))
+                    <div style="font-size:10px;color:#555;padding-left:10px;">
+                        {{ implode(' · ', $sousExamens[$ligne->reference_id]) }}
+                    </div>
+                    @endif
+                </td>
                 <td class="num">{{ $ligne->quantite + 0 }}</td>
                 <td class="num">{{ number_format($ligne->prix_unitaire, 0, ',', '.') }}</td>
                 <td class="num">{{ number_format($ligne->total_ligne, 0, ',', '.') }}</td>

@@ -23,6 +23,7 @@ class StatistiqueController extends Controller
 
         $donnees = match ($onglet) {
             'labo' => ['labo' => $this->stats->activiteLabo($debut, $fin)],
+            'imagerie' => ['imagerie' => $this->stats->activiteImagerie($debut, $fin)],
             'pharmacie' => ['pharmacie' => $this->stats->activitePharmacie($debut, $fin)],
             'occupation' => ['occupation' => $this->stats->occupationParService()],
             default => [

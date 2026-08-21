@@ -26,6 +26,19 @@
 @endphp
 @section('title', $titre)
 @section('content')
+@if(in_array($domaine, ['chirurgie', 'maternite'], true))
+<div class="max-w-7xl mx-auto px-4 pt-6">
+    <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-900 flex flex-wrap gap-3 items-center">
+        <span>
+            <strong>La programmation se fait au bloc opératoire :</strong>
+            salle, créneau, chirurgien, anesthésiste, kit, puis compte rendu et registre.
+        </span>
+        <a href="{{ route('bloc.programme') }}" class="underline font-semibold">Programme préopératoire →</a>
+        <a href="{{ route('bloc.horaire') }}" class="underline">Horaire des salles</a>
+        <a href="{{ route('bloc.registre') }}" class="underline">Registre</a>
+    </div>
+</div>
+@endif
 <div class="max-w-7xl mx-auto px-4 py-6">
     <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h2 class="text-2xl font-bold text-gray-800">

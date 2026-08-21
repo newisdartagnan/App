@@ -64,12 +64,31 @@ class NotificationInterne extends Model
     /**
      * Page concernée par la notification.
      */
+    /**
+     * Où mène la notification.
+     *
+     * Un résultat d'examen mène au document PDF, et non à l'écran du plateau
+     * technique : le médecin qui a prescrit n'a pas forcément accès au
+     * laboratoire ni à l'imagerie, et ce qu'il attend c'est son compte rendu.
+     * Les demandes de travail, elles, mènent bien à l'écran de production.
+     */
     public function lien(): ?string
     {
+        if ($this->reference_type === 'examen') {
+            return $this->type === 'resultat_pret'
+                ? route('examens.pdf', $this->reference_id)
+                : route('labo.show', $this->reference_id);
+        }
+
         return match ($this->reference_type) {
-            'examen' => route('labo.show', $this->reference_id),
             'prescription' => route('pharmacie.prescription', $this->reference_id),
             default => null,
         };
+    }
+
+    /** Le lien ouvre-t-il un document plutôt qu'un écran de l'application ? */
+    public function lienEstDocument(): bool
+    {
+        return $this->reference_type === 'examen' && $this->type === 'resultat_pret';
     }
 }

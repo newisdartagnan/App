@@ -93,13 +93,19 @@ class FacturationService
         string $devise = 'CDF'
     ): Facture {
         return DB::transaction(function () use ($prescription, $devise) {
-            $prescription->load(['lignes.medicament.stock', 'patient', 'consultation.visit']);
+            $prescription->load(['lignes.medicament.stocks', 'patient', 'consultation.visit', 'officine']);
             $patient = $prescription->patient;
             $visit = $prescription->consultation->visit;
 
-            $totalMontant = $prescription->lignes->sum(function ($ligne) {
-                return ($ligne->medicament->stock?->prix_unitaire_vente ?? 0) * $ligne->quantite_totale;
-            });
+            // Un produit acheté à l'extérieur n'entre pas dans la facturation
+            // interne : l'hôpital ne l'a ni en stock ni à délivrer.
+            $lignes = $prescription->lignes->where('est_externe', false);
+
+            $prixUnitaire = fn ($ligne) => $this->prixOfficine($ligne, $prescription->officine_id);
+
+            // On facture ce qui sortira du tiroir : quinze comprimés se
+            // servent en deux plaquettes de dix, soit vingt comprimés.
+            $totalMontant = $lignes->sum(fn ($ligne) => $prixUnitaire($ligne) * $ligne->quantiteADelivrer());
 
             $facture = Facture::create([
                 'patient_id' => $patient->id,
@@ -118,16 +124,20 @@ class FacturationService
                 'assurance_part' => 0,
             ]);
 
-            foreach ($prescription->lignes as $ligne) {
-                $prixTotal = ($ligne->medicament->stock?->prix_unitaire_vente ?? 0) * $ligne->quantite_totale;
+            foreach ($lignes as $ligne) {
+                $prix = $prixUnitaire($ligne);
+                $quantite = $ligne->quantiteADelivrer();
+                $conditionnement = $ligne->libelleConditionnement();
+
                 $ligneFacture = LigneFacture::create([
                     'facture_id' => $facture->id,
                     'type' => 'medicament',
-                    'libelle' => $ligne->medicament->denomination_commune.' '.$ligne->medicament->dosage,
+                    'libelle' => $ligne->medicament->designation()
+                        .($conditionnement ? ' — '.$conditionnement : ''),
                     'reference_id' => $ligne->medicament_id,
-                    'quantite' => $ligne->quantite_totale,
-                    'prix_unitaire' => $ligne->medicament->stock?->prix_unitaire_vente ?? 0,
-                    'total_ligne' => $prixTotal,
+                    'quantite' => $quantite,
+                    'prix_unitaire' => $prix,
+                    'total_ligne' => $prix * $quantite,
                 ]);
 
                 if ($patient->type_prise_en_charge === 'assurance') {
@@ -147,6 +157,27 @@ class FacturationService
 
             return $facture->fresh();
         });
+    }
+
+    /**
+     * Prix unitaire du produit à l'officine qui servira l'ordonnance.
+     *
+     * Chaque officine tient son propre stock et son propre prix ; à défaut
+     * d'y trouver le produit, on retient le prix de délivrance courant.
+     */
+    protected function prixOfficine($ligne, ?string $officineId): float
+    {
+        $stocks = $ligne->medicament?->stocks;
+
+        if (! $stocks) {
+            return 0.0;
+        }
+
+        $stock = $officineId
+            ? $stocks->firstWhere('officine_id', $officineId)
+            : null;
+
+        return (float) (($stock ?? $ligne->medicament->stock)?->prix_unitaire_vente ?? 0);
     }
 
     /**

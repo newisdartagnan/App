@@ -117,7 +117,46 @@ class CaisseController extends Controller
     {
         $facture->load(['patient', 'visit', 'lignes', 'paiements.caissier', 'lignesTiersPayant.assurance', 'bonsSortie']);
 
-        return view('caisse.imprimer', compact('facture'));
+        return view('caisse.imprimer', [
+            'facture' => $facture,
+            'sousExamens' => $this->sousExamensFactures($facture),
+        ]);
+    }
+
+    /**
+     * Sous-examens couverts par chaque ligne d'examen de la facture.
+     *
+     * Une ligne « Ionogramme sanguin » recouvre quatre dosages : le patient
+     * doit lire sur sa facture ce qu'il paie, comme il le lit sur le bulletin.
+     *
+     * @return array<string, array<int, string>> type d'examen → paramètres
+     */
+    private function sousExamensFactures(Facture $facture): array
+    {
+        $examens = ExamenLaboratoire::with('resultats.typeExamen')
+            ->where('facture_id', $facture->id)
+            ->get();
+
+        $detail = [];
+
+        foreach ($examens as $examen) {
+            foreach ($examen->resultats->groupBy('type_examen_id') as $typeId => $resultats) {
+                $parametres = $resultats
+                    ->map(fn ($r) => $r->parametre)
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                // Un examen à paramètre unique n'a rien à détailler : son
+                // libellé dit déjà tout (une radiographie, une glycémie).
+                if (count($parametres) > 1) {
+                    $detail[$typeId] = $parametres;
+                }
+            }
+        }
+
+        return $detail;
     }
 
     /**

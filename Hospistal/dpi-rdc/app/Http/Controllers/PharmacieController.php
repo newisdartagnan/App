@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Medicament;
@@ -128,7 +129,7 @@ class PharmacieController extends Controller
         $query = Medicament::with('stock')
             ->where('est_actif', true)
             ->when($search !== '', function ($q) use ($search) {
-                $like = '%' . strtolower($search) . '%';
+                $like = '%'.strtolower($search).'%';
                 $q->where(fn ($q) => $q
                     ->whereRaw('LOWER(denomination_commune) LIKE ?', [$like])
                     ->orWhereRaw("LOWER(COALESCE(nom_commercial, '')) LIKE ?", [$like]));
@@ -155,5 +156,25 @@ class PharmacieController extends Controller
             'search' => $search,
             'filtre' => $filtre,
         ];
+    }
+
+    /**
+     * Ordonnance imprimable.
+     *
+     * Deux documents distincts : celui de l'officine, avec les quantités à
+     * délivrer, et l'ordonnance externe, sans aucun prix, que le patient
+     * emporte pour acheter ailleurs ce que l'établissement n'a pas.
+     */
+    public function ordonnance(Request $request, Prescription $prescription): View
+    {
+        $prescription->load([
+            'patient.assurances.assurance', 'prescripteur', 'officine',
+            'lignes.medicament',
+        ]);
+
+        return view('pharmacie.ordonnance', [
+            'prescription' => $prescription,
+            'externe' => $request->query('type') === 'externe',
+        ]);
     }
 }

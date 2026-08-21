@@ -327,5 +327,13 @@ return [
         ['code' => 'IMG-ECHO-THYR', 'libelle' => 'Échographie Thyroïdienne', 'prix' => 10000.0],
         ['code' => 'IMG-ECHO-TEST', 'libelle' => 'Échographie Testiculaire', 'prix' => 10000.0],
         ['code' => 'IMG-MAMMO', 'libelle' => 'Mammographie Numérique', 'prix' => 20000.0],
+        ['code' => 'IMG-DOPP-MI', 'libelle' => 'Doppler des Membres Inférieurs', 'prix' => 25000.0],
+        ['code' => 'IMG-DOPP-CAR', 'libelle' => 'Doppler des Troncs Supra-aortiques', 'prix' => 25000.0],
+        ['code' => 'IMG-SCAN-CRAN', 'libelle' => 'Scanner Cérébral', 'prix' => 90000.0],
+        ['code' => 'IMG-SCAN-THOR', 'libelle' => 'Scanner Thoracique', 'prix' => 95000.0],
+        ['code' => 'IMG-SCAN-ABD', 'libelle' => 'Scanner Abdomino-pelvien', 'prix' => 110000.0],
+        ['code' => 'IMG-SCAN-RACH', 'libelle' => 'Scanner du Rachis', 'prix' => 95000.0],
+        ['code' => 'IMG-IRM-CRAN', 'libelle' => 'IRM Cérébrale', 'prix' => 180000.0],
+        ['code' => 'IMG-IRM-RACH', 'libelle' => 'IRM du Rachis', 'prix' => 180000.0],
     ],
 ];

@@ -29,9 +29,25 @@ class MouvementStock extends Model
         ];
     }
 
+    /**
+     * Un mouvement sans date est invisible de tout historique et de toute
+     * statistique : on l'horodate d'office quand l'appelant l'a omis.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $mouvement) {
+            $mouvement->created_at ??= now();
+        });
+    }
+
     public function medicament(): BelongsTo
     {
         return $this->belongsTo(Medicament::class);
+    }
+
+    public function officine(): BelongsTo
+    {
+        return $this->belongsTo(Officine::class);
     }
 
     public function user(): BelongsTo

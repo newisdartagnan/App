@@ -49,25 +49,46 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($prescription->lignes as $ligne)
-                @php $stockDispo = (float) ($ligne->medicament->stock?->quantite_disponible ?? 0); @endphp
-                <tr>
+                @php
+                    // Le stock qui compte est celui de l'officine qui sert
+                    // l'ordonnance, pas celui du dépôt central.
+                    $stockDispo = $ligne->est_externe ? 0.0 : (float) $ligne->medicament?->stocks
+                        ->where('officine_id', $prescription->officine_id)
+                        ->sum('quantite_disponible');
+                @endphp
+                <tr class="{{ $ligne->est_externe ? 'bg-amber-50' : '' }}">
                     <td class="px-4 py-3">
-                        <p class="font-medium">{{ $ligne->medicament->denomination_commune }}</p>
-                        <p class="text-xs text-gray-400">{{ $ligne->medicament->dosage }} — {{ $ligne->medicament->forme }}</p>
+                        <p class="font-medium">{{ $ligne->designation() }}</p>
+                        @if($ligne->est_externe)
+                        <p class="text-xs text-amber-800">À acheter à l'extérieur — non délivré ici, non facturé</p>
+                        @else
+                        <p class="text-xs text-gray-400">
+                            {{ $ligne->medicament?->libelleVoie() }} / {{ $ligne->medicament?->libelleConditionnement() }}
+                        </p>
+                        @endif
                     </td>
-                    <td class="px-4 py-3 text-gray-600">
-                        {{ $ligne->dose }} — {{ $ligne->frequence }}{{ $ligne->duree_jours ? ' pendant ' . $ligne->duree_jours . ' jours' : '' }}
+                    <td class="px-4 py-3 text-gray-600">{{ $ligne->posologie() }}</td>
+                    <td class="px-4 py-3 text-right">
+                        @if($ligne->est_externe)
+                        <span class="text-xs text-gray-400">—</span>
+                        @else
+                        <span class="font-bold {{ $stockDispo < $ligne->quantiteADelivrer() ? 'text-red-600' : 'text-green-600' }}">{{ $stockDispo + 0 }}</span>
+                        <span class="text-xs text-gray-400">{{ $ligne->medicament?->unite($stockDispo) }}</span>
+                        @endif
                     </td>
                     <td class="px-4 py-3 text-right">
-                        <span class="font-bold {{ $stockDispo <= 0 ? 'text-red-600' : 'text-green-600' }}">{{ $stockDispo }}</span>
-                        <span class="text-xs text-gray-400">{{ $ligne->medicament->unite_dispensation }}</span>
-                    </td>
-                    <td class="px-4 py-3 text-right">
+                        @if($ligne->est_externe)
+                        <span class="text-xs text-gray-400">ordonnance externe</span>
+                        @else
                         <label for="qte-{{ $ligne->id }}" class="sr-only">Quantité à dispenser</label>
                         <input id="qte-{{ $ligne->id }}" name="quantites[{{ $ligne->id }}]" type="number" step="0.5" min="0"
                             value="{{ $ligne->quantiteRestante() }}" {{ $dispensable ? '' : 'disabled' }}
                             class="w-24 min-h-[44px] rounded-lg border border-gray-300 px-3 py-2 text-right">
-                        <span class="text-xs text-gray-400">{{ $ligne->medicament->unite_dispensation }}</span>
+                        <span class="text-xs text-gray-400">{{ $ligne->medicament?->unite(2) }}</span>
+                        @if($ligne->estMajoree())
+                        <p class="text-xs text-blue-700">{{ $ligne->libelleConditionnement() }}</p>
+                        @endif
+                        @endif
                     </td>
                 </tr>
                 @endforeach
