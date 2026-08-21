@@ -5,12 +5,14 @@ use App\Http\Controllers\ActeCliniqueController;
 use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\AssuranceController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\BanqueSangController;
 use App\Http\Controllers\BilanHydriqueController;
 use App\Http\Controllers\BlocOperatoireController;
 use App\Http\Controllers\CaisseController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConventionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DialyseController;
 use App\Http\Controllers\DieteMenageController;
 use App\Http\Controllers\DisponibiliteController;
 use App\Http\Controllers\DossierInfirmierController;
@@ -18,6 +20,7 @@ use App\Http\Controllers\DossierMedicalController;
 use App\Http\Controllers\EquipementController;
 use App\Http\Controllers\ForfaitController;
 use App\Http\Controllers\LaboratoireController;
+use App\Http\Controllers\MaterniteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficineController;
 use App\Http\Controllers\ParametreController;
@@ -99,9 +102,18 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/bloc', [ActeCliniqueController::class, 'store'])->name('bloc.store');
 
     // Maternité
-    Route::get('/maternite', fn () => app(ActeCliniqueController::class)->index(request()->merge(['domaine' => 'maternite'])))->name('maternite.index');
-    Route::get('/maternite/nouveau', fn () => app(ActeCliniqueController::class)->create(request()->merge(['domaine' => 'maternite'])))->name('maternite.create');
-    Route::post('/maternite', [ActeCliniqueController::class, 'store'])->name('maternite.store');
+    // Maternité : fiche obstétricale, consultations prénatales, accouchements
+    Route::get('/maternite', [MaterniteController::class, 'index'])->name('maternite.index');
+    Route::post('/maternite/grossesses', [MaterniteController::class, 'store'])->name('maternite.grossesses.store');
+    Route::get('/maternite/registre', [MaterniteController::class, 'registre'])->name('maternite.registre');
+    Route::get('/maternite/grossesses/{grossesse}', [MaterniteController::class, 'show'])->name('maternite.show');
+    Route::get('/maternite/grossesses/{grossesse}/fiche', [MaterniteController::class, 'fiche'])->name('maternite.fiche');
+    Route::post('/maternite/grossesses/{grossesse}/cpn', [MaterniteController::class, 'consultation'])->name('maternite.cpn');
+    Route::post('/maternite/grossesses/{grossesse}/accouchement', [MaterniteController::class, 'accouchement'])->name('maternite.accouchement');
+    // Actes de maternité facturables (hors accouchement) : ils passent par le bloc
+    Route::get('/maternite/actes', fn () => app(ActeCliniqueController::class)->index(request()->merge(['domaine' => 'maternite'])))->name('maternite.actes');
+    Route::get('/maternite/actes/nouveau', fn () => app(ActeCliniqueController::class)->create(request()->merge(['domaine' => 'maternite'])))->name('maternite.create');
+    Route::post('/maternite/actes', [ActeCliniqueController::class, 'store'])->name('maternite.store');
 
     // Examens spécialisés (dentisterie, ORL, ophtalmo…) prescrits depuis le parcours
     Route::get('/examens-specialises', fn () => app(ActeCliniqueController::class)->index(request()->merge(['domaine' => 'examen_specialise'])))->name('examens-specialises.index');
@@ -109,9 +121,28 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/examens-specialises', [ActeCliniqueController::class, 'store'])->name('examens-specialises.store');
 
     // Dialyse / néphrologie
-    Route::get('/dialyse', fn () => app(ActeCliniqueController::class)->index(request()->merge(['domaine' => 'dialyse'])))->name('dialyse.index');
-    Route::get('/dialyse/nouveau', fn () => app(ActeCliniqueController::class)->create(request()->merge(['domaine' => 'dialyse'])))->name('dialyse.create');
-    Route::post('/dialyse', [ActeCliniqueController::class, 'store'])->name('dialyse.store');
+    // Dialyse : calendrier des générateurs, séances, registre
+    Route::get('/dialyse', [DialyseController::class, 'calendrier'])->name('dialyse.index');
+    Route::post('/dialyse/seances', [DialyseController::class, 'planifier'])->name('dialyse.planifier');
+    Route::post('/dialyse/recurrence', [DialyseController::class, 'recurrence'])->name('dialyse.recurrence');
+    Route::get('/dialyse/seances', [DialyseController::class, 'seances'])->name('dialyse.seances');
+    Route::post('/dialyse/seances/{seance}/realiser', [DialyseController::class, 'realiser'])->name('dialyse.realiser');
+    Route::post('/dialyse/seances/{seance}/absence', [DialyseController::class, 'absence'])->name('dialyse.absence');
+    Route::get('/dialyse/registre', [DialyseController::class, 'registre'])->name('dialyse.registre');
+    Route::get('/dialyse/actes', fn () => app(ActeCliniqueController::class)->index(request()->merge(['domaine' => 'dialyse'])))->name('dialyse.actes');
+    Route::get('/dialyse/actes/nouveau', fn () => app(ActeCliniqueController::class)->create(request()->merge(['domaine' => 'dialyse'])))->name('dialyse.create');
+    Route::post('/dialyse/actes', [ActeCliniqueController::class, 'store'])->name('dialyse.store');
+
+    // Banque de sang : stock, donneurs, demandes, délivrance
+    Route::get('/banque-sang', [BanqueSangController::class, 'index'])->name('banque-sang.index');
+    Route::get('/banque-sang/donneurs', [BanqueSangController::class, 'donneurs'])->name('banque-sang.donneurs');
+    Route::post('/banque-sang/donneurs', [BanqueSangController::class, 'enregistrerDonneur'])->name('banque-sang.donneurs.store');
+    Route::post('/banque-sang/donneurs/{donneur}/don', [BanqueSangController::class, 'enregistrerDon'])->name('banque-sang.don');
+    Route::post('/banque-sang/poches/{poche}/depister', [BanqueSangController::class, 'depister'])->name('banque-sang.depister');
+    Route::post('/banque-sang/demandes', [BanqueSangController::class, 'demander'])->name('banque-sang.demander');
+    Route::get('/banque-sang/demandes/{demande}', [BanqueSangController::class, 'demande'])->name('banque-sang.demande');
+    Route::post('/banque-sang/demandes/{demande}/delivrer', [BanqueSangController::class, 'delivrer'])->name('banque-sang.delivrer');
+    Route::post('/banque-sang/demandes/{demande}/refuser', [BanqueSangController::class, 'refuser'])->name('banque-sang.refuser');
 
     // Acomptes de soins (urgences et hospitalisation)
     Route::get('/acomptes', [AcompteController::class, 'index'])->name('acomptes.index');
