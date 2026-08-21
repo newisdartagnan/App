@@ -6,6 +6,7 @@ use App\Models\BonSortie;
 use App\Models\Dispensation;
 use App\Models\Medicament;
 use App\Models\MouvementStock;
+use App\Models\Officine;
 use App\Models\Prescription;
 use App\Models\StockMedicament;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,21 @@ class PharmacieService
      */
     public function dispenser(Prescription $prescription, array $quantites): array
     {
-        $prescription->load(['lignes.medicament.stock', 'consultation.visit']);
+        $prescription->load(['lignes.medicament.stocks', 'consultation.visit', 'officine']);
+
+        // L'ordonnance est servie par l'officine du lieu de soins : ambulatoire,
+        // urgences, ou officine du service d'hospitalisation. Jamais par le
+        // dépôt central, qui n'a pour rôle que de réapprovisionner les officines.
+        $officine = $prescription->officine ?? Officine::pourVisite($prescription->consultation?->visit);
+
+        if (! $officine) {
+            return ['general' => 'Aucune officine n\'est rattachée à ce lieu de soins.'];
+        }
+
+        if ($officine->estDepotCentral()) {
+            return ['general' => 'Le dépôt central ne délivre pas aux patients : '
+                .'l\'ordonnance doit être servie par une officine.'];
+        }
 
         // Hospitalisation : servi à crédit durant le séjour (facturé, payé avant sortie)
         $aCredit = (bool) $prescription->consultation?->visit?->serviACredit();
@@ -46,30 +61,39 @@ class PharmacieService
             return ['general' => 'Bon pharmacie invalide ou expiré — vérifier le paiement au guichet.'];
         }
 
+        // Une ligne externe ne sort pas de nos tiroirs : le patient l'achète
+        // ailleurs, sur son ordonnance externe.
+        $lignes = $prescription->lignes->where('est_externe', false);
+
+        $stockDe = fn ($ligne) => $ligne->medicament?->stocks->firstWhere('officine_id', $officine->id);
+
         // Contrôle des stocks avant toute écriture
         $erreurs = [];
-        foreach ($prescription->lignes as $ligne) {
+        foreach ($lignes as $ligne) {
             $qte = (float) ($quantites[$ligne->id] ?? 0);
             if ($qte <= 0) {
                 continue;
             }
-            $stock = $ligne->medicament->stock;
+            $stock = $stockDe($ligne);
             if (! $stock || $stock->quantite_disponible < $qte) {
-                $erreurs[$ligne->id] = "Stock insuffisant pour {$ligne->medicament->denomination_commune} "
-                    . '(disponible : ' . ($stock?->quantite_disponible ?? 0) . " {$ligne->medicament->unite_dispensation})";
+                $erreurs[$ligne->id] = 'Stock insuffisant à l\''.$officine->nom.' pour '
+                    .$ligne->medicament->designation()
+                    .' (disponible : '.(($stock?->quantite_disponible ?? 0) + 0).' '
+                    .$ligne->medicament->unite((float) ($stock?->quantite_disponible ?? 0)).'). '
+                    .'Adressez une réquisition au dépôt central.';
             }
         }
         if ($erreurs !== []) {
             return $erreurs;
         }
 
-        DB::transaction(function () use ($prescription, $quantites) {
-            foreach ($prescription->lignes as $ligne) {
+        DB::transaction(function () use ($prescription, $quantites, $lignes, $officine, $stockDe) {
+            foreach ($lignes as $ligne) {
                 $qte = (float) ($quantites[$ligne->id] ?? 0);
                 if ($qte <= 0) {
                     continue;
                 }
-                $stock = $ligne->medicament->stock;
+                $stock = $stockDe($ligne);
 
                 Dispensation::create([
                     'ligne_prescription_id' => $ligne->id,
@@ -92,12 +116,13 @@ class PharmacieService
                     'quantite' => $qte,
                     'quantite_avant' => $avant,
                     'quantite_apres' => $avant - $qte,
-                    'reference' => 'Ordonnance ' . $prescription->id,
+                    'officine_id' => $officine->id,
+                    'reference' => 'Ordonnance '.$prescription->id,
                     'created_at' => now(),
                 ]);
             }
 
-            $prescription->update(['statut' => 'dispensee']);
+            $prescription->update(['statut' => 'dispensee', 'officine_id' => $officine->id]);
 
             BonSortie::where('prescription_id', $prescription->id)
                 ->where('statut', 'emis')
@@ -149,7 +174,7 @@ class PharmacieService
                     'quantite' => $quantiteInitiale,
                     'quantite_avant' => 0,
                     'quantite_apres' => $quantiteInitiale,
-                    'reference' => 'Stock initial' . (! empty($donnees['lot']) ? " — lot {$donnees['lot']}" : ''),
+                    'reference' => 'Stock initial'.(! empty($donnees['lot']) ? " — lot {$donnees['lot']}" : ''),
                     'created_at' => now(),
                 ]);
             }

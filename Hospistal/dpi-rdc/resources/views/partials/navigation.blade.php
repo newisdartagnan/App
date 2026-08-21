@@ -67,7 +67,11 @@
             'liens' => [
                 ['Laboratoire', route('labo.index'), $navLabo],
                 ['Imagerie', route('imagerie.index'), $navImagerie],
-                ['Bloc opératoire', route('bloc.index'), request()->routeIs('bloc.*')],
+                ['Bloc — programme opératoire', route('bloc.programme'), request()->routeIs('bloc.programme')],
+                ['Bloc — horaire des salles', route('bloc.horaire'), request()->routeIs('bloc.horaire')],
+                ['Bloc — interventions à clôturer', route('bloc.interventions'), request()->routeIs('bloc.interventions')],
+                ['Bloc — registre', route('bloc.registre'), request()->routeIs('bloc.registre')],
+                ['Actes chirurgicaux', route('bloc.index'), request()->routeIs('bloc.index') || request()->routeIs('bloc.create')],
                 ['Maternité', route('maternite.index'), request()->routeIs('maternite.*')],
                 ['Dialyse', route('dialyse.index'), request()->routeIs('dialyse.*')],
                 ['Équipements', route('equipements.index'), request()->routeIs('equipements.*')],

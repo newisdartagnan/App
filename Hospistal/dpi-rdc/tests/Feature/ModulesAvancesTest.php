@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Consultation;
+use App\Models\DocumentClinique;
 use App\Models\Establishment;
 use App\Models\LignePrescription;
 use App\Models\Medicament;
@@ -11,8 +12,6 @@ use App\Models\Patient;
 use App\Models\PlanAdministration;
 use App\Models\Prescription;
 use App\Models\ReferentielMedical;
-use App\Models\Requisition;
-use App\Models\StockMedicament;
 use App\Models\TriageUrgence;
 use App\Models\User;
 use App\Models\Visit;
@@ -248,8 +247,8 @@ class ModulesAvancesTest extends TestCase
         $amoxicilline = Medicament::where('denomination_commune', 'Amoxicilline')->firstOrFail();
 
         $lignes = [[
-            'medicament_id' => $amoxicilline->id, 'dose' => '1 cp',
-            'frequence' => '3x/jour', 'duree_jours' => 7, 'quantite_totale' => 21,
+            'medicament_id' => $amoxicilline->id, 'dose' => 1,
+            'frequence' => 3, 'duree_jours' => 7,
         ]];
 
         // Sans confirmation : refusée
@@ -285,7 +284,7 @@ class ModulesAvancesTest extends TestCase
             'contenu' => 'Je soussigné certifie que la patiente est apte à la pratique sportive.',
         ])->assertRedirect();
 
-        $document = \App\Models\DocumentClinique::firstOrFail();
+        $document = DocumentClinique::firstOrFail();
         $this->assertSame('redige', $document->statut);
 
         $this->post(route('dossier.document.valider', $document))->assertRedirect();

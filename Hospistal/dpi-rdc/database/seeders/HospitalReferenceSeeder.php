@@ -60,20 +60,30 @@ class HospitalReferenceSeeder extends Seeder
         $depot = Officine::where('type', 'depot_central')->first();
         $ambulatoire = Officine::where('type', 'ambulatoire')->first();
 
+        // « prix » est le prix de l'unité qui sort du tiroir : un comprimé,
+        // un flacon. Une plaquette de dix comprimés de paracétamol à 500 CDF
+        // fait donc 50 CDF le comprimé.
         $meds = [
-            ['denomination_commune' => 'Paracétamol', 'dosage' => '500 mg', 'forme' => 'comprime', 'prix' => 500, 'qte' => 5000],
-            ['denomination_commune' => 'Amoxicilline', 'dosage' => '500 mg', 'forme' => 'comprime', 'prix' => 1200, 'qte' => 2000],
-            ['denomination_commune' => 'Artéméther-Luméfantrine', 'dosage' => '20/120 mg', 'forme' => 'comprime', 'prix' => 3500, 'qte' => 800],
-            ['denomination_commune' => 'Metformine', 'dosage' => '850 mg', 'forme' => 'comprime', 'prix' => 800, 'qte' => 1500],
-            ['denomination_commune' => 'Oméprazole', 'dosage' => '20 mg', 'forme' => 'comprime', 'prix' => 1500, 'qte' => 1000],
-            ['denomination_commune' => 'Salbutamol', 'dosage' => '100 mcg', 'forme' => 'autre', 'prix' => 4500, 'qte' => 200],
+            ['denomination_commune' => 'Paracétamol', 'dosage' => '500 mg', 'forme' => 'comprime', 'prix' => 50, 'qte' => 5000],
+            ['denomination_commune' => 'Amoxicilline', 'dosage' => '500 mg', 'forme' => 'comprime', 'prix' => 120, 'qte' => 2000],
+            ['denomination_commune' => 'Artéméther-Luméfantrine', 'dosage' => '20/120 mg', 'forme' => 'comprime', 'prix' => 350, 'qte' => 800],
+            ['denomination_commune' => 'Metformine', 'dosage' => '850 mg', 'forme' => 'comprime', 'prix' => 80, 'qte' => 1500],
+            ['denomination_commune' => 'Oméprazole', 'dosage' => '20 mg', 'forme' => 'comprime', 'prix' => 150, 'qte' => 1000],
+            ['denomination_commune' => 'Salbutamol', 'dosage' => '100 mcg', 'forme' => 'autre', 'prix' => 4500, 'qte' => 200,
+                'conditionnement' => 'flacon', 'unites' => 1, 'voie' => 'inhalee', 'unite_dispensation' => 'flacon'],
             ['denomination_commune' => 'Ceftriaxone', 'dosage' => '1 g', 'forme' => 'injectable', 'prix' => 8000, 'qte' => 300],
             ['denomination_commune' => 'Ringer Lactate', 'dosage' => '500 ml', 'forme' => 'injectable', 'prix' => 2500, 'qte' => 400],
-            ['denomination_commune' => 'Fer + Acide folique', 'dosage' => '200 mg', 'forme' => 'comprime', 'prix' => 600, 'qte' => 2000],
-            ['denomination_commune' => 'Quinine', 'dosage' => '300 mg', 'forme' => 'comprime', 'prix' => 2000, 'qte' => 500],
+            ['denomination_commune' => 'Fer + Acide folique', 'dosage' => '200 mg', 'forme' => 'comprime', 'prix' => 60, 'qte' => 2000],
+            ['denomination_commune' => 'Quinine', 'dosage' => '300 mg', 'forme' => 'comprime', 'prix' => 200, 'qte' => 500],
+            ['denomination_commune' => 'Amoxicilline', 'dosage' => '250 mg/5 ml', 'forme' => 'sirop', 'prix' => 6500, 'qte' => 150],
+            ['denomination_commune' => 'Métronidazole', 'dosage' => '500 mg', 'forme' => 'comprime', 'prix' => 90, 'qte' => 1200],
+            ['denomination_commune' => 'Diclofénac', 'dosage' => '75 mg/3 ml', 'forme' => 'injectable', 'prix' => 1500, 'qte' => 400],
+            ['denomination_commune' => 'Sels de réhydratation orale', 'dosage' => 'sachet', 'forme' => 'sachet', 'prix' => 300, 'qte' => 900],
         ];
 
         foreach ($meds as $m) {
+            [$conditionnement, $unites] = Medicament::CONDITIONNEMENT_PAR_FORME[$m['forme']] ?? ['unite', 1];
+
             $med = Medicament::firstOrCreate(
                 [
                     'establishment_id' => $establishment->id,
@@ -82,7 +92,11 @@ class HospitalReferenceSeeder extends Seeder
                 ],
                 [
                     'forme' => $m['forme'],
-                    'unite_dispensation' => $m['forme'] === 'injectable' ? 'flacon' : 'cp',
+                    'unite_dispensation' => $m['unite_dispensation']
+                        ?? (Medicament::UNITES_PAR_FORME[$m['forme']] ?? 'unite'),
+                    'voie_administration' => $m['voie'] ?? (Medicament::VOIE_PAR_FORME[$m['forme']] ?? 'orale'),
+                    'conditionnement' => $m['conditionnement'] ?? $conditionnement,
+                    'unites_par_conditionnement' => $m['unites'] ?? $unites,
                     'est_actif' => true,
                 ]
             );
@@ -109,6 +123,26 @@ class HospitalReferenceSeeder extends Seeder
                         'prix_unitaire_vente' => $m['prix'],
                         'prix_unitaire_achat' => $m['prix'] * 0.7,
                         'quantite_alerte' => 200,
+                    ]
+                );
+            }
+
+            // Chaque officine de service ouvre avec une dotation de départ.
+            // Elle se réapprovisionne ensuite par réquisition au dépôt central,
+            // jamais en envoyant le patient au dépôt.
+            foreach (Officine::where('type', 'service')->get() as $officineService) {
+                StockMedicament::updateOrCreate(
+                    [
+                        'medicament_id' => $med->id,
+                        'establishment_id' => $establishment->id,
+                        'officine_id' => $officineService->id,
+                        'lot' => 'LOT-2026-SERVICE',
+                    ],
+                    [
+                        'quantite_disponible' => (int) round($m['qte'] * 0.1),
+                        'prix_unitaire_vente' => $m['prix'],
+                        'prix_unitaire_achat' => $m['prix'] * 0.7,
+                        'quantite_alerte' => 20,
                     ]
                 );
             }

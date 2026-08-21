@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             HospitalReferenceSeeder::class,
             ReferentielMedicalSeeder::class,
             TypeDieteSeeder::class,
+            BlocOperatoireSeeder::class,
             DemoPatientSeeder::class,
             DisponibiliteMedecinSeeder::class,
         ]);

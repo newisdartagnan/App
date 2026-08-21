@@ -14,7 +14,7 @@ class Prescription extends Model
 
     // brouillon → en_attente_paiement → en_attente (payée) → dispensee
     protected $fillable = [
-        'consultation_id', 'patient_id', 'prescripteur_id',
+        'consultation_id', 'patient_id', 'prescripteur_id', 'officine_id',
         'date_prescription', 'statut', 'observations', 'sync_status',
     ];
 
@@ -36,6 +36,27 @@ class Prescription extends Model
     public function prescripteur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'prescripteur_id');
+    }
+
+    /**
+     * Officine chargée de servir l'ordonnance. Le dépôt central n'en fait
+     * jamais partie : il réapprovisionne les officines, il ne délivre pas.
+     */
+    public function officine(): BelongsTo
+    {
+        return $this->belongsTo(Officine::class);
+    }
+
+    /** Lignes servies par l'hôpital, hors produits achetés à l'extérieur. */
+    public function lignesInternes()
+    {
+        return $this->lignes->where('est_externe', false);
+    }
+
+    /** Lignes à acheter à l'extérieur — imprimées sans prix. */
+    public function lignesExternes()
+    {
+        return $this->lignes->where('est_externe', true);
     }
 
     public function lignes(): HasMany
