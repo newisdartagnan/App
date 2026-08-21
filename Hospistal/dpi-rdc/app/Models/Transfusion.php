@@ -24,11 +24,20 @@ class Transfusion extends Model
         'visit_id', 'user_id', 'produit', 'groupe_donneur', 'groupe_receveur',
         'numero_poche', 'quantite', 'jour', 'heure_debut', 'heure_fin',
         'incident', 'observation',
+        // Raccordement à la banque de sang : la poche délivrée, la demande
+        // qui l'a motivée, et le contrôle ultime au lit du malade.
+        'poche_id', 'demande_id', 'patient_id',
+        'controle_ultime', 'hemoglobine_avant', 'hemoglobine_apres',
     ];
 
     protected function casts(): array
     {
-        return ['jour' => 'date'];
+        return [
+            'jour' => 'date',
+            'controle_ultime' => 'boolean',
+            'hemoglobine_avant' => 'decimal:1',
+            'hemoglobine_apres' => 'decimal:1',
+        ];
     }
 
     public const PRODUITS = [
@@ -72,6 +81,21 @@ class Transfusion extends Model
     public function auteur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function poche(): BelongsTo
+    {
+        return $this->belongsTo(PocheSang::class, 'poche_id');
+    }
+
+    public function demande(): BelongsTo
+    {
+        return $this->belongsTo(DemandeSang::class, 'demande_id');
+    }
+
+    public function patient(): BelongsTo
+    {
+        return $this->belongsTo(Patient::class);
     }
 
     /**

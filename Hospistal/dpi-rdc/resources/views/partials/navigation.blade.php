@@ -30,6 +30,7 @@
     $navPlateau = $navLabo || $navImagerie
         || request()->routeIs('bloc.*') || request()->routeIs('maternite.*')
         || request()->routeIs('dialyse.*') || request()->routeIs('examens-specialises.*')
+        || request()->routeIs('banque-sang.*')
         || request()->routeIs('equipements.*');
 
     $navCaisse = request()->routeIs('caisse.*') || request()->routeIs('conventions.*')
@@ -72,8 +73,12 @@
                 ['Bloc — interventions à clôturer', route('bloc.interventions'), request()->routeIs('bloc.interventions')],
                 ['Bloc — registre', route('bloc.registre'), request()->routeIs('bloc.registre')],
                 ['Actes chirurgicaux', route('bloc.index'), request()->routeIs('bloc.index') || request()->routeIs('bloc.create')],
-                ['Maternité', route('maternite.index'), request()->routeIs('maternite.*')],
-                ['Dialyse', route('dialyse.index'), request()->routeIs('dialyse.*')],
+                ['Maternité — grossesses', route('maternite.index'), request()->routeIs('maternite.index') || request()->routeIs('maternite.show')],
+                ['Maternité — registre des accouchements', route('maternite.registre'), request()->routeIs('maternite.registre')],
+                ['Dialyse — calendrier', route('dialyse.index'), request()->routeIs('dialyse.index')],
+                ['Dialyse — séances du jour', route('dialyse.seances'), request()->routeIs('dialyse.seances')],
+                ['Dialyse — registre', route('dialyse.registre'), request()->routeIs('dialyse.registre')],
+                ['Banque de sang', route('banque-sang.index'), request()->routeIs('banque-sang.*')],
                 ['Équipements', route('equipements.index'), request()->routeIs('equipements.*')],
             ],
         ],

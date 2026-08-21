@@ -20,7 +20,7 @@ class Patient extends Model
         'telephone', 'adresse', 'province', 'territoire',
         'profession', 'situation_matrimoniale', 'niveau_instruction',
         'contact_urgence_nom', 'contact_urgence_telephone', 'contact_urgence_lien',
-        'type_prise_en_charge', 'assurance_nom', 'assurance_numero',
+        'type_prise_en_charge', 'assurance_nom', 'assurance_numero', 'groupe_sanguin',
         'duplicate_of', 'duplicate_confidence', 'merge_status',
         'sync_status', 'sync_hash',
     ];
