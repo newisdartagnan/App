@@ -1,56 +1,34 @@
 @extends('layouts.app')
-@section('title', 'Nouvel acte')
-@section('content')
 @php
     $titreActe = match($domaine) {
-        'maternite' => 'Acte maternité',
-        'examen_specialise' => 'Examen spécialisé',
-        'dialyse' => 'Séance de dialyse',
-        default => 'Acte chirurgical',
+        'maternite' => 'Demande d\'acte de maternité',
+        'examen_specialise' => 'Demande d\'examen spécialisé',
+        'dialyse' => 'Demande de séance de dialyse',
+        default => 'Demande d\'intervention chirurgicale',
     };
-    $routeStore = match($domaine) {
-        'maternite' => 'maternite.store',
-        'examen_specialise' => 'examens-specialises.store',
-        'dialyse' => 'dialyse.store',
-        default => 'bloc.store',
+    $retour = match($domaine) {
+        'maternite' => ['maternite.actes', 'Actes de maternité'],
+        'examen_specialise' => ['examens-specialises.index', 'Examens spécialisés'],
+        'dialyse' => ['dialyse.actes', 'Actes de dialyse'],
+        default => ['bloc.index', 'Actes chirurgicaux'],
     };
 @endphp
-<div class="max-w-2xl mx-auto px-4 py-6">
-    <h2 class="text-2xl font-bold mb-2">{{ $titreActe }}</h2>
-    <p class="text-sm text-gray-600 mb-6">Patient : <strong>{{ $visit->patient->nom_complet }}</strong></p>
+@section('title', $titreActe)
+@section('content')
+<div class="max-w-5xl mx-auto px-4 py-6">
+    <div class="flex items-center gap-3 mb-1 flex-wrap">
+        <a href="{{ route($retour[0]) }}" class="text-blue-700 hover:underline text-sm">← {{ $retour[1] }}</a>
+        <h2 class="text-2xl font-bold text-gray-800">{{ $titreActe }}</h2>
+    </div>
+    <p class="text-sm text-gray-500 mb-5">
+        Vous dites quel acte et pour qui. Le plateau technique le programmera :
+        salle, créneau, opérateur.
+    </p>
 
-    <form method="POST" action="{{ route($routeStore) }}" class="bg-white rounded-xl shadow p-6 space-y-4">
-        @csrf
-        <input type="hidden" name="visit_id" value="{{ $visit->id }}">
-        <input type="hidden" name="domaine" value="{{ $domaine }}">
+    @include('partials._flash')
 
-        <div>
-            <label class="block text-sm font-medium mb-2">Type d'acte</label>
-            @foreach($catalogue as $i => $item)
-            <label class="flex items-center gap-2 text-sm mb-2">
-                <input type="radio" name="libelle" value="{{ $item['libelle'] }}" data-prix="{{ $item['prix'] }}" @checked($i===0) required>
-                {{ $item['libelle'] }} — {{ number_format($item['prix'], 0, ',', ' ') }} CDF
-            </label>
-            @endforeach
-        </div>
-
-        <input type="hidden" name="prix" id="prix" value="{{ $catalogue[0]['prix'] ?? 0 }}">
-
-        <div>
-            <label class="block text-sm text-gray-600 mb-1">Compte-rendu (optionnel)</label>
-            <textarea name="compte_rendu" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
-        </div>
-
-        <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="facturer" value="1" checked class="rounded"> Émettre facture au guichet
-        </label>
-
-        <button type="submit" class="bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold">Enregistrer</button>
-    </form>
+    <div class="bg-white rounded-xl shadow p-6">
+        @include('actes._formulaire-demande')
+    </div>
 </div>
-<script>
-document.querySelectorAll('[name=libelle]').forEach(r => r.addEventListener('change', e => {
-    document.getElementById('prix').value = e.target.dataset.prix;
-}));
-</script>
 @endsection

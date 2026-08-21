@@ -2,6 +2,8 @@
 @section('title', 'Stock médicaments')
 @section('content')
 <div class="max-w-7xl mx-auto px-4 py-6">
+
+    @include('pharmacie._onglets')
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
             <a href="{{ route('pharmacie.dashboard') }}" class="text-blue-700 hover:underline text-sm">← Pharmacie</a>

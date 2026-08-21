@@ -295,6 +295,58 @@
             </div>
         </div>
 
+        {{-- ── Diète & ménage ─────────────────────────────────────── --}}
+        @php
+            $dietes = $visit->prescriptionsDiete()->with('typeDiete')->orderByDesc('debut')->get();
+            $taches = $visit->tachesMenage()->orderByDesc('created_at')->limit(5)->get();
+        @endphp
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="px-4 py-3 border-b font-semibold text-gray-700 flex justify-between items-center">
+                <span>🍽️ Diète &amp; ménage</span>
+                <a href="{{ route('diete.index') }}" class="text-xs text-blue-700 hover:underline">Prescrire →</a>
+            </div>
+            <div class="divide-y divide-gray-100">
+                @forelse($dietes as $diete)
+                <div class="px-4 py-2 text-sm">
+                    <div class="flex justify-between items-center gap-2">
+                        <span class="text-gray-700">{{ $diete->typeDiete->libelle }}</span>
+                        <span class="font-semibold text-gray-800">
+                            {{ number_format($diete->montant(), 0, ',', ' ') }} CDF
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-500">
+                        depuis le {{ $diete->debut->format('d/m/Y') }}
+                        · {{ $diete->joursServis() }} jour(s) servi(s)
+                        à {{ number_format((float) $diete->typeDiete->prix_journalier, 0, ',', ' ') }} CDF/jour
+                        @if($diete->facture_id)
+                        · <span class="text-green-700">portée sur la facture du séjour</span>
+                        @else
+                        · <span class="text-amber-700">à porter sur la prochaine facture du séjour</span>
+                        @endif
+                    </p>
+                </div>
+                @empty
+                <p class="px-4 py-6 text-center text-sm text-gray-400">Aucune diète prescrite</p>
+                @endforelse
+
+                <div class="px-4 py-2 text-sm">
+                    <p class="text-xs font-semibold text-gray-600 mb-1">Ménage de la chambre</p>
+                    @forelse($taches as $tache)
+                    <p class="text-xs {{ $tache->statut === 'fait' ? 'text-green-700' : 'text-amber-700' }}">
+                        {{ $tache->statut === 'fait' ? '✓' : '○' }} {{ $tache->libelleType() }}
+                        <span class="text-gray-400">— {{ $tache->created_at->format('d/m H:i') }}</span>
+                    </p>
+                    @empty
+                    <p class="text-xs text-gray-400">Aucune tâche enregistrée</p>
+                    @endforelse
+                    <p class="text-xs text-gray-500 mt-1">
+                        L'entretien de la chambre est compris dans le prix de la journée
+                        d'hospitalisation : il ne se facture pas à part.
+                    </p>
+                </div>
+            </div>
+        </div>
+
         {{-- ── Examens & actes ────────────────────────────────────── --}}
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-4 py-3 border-b font-semibold text-gray-700 flex justify-between items-center">
@@ -321,11 +373,36 @@
                 @endforelse
 
                 @foreach($visit->actesCliniques as $acte)
-                <div class="px-4 py-2 flex justify-between items-center text-sm">
-                    <span class="text-gray-700">{{ $acte->libelle }}
-                        <span class="text-xs text-gray-400">({{ $acte->domaine }})</span>
-                    </span>
-                    <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{{ $acte->statut }}</span>
+                @php
+                    // Un acte payé mais jamais programmé doit se voir : la
+                    // facture ne prouve pas que le geste a été fait.
+                    $aProgrammer = $acte->statut === 'prescrit';
+                    $etat = match ($acte->statut) {
+                        'prescrit' => ['À programmer', 'bg-amber-100 text-amber-900'],
+                        'planifie' => ['Programmé', 'bg-blue-100 text-blue-800'],
+                        'realise' => ['Réalisé', 'bg-green-100 text-green-800'],
+                        'facture' => ['Réalisé et facturé', 'bg-green-100 text-green-800'],
+                        default => [$acte->statut, 'bg-gray-100 text-gray-600'],
+                    };
+                @endphp
+                <div class="px-4 py-2 text-sm">
+                    <div class="flex justify-between items-center gap-2">
+                        <span class="text-gray-700">{{ $acte->libelle }}
+                            <span class="text-xs text-gray-400">({{ $acte->domaine }})</span>
+                        </span>
+                        <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded {{ $etat[1] }}">{{ $etat[0] }}</span>
+                    </div>
+                    <p class="text-xs text-gray-500">
+                        @if($acte->date_prevue)
+                            {{ $acte->date_prevue->format('d/m/Y à H:i') }}
+                            @if($acte->salle) · {{ $acte->salle->nom }} @endif
+                            @if($acte->operateur) · {{ $acte->operateur->nom_complet }} @endif
+                        @elseif($aProgrammer)
+                            Ni salle, ni créneau, ni opérateur —
+                            <a href="{{ route('bloc.programme') }}" class="text-blue-700 hover:underline">programmer au bloc</a>
+                        @endif
+                        @if($acte->facture_id) · facturé @endif
+                    </p>
                 </div>
                 @endforeach
             </div>

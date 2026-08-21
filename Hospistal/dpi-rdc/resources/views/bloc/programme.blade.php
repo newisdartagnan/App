@@ -12,6 +12,23 @@
     @include('bloc._onglets')
     @include('bloc._flash')
 
+    {{-- Nouvelle demande : le bloc inscrit lui-même une intervention --}}
+    <details class="bg-white rounded-xl shadow mb-5" {{ $errors->any() ? 'open' : '' }}>
+        <summary class="px-5 py-3 font-semibold text-gray-700 cursor-pointer select-none">
+            ➕ Nouvelle demande d'intervention
+        </summary>
+        <div class="px-5 pb-5 border-t pt-4">
+            <p class="text-xs text-gray-500 mb-3">
+                Inscrivez l'intervention au programme préopératoire. Elle apparaîtra
+                dans la liste ci-dessous, où vous lui donnerez sa salle et son créneau.
+            </p>
+            @include('actes._formulaire-demande', [
+                'visit' => null,
+                'domaine' => 'chirurgie',
+            ])
+        </div>
+    </details>
+
     {{-- Filtres --}}
     <form method="GET" class="bg-white rounded-xl shadow p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div>

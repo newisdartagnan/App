@@ -306,7 +306,7 @@ class NotificationsServicesTest extends TestCase
             'domaine' => 'chirurgie',
             'libelle' => 'Herniorraphie inguinale',
             'prix' => 150000,
-            'statut' => 'planifie',
+            'statut' => 'prescrit',
         ]);
 
         $this->get(route('bloc.index'))

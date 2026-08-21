@@ -718,7 +718,13 @@ class FacturationService
                 $acte->id
             );
 
-            $acte->update(['statut' => 'facture', 'facture_id' => $facture->id]);
+            // Facturer ne rend pas l'acte réalisé. Un geste payé d'avance —
+            // le cas courant au guichet — reste à programmer et à clôturer :
+            // seul le compte rendu atteste qu'il a eu lieu.
+            $acte->update([
+                'facture_id' => $facture->id,
+                'statut' => $acte->statut === 'realise' ? 'facture' : $acte->statut,
+            ]);
 
             return $facture;
         });

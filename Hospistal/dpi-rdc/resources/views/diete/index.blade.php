@@ -7,14 +7,19 @@
 @endphp
 <div class="max-w-7xl mx-auto px-4 py-6">
 
-    <div class="flex items-center gap-3 mb-4 flex-wrap">
+    <div class="flex items-center gap-3 mb-1 flex-wrap">
         <h2 class="text-2xl font-bold text-gray-800">🍽️ Diète et ménage</h2>
-        <span class="text-sm text-gray-500">Patients hospitalisés nourris par l'hôpital</span>
         <a href="{{ route('diete.imprimer', ['jour' => $jour, 'service_id' => $serviceId]) }}"
            class="ml-auto px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg text-sm">
             🖨️ Feuille de service
         </a>
     </div>
+    <p class="text-sm text-gray-500 mb-5">
+        Patients hospitalisés nourris par l'hôpital. La diète servie est facturée
+        au patient, jour par jour, sur la facture de son séjour. L'entretien de la
+        chambre, lui, est compris dans le prix de la journée d'hospitalisation :
+        il se suit ici mais ne se facture pas à part.
+    </p>
 
     @foreach(['success','error'] as $t)
         @if(session($t))
