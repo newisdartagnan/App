@@ -46,24 +46,76 @@ class Patient extends Model
         return $this->hasMany(Visit::class);
     }
 
-    public function referentielsMedicaux(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function referentielsMedicaux(): HasMany
     {
         return $this->hasMany(PatientReferentielMedical::class);
     }
 
-    public function documentsCliniques(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function documentsCliniques(): HasMany
     {
         return $this->hasMany(DocumentClinique::class);
     }
 
-    public function rendezVous(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function rendezVous(): HasMany
     {
         return $this->hasMany(RendezVous::class);
     }
 
+    public function assurances(): HasMany
+    {
+        return $this->hasMany(PatientAssurance::class);
+    }
+
+    /**
+     * Contrat d'assurance en vigueur du patient, s'il en a un.
+     *
+     * On retient la couverture active de l'année en cours ; à défaut, la
+     * dernière souscrite. Une police échue ne couvre plus rien.
+     */
+    public function assuranceEnVigueur(): ?PatientAssurance
+    {
+        if ($this->type_prise_en_charge !== 'assurance') {
+            return null;
+        }
+
+        return $this->assurances()
+            ->with('assurance')
+            ->where('est_actif', true)
+            ->where(fn ($q) => $q->whereNull('date_fin')->orWhereDate('date_fin', '>=', now()))
+            ->orderByDesc('annee_courante')
+            ->first();
+    }
+
+    /**
+     * Prise en charge telle qu'elle doit figurer sur un bon ou un bulletin :
+     * le nom de la société et le numéro de police, et non le mot « Assurance ».
+     */
+    public function libellePriseEnCharge(): string
+    {
+        if ($this->type_prise_en_charge === 'assurance') {
+            $lien = $this->assuranceEnVigueur();
+            $nom = $lien?->assurance?->nom ?: $this->assurance_nom;
+
+            if (filled($nom)) {
+                $numero = $lien?->numero_police ?: $this->assurance_numero;
+
+                return filled($numero) ? $nom.' — n° '.$numero : $nom;
+            }
+        }
+
+        return Facture::PRISES_EN_CHARGE[$this->type_prise_en_charge]
+            ?? ucfirst((string) $this->type_prise_en_charge);
+    }
+
+    /** Le patient est-il couvert par une société conventionnée ? */
+    public function estAssure(): bool
+    {
+        return $this->type_prise_en_charge === 'assurance';
+    }
+
     public function getNomCompletAttribute(): string
     {
-        return trim($this->nom . ' ' . ($this->postnom ? $this->postnom . ' ' : '') . $this->prenom);
+        return trim($this->nom.' '.($this->postnom ? $this->postnom.' ' : '').$this->prenom);
     }
 
     protected function getSyncPriority(): int

@@ -2,14 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ExamenFichier;
 use App\Models\ExamenLaboratoire;
+use App\Models\Patient;
 use App\Models\TypeExamen;
 use App\Models\Visit;
 use App\Services\FacturationService;
 use App\Services\LaboratoireService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class LaboratoireController extends Controller
 {
@@ -142,7 +148,7 @@ class LaboratoireController extends Controller
         ]);
 
         $fichier = $request->file('fichier');
-        $chemin = $fichier->store('examens/' . $examen->id, 'public');
+        $chemin = $fichier->store('examens/'.$examen->id, 'public');
 
         $extension = strtolower($fichier->getClientOriginalExtension());
         $type = match (true) {
@@ -152,7 +158,7 @@ class LaboratoireController extends Controller
             default => 'autre',
         };
 
-        \App\Models\ExamenFichier::create([
+        ExamenFichier::create([
             'examen_id' => $examen->id,
             'nom_original' => $fichier->getClientOriginalName(),
             'chemin' => $chemin,
@@ -168,17 +174,24 @@ class LaboratoireController extends Controller
      * Bulletin du jour : TOUS les résultats de bilans du patient pour une
      * date donnée, sur un seul document (mis à jour à chaque ajout).
      */
-    public function bulletinJour(Request $request, \App\Models\Patient $patient): View
+    public function bulletinJour(Request $request, Patient $patient): View
     {
         $date = $request->query('date', now()->toDateString());
 
+        // Un bulletin appartient à un seul plateau technique : au laboratoire
+        // il porte les analyses et la signature du biologiste, en imagerie les
+        // comptes rendus et celle du radiologue. Les mélanger revenait à faire
+        // contresigner par le biologiste des examens qu'il n'a pas lus.
+        $domaine = $request->query('domaine') === 'imagerie' ? 'imagerie' : 'labo';
+
         $examens = ExamenLaboratoire::with(['resultats.typeExamen', 'prescripteur', 'laborantin'])
             ->where('patient_id', $patient->id)
+            ->where('domaine', $domaine)
             ->whereDate('date_prescription', $date)
             ->orderBy('date_prescription')
             ->get();
 
-        return view('labo.bulletin-jour', compact('patient', 'examens', 'date'));
+        return view('labo.bulletin-jour', compact('patient', 'examens', 'date', 'domaine'));
     }
 
     /**
@@ -216,7 +229,7 @@ class LaboratoireController extends Controller
                         // Panel prescrit partiellement : le noter au registre
                         $totalParametres = count($type->valeurs_reference['parametres'] ?? []);
                         $partiel = $totalParametres > 1 && $resultats->count() < $totalParametres
-                            ? $resultats->count() . '/' . $totalParametres . ' sous-examens'
+                            ? $resultats->count().'/'.$totalParametres.' sous-examens'
                             : null;
 
                         return [
@@ -254,7 +267,7 @@ class LaboratoireController extends Controller
         $parLaborantin = $examens->whereNotNull('laborantin_id')
             ->groupBy('laborantin_id')
             ->map(fn ($groupe) => [
-                'nom' => trim(($groupe->first()->laborantin->prenom ?? '') . ' ' . ($groupe->first()->laborantin->nom ?? '')),
+                'nom' => trim(($groupe->first()->laborantin->prenom ?? '').' '.($groupe->first()->laborantin->nom ?? '')),
                 'bilans' => $groupe->count(),
                 'examens' => $groupe->flatMap->resultats->unique('type_examen_id')->count(),
             ])
@@ -283,5 +296,83 @@ class LaboratoireController extends Controller
         $examen->load(['patient', 'visit', 'prescripteur', 'laborantin', 'resultats.typeExamen', 'facture', 'fichiers']);
 
         return view('labo.bulletin', compact('examen'));
+    }
+
+    /**
+     * Résultats en PDF, destinés au médecin prescripteur.
+     *
+     * C'est la destination des notifications « résultats disponibles » : le
+     * prescripteur reçoit son document sans entrer dans le laboratoire ni dans
+     * l'imagerie, services auxquels il n'a pas nécessairement accès. Les
+     * pièces jointes suivent — les images sont incorporées, les vidéos et les
+     * fichiers DICOM sont annoncés puisqu'ils ne s'impriment pas.
+     */
+    public function pdfResultat(ExamenLaboratoire $examen): Response
+    {
+        $this->autoriserLecture($examen);
+
+        $examen->load(['patient.assurances.assurance', 'prescripteur', 'laborantin',
+            'resultats.typeExamen', 'fichiers']);
+
+        $pdf = Pdf::loadView('pdf.resultat-examen', [
+            'examen' => $examen,
+            'estImagerie' => $examen->domaine === 'imagerie',
+            'etablissement' => config('dpi.establishment_name', config('app.name')),
+            'pieces' => $this->piecesJointes($examen),
+        ])->setPaper('a4');
+
+        $nom = ($examen->domaine === 'imagerie' ? 'CR_' : 'RES_').$examen->numero_bon.'.pdf';
+
+        // Affiché dans le navigateur : la notification ouvre le document,
+        // elle ne déclenche pas un téléchargement.
+        return $pdf->stream($nom);
+    }
+
+    /**
+     * Pièces jointes préparées pour le PDF.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function piecesJointes(ExamenLaboratoire $examen)
+    {
+        return $examen->fichiers->map(function ($fichier) {
+            $chemin = Storage::disk('public')->path($fichier->chemin);
+            $lisible = $fichier->type === 'image' && is_file($chemin);
+
+            return [
+                'nom' => $fichier->nom_original,
+                'description' => $fichier->description,
+                'date' => $fichier->created_at?->format('d/m/Y H:i') ?? '—',
+                'image' => $lisible ? $chemin : null,
+                'mention' => match ($fichier->type) {
+                    'video' => 'Séquence vidéo — consultable dans le dossier du patient.',
+                    'pdf' => 'Document PDF joint — consultable dans le dossier du patient.',
+                    'image' => 'Image indisponible sur le serveur.',
+                    default => 'Fichier DICOM ou pièce technique — consultable dans le dossier du patient.',
+                },
+            ];
+        });
+    }
+
+    /**
+     * Qui peut lire ce document.
+     *
+     * Le prescripteur, toujours. Le plateau technique qui l'a produit. La
+     * direction. Les autres médecins de l'établissement, parce qu'un confrère
+     * de garde reprend le dossier.
+     */
+    private function autoriserLecture(ExamenLaboratoire $examen): void
+    {
+        $user = auth()->user();
+
+        abort_unless(
+            $user && (
+                $user->id === $examen->prescripteur_id
+                || $user->hasAnyRole(['super_admin', 'directeur', 'medecin',
+                    'infirmier_chef', 'laborantin', 'radiologue'])
+            ),
+            403,
+            'Ce document est réservé au médecin prescripteur et à l\'équipe soignante.'
+        );
     }
 }

@@ -168,6 +168,7 @@ class HospitalReferenceSeeder extends Seeder
             TypeExamen::updateOrCreate(
                 ['code' => $examen['code']],
                 [
+                    'domaine' => 'labo',
                     'categorie' => $examen['categorie'],
                     'libelle' => $examen['libelle'],
                     'prix' => $examen['prix'],
@@ -182,10 +183,13 @@ class HospitalReferenceSeeder extends Seeder
             TypeExamen::updateOrCreate(
                 ['code' => $examen['code']],
                 [
-                    'categorie' => 'autre',
+                    'domaine' => 'imagerie',
+                    'modalite' => TypeExamen::modaliteDepuisCode($examen['code']),
+                    'categorie' => 'imagerie',
                     'libelle' => $examen['libelle'],
-                    'prix' => $examen['prix'],
+                    // Un compte rendu d'imagerie n'a pas de valeur de référence.
                     'valeurs_reference' => [],
+                    'prix' => $examen['prix'],
                     'delai_heures' => 24,
                     'est_actif' => true,
                 ]

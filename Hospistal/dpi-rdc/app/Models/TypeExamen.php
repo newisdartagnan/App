@@ -14,7 +14,7 @@ class TypeExamen extends Model
 
     protected $fillable = [
         'code', 'categorie', 'libelle', 'delai_heures', 'prix',
-        'valeurs_reference', 'est_actif',
+        'valeurs_reference', 'est_actif', 'domaine', 'modalite',
     ];
 
     protected function casts(): array
@@ -43,6 +43,47 @@ class TypeExamen extends Model
         'echographie' => 'Échographie',
         'autre' => 'Autres analyses',
     ];
+
+    /** Modalités d'imagerie, telles qu'elles figurent au registre. */
+    public const MODALITES = [
+        'radiographie' => 'Radiographie',
+        'echographie' => 'Échographie',
+        'scanner' => 'Scanner (TDM)',
+        'irm' => 'IRM',
+        'mammographie' => 'Mammographie',
+        'doppler' => 'Doppler',
+        'autre' => 'Autre modalité',
+    ];
+
+    public function estImagerie(): bool
+    {
+        return $this->domaine === 'imagerie';
+    }
+
+    /** Nom lisible de la modalité d'imagerie. */
+    public function libelleModalite(): string
+    {
+        return self::MODALITES[$this->modalite] ?? self::MODALITES['autre'];
+    }
+
+    /** Modalité déduite du code du catalogue (IMG-ECHO-ABD → échographie). */
+    public static function modaliteDepuisCode(string $code): string
+    {
+        foreach ([
+            'IMG-RX-' => 'radiographie',
+            'IMG-ECHO-' => 'echographie',
+            'IMG-SCAN' => 'scanner',
+            'IMG-IRM' => 'irm',
+            'IMG-MAMMO' => 'mammographie',
+            'IMG-DOPP' => 'doppler',
+        ] as $prefixe => $modalite) {
+            if (str_starts_with($code, $prefixe)) {
+                return $modalite;
+            }
+        }
+
+        return 'autre';
+    }
 
     /**
      * Nom lisible de l'unité d'analyse (le catalogue stocke un code).
