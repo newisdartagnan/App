@@ -15,6 +15,10 @@
     <a href="{{ route('snis.index') }}"
        class="text-sm text-blue-700 hover:underline">📋 Rapport mensuel SNIS →</a>
     @endif
+    @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'infirmier_chef']))
+    <a href="{{ route('parcours.attente') }}"
+       class="ml-3 text-sm text-blue-700 hover:underline">⏳ L'attente à l'hôpital →</a>
+    @endif
         <form method="GET" class="flex gap-2 items-center">
             <input type="hidden" name="onglet" value="{{ $onglet }}">
             <label for="debut" class="text-sm text-gray-600">Du</label>
