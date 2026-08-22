@@ -85,9 +85,13 @@ class VisiteService
     public function sortir(
         Visit $visit,
         string $modeSortie = 'gueri',
-        ?string $observations = null
+        ?string $observations = null,
+        ?string $recommandations = null,
+        ?string $rendezVousControle = null
     ): Visit {
-        return DB::transaction(function () use ($visit, $modeSortie) {
+        return DB::transaction(function () use (
+            $visit, $modeSortie, $observations, $recommandations, $rendezVousControle
+        ) {
             if ($visit->lit_id) {
                 Lit::where('id', $visit->lit_id)->update(['statut' => 'libre']);
             }
@@ -98,6 +102,12 @@ class VisiteService
                 'duree_sejour_jours' => $visit->joursHospitalisation(),
                 'mode_sortie' => $modeSortie,
                 'lit_id' => null,
+                // Ces trois-là étaient reçus et jetés : le patient repartait
+                // sans document, et le médecin traitant sans rien à lire.
+                'observations_sortie' => $observations ?: $visit->observations_sortie,
+                'recommandations_sortie' => $recommandations ?: $visit->recommandations_sortie,
+                'rendez_vous_controle' => $rendezVousControle ?: $visit->rendez_vous_controle,
+                'sortie_par' => auth()->id() ?? $visit->sortie_par,
             ]);
 
             return $visit->fresh(['patient', 'factures', 'examensLaboratoire']);

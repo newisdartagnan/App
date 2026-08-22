@@ -24,6 +24,7 @@ use App\Http\Controllers\MaterniteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficineController;
 use App\Http\Controllers\ParametreController;
+use App\Http\Controllers\ParcoursController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PharmacieController;
 use App\Http\Controllers\PlanAdministrationController;
@@ -73,9 +74,12 @@ Route::middleware(['auth'])->group(function () {
     // Visites / hospitalisation
     Route::get('/visites', [VisitController::class, 'index'])->name('visites.index');
     Route::get('/visites/{visit}', [VisitController::class, 'show'])->name('visites.show');
+    // Le temps du parcours : ce que le séjour a coûté au patient, en heures.
+    Route::get('/visites/{visit}/chronologie', [ParcoursController::class, 'chronologie'])->name('parcours.chronologie');
     Route::post('/visites/{visit}/hospitaliser', [VisitController::class, 'hospitaliser'])->name('visites.hospitaliser');
     Route::post('/visites/{visit}/facturer-sejour', [VisitController::class, 'facturerSejour'])->name('visites.facturer-sejour');
     Route::post('/visites/{visit}/sortir', [VisitController::class, 'sortir'])->name('visites.sortir');
+    Route::get('/visites/{visit}/bulletin', [VisitController::class, 'bulletin'])->name('visites.bulletin');
 
     // Laboratoire
     Route::get('/labo', [LaboratoireController::class, 'index'])->name('labo.index');
@@ -193,6 +197,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/utilisateurs/{utilisateur}', [UtilisateurController::class, 'update'])->name('utilisateurs.update');
     Route::post('/utilisateurs/{utilisateur}/basculer', [UtilisateurController::class, 'basculer'])->name('utilisateurs.basculer');
     Route::post('/utilisateurs/{utilisateur}/mot-de-passe', [UtilisateurController::class, 'motDePasse'])->name('utilisateurs.mot-de-passe');
+    Route::get('/mon-temps', [ParcoursController::class, 'profil'])->name('parcours.moi');
+    Route::get('/utilisateurs/{utilisateur}/temps', [ParcoursController::class, 'profil'])->name('parcours.profil');
 
     // Sociétés conventionnées : contrat, modalités et règles de couverture
     Route::get('/assurances', [AssuranceController::class, 'index'])->name('assurances.index');

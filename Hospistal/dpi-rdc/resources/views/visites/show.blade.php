@@ -5,6 +5,12 @@
     <div class="flex items-center gap-3 mb-6">
         <a href="{{ route('visites.index') }}" class="text-blue-700 hover:underline text-sm">← Visites</a>
         <h2 class="text-2xl font-bold text-gray-800">Parcours — {{ $visit->patient->nom_complet }}</h2>
+        <a href="{{ route('parcours.chronologie', $visit) }}"
+           class="ml-auto text-sm text-blue-700 hover:underline">⏱️ Chronologie et temps d'attente →</a>
+        @if($visit->date_sortie)
+        <a href="{{ route('visites.bulletin', $visit) }}" target="_blank"
+           class="text-sm text-blue-700 hover:underline">🖨️ Bulletin de sortie</a>
+        @endif
     </div>
 
     @foreach(['success','error','info'] as $type)
@@ -160,25 +166,49 @@
     @endif
 
     {{-- Sortie --}}
-    @if($visit->statut === 'en_cours' && $visit->type === 'hospitalisation')
+    {{-- Les urgences aussi doivent pouvoir clore un passage : un décès ou une
+         sortie contre avis médical y arrive, et n'avait aucun écran pour
+         s'écrire. L'ambulatoire, lui, se clôture seul en fin de journée. --}}
+    @if($visit->statut === 'en_cours' && in_array($visit->type, ['hospitalisation', 'urgence'], true))
     <div class="bg-white rounded-xl shadow p-6 border-2 border-green-200">
         <h3 class="font-semibold text-green-800 mb-3">Sortie patient</h3>
         @if($impayees > 0)
         <p class="text-red-600 text-sm mb-3">⚠️ {{ $impayees }} facture(s) impayée(s) — régler au guichet avant sortie.</p>
         @endif
-        <form method="POST" action="{{ route('visites.sortir', $visit) }}" class="flex flex-wrap gap-3 items-end">
+        <form method="POST" action="{{ route('visites.sortir', $visit) }}" class="grid md:grid-cols-3 gap-3">
             @csrf
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Mode de sortie</label>
-                <select name="mode_sortie" class="border rounded-lg px-3 py-2 text-sm">
-                    @foreach(['gueri','ameliore','transfert','sortie_contre_avis'] as $m)
-                    <option value="{{ $m }}">{{ ucfirst(str_replace('_',' ', $m)) }}</option>
+                <label for="s-mode" class="block text-xs text-gray-500 mb-1">Mode de sortie</label>
+                {{-- Les huit modes, décès compris : un registre qui ne sait pas
+                     l'écrire oblige à mentir sur l'issue du séjour. --}}
+                <select id="s-mode" name="mode_sortie" class="w-full border rounded-lg px-3 py-2 text-sm">
+                    @foreach(\App\Models\Visit::MODES_SORTIE as $cle => $libelle)
+                    <option value="{{ $cle }}" @selected(old('mode_sortie') === $cle)>{{ $libelle }}</option>
                     @endforeach
                 </select>
             </div>
-            <button type="submit" class="bg-green-700 text-white px-6 py-2 rounded-lg text-sm" @disabled($impayees > 0)>
-                Valider la sortie & libérer le lit
-            </button>
+            <div>
+                <label for="s-rdv" class="block text-xs text-gray-500 mb-1">Rendez-vous de contrôle</label>
+                <input id="s-rdv" name="rendez_vous_controle" type="date" value="{{ old('rendez_vous_controle') }}"
+                       class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-lg text-sm" @disabled($impayees > 0)>
+                    Valider la sortie & imprimer le bulletin
+                </button>
+            </div>
+            <div class="md:col-span-3">
+                <label for="s-obs" class="block text-xs text-gray-500 mb-1">Évolution durant le séjour</label>
+                <input id="s-obs" name="observations_sortie" maxlength="2000" value="{{ old('observations_sortie') }}"
+                       placeholder="Apyrexie obtenue à J3, reprise de l'alimentation…"
+                       class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div class="md:col-span-3">
+                <label for="s-reco" class="block text-xs text-gray-500 mb-1">Recommandations à la sortie</label>
+                <input id="s-reco" name="recommandations_sortie" maxlength="2000" value="{{ old('recommandations_sortie') }}"
+                       placeholder="Poursuivre le traitement 5 jours, revenir si fièvre…"
+                       class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
         </form>
     </div>
     @endif
