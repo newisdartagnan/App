@@ -1,5 +1,7 @@
 <?php
 
+use App\Jobs\SyncToCentral;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,9 +18,13 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         //
     })
-    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
-        $schedule->job(new \App\Jobs\SyncToCentral)->everyFifteenMinutes();
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->job(new SyncToCentral)->everyFifteenMinutes();
         $schedule->command('dpi:cloturer-visites')->hourly();
+
+        // Le stock de sang du réseau : au quart d'heure, parce qu'entre deux
+        // passages on décide d'envoyer une ambulance sur cette ligne-là.
+        $schedule->command('dpi:sang-reseau')->everyFifteenMinutes()->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (TokenMismatchException $e, Request $request) {

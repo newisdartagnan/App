@@ -445,6 +445,7 @@ class BanqueSangService
 
             return [
                 'id' => $maison->id,
+                'code' => $maison->code,
                 'nom' => $maison->name,
                 'ville' => $maison->ville,
                 'telephone' => $maison->telephone,

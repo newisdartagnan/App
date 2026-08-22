@@ -158,6 +158,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/banque-sang/registre', [BanqueSangController::class, 'registre'])->name('banque-sang.registre');
     Route::get('/banque-sang/reseau', [BanqueSangController::class, 'reseau'])->name('banque-sang.reseau');
     Route::post('/banque-sang/reseau/partage', [BanqueSangController::class, 'reglerPartage'])->name('banque-sang.partage');
+    Route::post('/banque-sang/reseau/rafraichir', [BanqueSangController::class, 'rafraichirReseau'])->name('banque-sang.reseau.rafraichir');
     Route::get('/banque-sang/donneurs', [BanqueSangController::class, 'donneurs'])->name('banque-sang.donneurs');
     Route::post('/banque-sang/donneurs', [BanqueSangController::class, 'enregistrerDonneur'])->name('banque-sang.donneurs.store');
     Route::post('/banque-sang/donneurs/{donneur}/don', [BanqueSangController::class, 'enregistrerDon'])->name('banque-sang.don');

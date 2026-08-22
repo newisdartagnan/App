@@ -68,17 +68,68 @@
         @endif
     </div>
 
+    {{--
+        L'échange avec les hôpitaux distants.
+
+        Il se fait tout seul au quart d'heure ; le bouton est là pour
+        l'urgence qui n'attend pas le passage suivant.
+    --}}
+    <div class="bg-white rounded-xl shadow px-5 py-4 mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div class="text-sm">
+            @if($reseauConfigure)
+            <p class="font-semibold text-gray-800">Échange avec les hôpitaux distants</p>
+            <p class="text-xs text-gray-500 mt-0.5">
+                Les stocks s'échangent automatiquement toutes les quinze minutes.
+                Chaque ligne ci-dessous porte son heure : un stock annoncé il y a
+                six heures n'est pas une promesse.
+            </p>
+            @else
+            <p class="font-semibold text-amber-800">Réseau distant non configuré</p>
+            <p class="text-xs text-gray-500 mt-0.5">
+                Seuls les établissements de cette base apparaissent. Pour joindre
+                d'autres hôpitaux, renseignez <code class="font-mono">CENTRAL_API_URL</code>
+                et le jeton de l'établissement.
+            </p>
+            @endif
+        </div>
+        @if($reseauConfigure)
+        <form method="POST" action="{{ route('banque-sang.reseau.rafraichir') }}">
+            @csrf
+            <button class="bg-blue-700 hover:bg-blue-800 text-white rounded-lg px-4 py-2 text-sm font-semibold min-h-[44px]"
+                    title="Publier notre stock et rapporter celui des autres, maintenant">
+                🔄 Rafraîchir maintenant
+            </button>
+        </form>
+        @endif
+    </div>
+
     {{-- Les maisons du réseau --}}
     <div class="space-y-4">
         @forelse($maisons as $maison)
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-5 py-3 border-b flex flex-wrap items-center justify-between gap-2">
                 <div>
-                    <p class="font-semibold text-gray-800">{{ $maison['nom'] }}</p>
+                    <p class="font-semibold text-gray-800">
+                        {{ $maison['nom'] }}
+                        @if($maison['distant'] ?? false)
+                        {{-- Ce qui vient d'un autre serveur est une annonce,
+                             pas une lecture : on le dit. --}}
+                        <span class="ml-1 px-2 py-0.5 rounded-full text-xs font-semibold align-middle
+                            {{ $maison['frais'] ? 'bg-blue-100 text-blue-900' : 'bg-amber-100 text-amber-900' }}"
+                            title="Stock annoncé par cet hôpital, pas lu en direct">
+                            annoncé {{ $maison['age'] }}
+                        </span>
+                        @endif
+                    </p>
                     <p class="text-xs text-gray-500">
                         {{ $maison['ville'] ?: 'Ville non précisée' }}
                         @if($maison['telephone']) · <span class="font-mono">{{ $maison['telephone'] }}</span> @endif
                     </p>
+                    @if(($maison['distant'] ?? false) && ! $maison['frais'])
+                    <p class="text-xs text-amber-800 mt-1">
+                        Annonce ancienne — appelez avant d'envoyer une ambulance.
+                    </p>
+                    @endif
                 </div>
                 <div class="text-right">
                     <p class="text-xl font-bold {{ $maison['compatibles'] > 0 ? 'text-green-700' : 'text-gray-400' }}">
@@ -111,6 +162,15 @@
                     Fichier des donneurs : {{ $maison['donneurs'] }} joignable(s)
                     @if($groupe) · {{ $maison['donneurs_compatibles'] }} compatible(s) {{ $groupe }} @endif
                 </p>
+
+                @if(($maison['distant'] ?? false) && $groupe && $maison['donneurs_compatibles'] > 0)
+                {{-- Le fichier des donneurs d'un autre hôpital ne sort pas de
+                     chez lui : on appelle la maison, elle appelle les siens. --}}
+                <p class="text-xs text-gray-500 mt-1">
+                    Appelez cet hôpital @if($maison['telephone'])au <span class="font-mono">{{ $maison['telephone'] }}</span>@endif :
+                    il fera venir ses donneurs. Leurs coordonnées ne quittent pas leur registre.
+                </p>
+                @endif
 
                 @if($maison['a_appeler']->isNotEmpty())
                 <div class="mt-3 border-t pt-3">
