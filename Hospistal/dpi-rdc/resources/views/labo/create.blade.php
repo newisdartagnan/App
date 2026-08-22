@@ -2,9 +2,11 @@
 @section('title', 'Prescrire examens')
 @section('content')
 <div class="max-w-3xl mx-auto px-4 py-6">
-    <h2 class="text-2xl font-bold text-gray-800 mb-2">
-        Prescrire — {{ $domaine === 'imagerie' ? 'Imagerie' : 'Laboratoire' }}
-    </h2>
+    @php $mots = \App\Support\Plateau::mots($domaine); @endphp
+    <div class="flex items-center gap-3 mb-2">
+        <a href="{{ route('visites.show', $visit) }}" class="text-blue-700 hover:underline text-sm">← Le séjour</a>
+        <h2 class="text-2xl font-bold text-gray-800">Prescrire — {{ $mots['service_court'] }}</h2>
+    </div>
     <p class="text-sm text-gray-600 mb-6">Patient : <strong>{{ $visit->patient->nom_complet }}</strong> ({{ $visit->patient->dossier_number }})</p>
 
     <form method="POST" action="{{ route('labo.store') }}" class="bg-white rounded-xl shadow p-6 space-y-4">

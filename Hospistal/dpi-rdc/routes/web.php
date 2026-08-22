@@ -296,6 +296,7 @@ Route::middleware(['auth'])->group(function () {
     // Agenda des rendez-vous
     Route::get('/agenda', [AgendaController::class, 'index'])->name('agenda.index');
     Route::post('/agenda', [AgendaController::class, 'store'])->name('agenda.store');
+    Route::get('/agenda/{rendezVous}/convocation', [AgendaController::class, 'imprimer'])->name('agenda.convocation');
     Route::post('/agenda/bloquer', [AgendaController::class, 'bloquer'])->name('agenda.bloquer');
     Route::post('/agenda/{rendezVous}/statut', [AgendaController::class, 'statut'])->name('agenda.statut');
     Route::delete('/agenda/{rendezVous}', [AgendaController::class, 'destroy'])->name('agenda.destroy');

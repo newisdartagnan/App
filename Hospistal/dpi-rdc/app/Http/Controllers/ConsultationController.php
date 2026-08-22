@@ -14,9 +14,105 @@ use Illuminate\View\View;
 
 class ConsultationController extends Controller
 {
-    public function index(): View
+    /**
+     * File d'attente et historique des consultations.
+     *
+     * Les filtres passaient par Livewire : sans le script, ils ne faisaient
+     * rien du tout — on tapait un nom et la liste ne bougeait pas. Ils sont
+     * désormais un formulaire GET ordinaire, comme partout ailleurs, et
+     * l'adresse porte le filtre : elle se met en favori et se partage.
+     */
+    public function index(Request $request): View
     {
-        return view('consultations.index');
+        $recherche = trim((string) $request->query('recherche', ''));
+        $statut = (string) $request->query('statut', '');
+        $date = (string) $request->query('date', '');
+        $specialite = (string) $request->query('specialite', '');
+
+        $base = fn () => Visit::with(['patient', 'user', 'consultations', 'typeConsultation'])
+            ->when($recherche, function ($q) use ($recherche) {
+                $q->whereHas('patient', function ($q) use ($recherche) {
+                    $q->whereRaw('LOWER(nom) LIKE ?', ['%'.strtolower($recherche).'%'])
+                        ->orWhereRaw('LOWER(prenom) LIKE ?', ['%'.strtolower($recherche).'%'])
+                        ->orWhere('dossier_number', 'like', '%'.$recherche.'%');
+                });
+            })
+            // Un patient reçu aux urgences suit la file des urgences, pas
+            // celle des consultations : il n'a rien à faire dans les deux.
+            ->where('type', 'consultation_externe');
+
+        // File d'attente : visites payées (ou contrôles gratuits), pas encore
+        // consultées — groupée par spécialité, celle du médecin connecté en tête.
+        $utilisateur = auth()->user();
+        $maSpecialite = $utilisateur->specialite;
+        // Un médecin (non admin/directeur) ne voit que sa spécialité, ou la
+        // médecine générale s'il est généraliste. Infirmiers et admin voient tout.
+        $estMedecin = $utilisateur->hasRole('medecin')
+            && ! $utilisateur->hasAnyRole(['super_admin', 'directeur']);
+
+        $fileAttente = $base()
+            ->where('statut', 'en_cours')
+            ->whereDoesntHave('consultations')
+            // Patient déjà entré au cabinet : il est avec un médecin, il ne
+            // doit plus apparaître dans la file que les autres consultent.
+            ->whereNull('consultation_debutee_at')
+            ->orderBy('date_entree')
+            ->get();
+
+        if ($estMedecin) {
+            $fileAttente = $fileAttente->filter(function ($v) use ($maSpecialite) {
+                $specialite = $v->typeConsultation?->specialite ?: 'Médecine générale';
+
+                return $maSpecialite ? $specialite === $maSpecialite : $specialite === 'Médecine générale';
+            });
+        }
+
+        // Filtre explicite de spécialité, pour qu'un médecin puisse suivre
+        // une file précise même quand il en voit plusieurs.
+        if ($specialite !== '') {
+            $fileAttente = $fileAttente->filter(
+                fn ($v) => ($v->typeConsultation?->specialite ?: 'Médecine générale') === $specialite
+            );
+        }
+
+        $specialitesEnFile = $fileAttente
+            ->map(fn ($v) => $v->typeConsultation?->specialite ?: 'Médecine générale')
+            ->unique()->sort()->values();
+
+        $fileParSpecialite = $fileAttente
+            ->groupBy(fn ($v) => $v->typeConsultation?->specialite ?: 'Médecine générale')
+            ->sortBy(fn ($groupe, $cle) => $maSpecialite && $cle === $maSpecialite ? 0 : 1);
+
+        // Patients actuellement au cabinet : visibles, mais hors file.
+        $auCabinet = $base()
+            ->where('statut', 'en_cours')
+            ->whereDoesntHave('consultations')
+            ->whereNotNull('consultation_debutee_at')
+            ->with('medecinConsultant')
+            ->orderBy('consultation_debutee_at')
+            ->get();
+
+        // Envoyés à la caisse, paiement non encore validé
+        $enAttentePaiement = $base()
+            ->where('statut', 'en_attente')
+            ->with('factures')
+            ->orderBy('date_entree')
+            ->get();
+
+        // Historique des consultations réalisées
+        $visits = $base()
+            ->whereHas('consultations')
+            ->when($statut, fn ($q) => $q->where('statut', $statut))
+            ->when($date, fn ($q) => $q->whereDate('date_entree', $date))
+            ->orderByDesc('date_entree')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('consultations.index', compact(
+            'visits', 'fileAttente', 'fileParSpecialite', 'enAttentePaiement',
+            'maSpecialite', 'auCabinet', 'specialitesEnFile',
+            'recherche', 'statut', 'date', 'specialite'
+        ));
     }
 
     /**

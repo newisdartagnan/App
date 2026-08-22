@@ -94,7 +94,14 @@
                             @csrf @method('DELETE')
                             <button class="text-[11px] text-blue-700 hover:underline">Débloquer</button>
                         </form>
-                        @elseif($rv->statut === 'fixe')
+                        @else
+                        {{-- Un rendez-vous que le patient ne repart pas avec
+                             sur un papier est un rendez-vous oublié. --}}
+                        <a href="{{ route('agenda.convocation', $rv) }}" target="_blank"
+                           class="block mt-1 text-[11px] text-blue-700 hover:underline">🖨️ Convocation</a>
+                        @endif
+
+                        @if($rv->statut === 'fixe')
                         <div class="flex gap-1 mt-1 justify-end">
                             @foreach(['honore' => 'Honoré', 'absent' => 'Absent', 'annule' => 'Annuler'] as $statut => $libelle)
                             <form method="POST" action="{{ route('agenda.statut', $rv) }}">

@@ -49,6 +49,24 @@ class AgendaController extends Controller
         ]);
     }
 
+    /**
+     * Convocation à remettre au patient.
+     *
+     * Un rendez-vous que le patient ne repart pas avec sur un papier est un
+     * rendez-vous oublié : beaucoup n'ont ni agenda ni téléphone où le noter.
+     */
+    public function imprimer(RendezVous $rendezVous): View
+    {
+        $rendezVous->load(['patient.assurances.assurance', 'prestataire', 'typeConsultation', 'creePar']);
+
+        abort_if($rendezVous->estBloque(), 404, 'Ce créneau est une indisponibilité, pas un rendez-vous.');
+
+        return view('agenda.convocation', [
+            'rendezVous' => $rendezVous,
+            'etablissement' => config('dpi.establishment_name', config('app.name')),
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
