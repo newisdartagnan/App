@@ -7,8 +7,11 @@ use App\Models\DonneurSang;
 use App\Models\Establishment;
 use App\Models\Patient;
 use App\Models\PocheSang;
+use App\Models\Transfusion;
 use App\Models\Visit;
 use App\Services\BanqueSangService;
+use App\Services\NotificationService;
+use App\Services\ParametreService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -19,7 +22,10 @@ use Illuminate\View\View;
  */
 class BanqueSangController extends Controller
 {
-    public function __construct(private readonly BanqueSangService $banque) {}
+    public function __construct(
+        private readonly BanqueSangService $banque,
+        private readonly ParametreService $parametres,
+    ) {}
 
     /**
      * Tableau du stock : ce qu'il y a au réfrigérateur, et qui peut donner.
@@ -215,7 +221,7 @@ class BanqueSangController extends Controller
     {
         $this->autoriser();
 
-        $demande->load(['patient.assurances.assurance', 'demandeur', 'transfusions.poche']);
+        $demande->load(['patient.assurances.assurance', 'demandeur', 'transfusions.poche', 'transfusions.facture']);
 
         return view('banque-sang.demande', [
             'demande' => $demande,
@@ -264,6 +270,143 @@ class BanqueSangController extends Controller
             .') délivrée pour '.$demande->patient->nom_complet.'.');
     }
 
+    /**
+     * Clôture une feuille de transfusion.
+     *
+     * C'est l'acte qui manquait : sans lui, la poche n'était qu'une sortie
+     * de stock. Ici on dit à quelle heure elle a fini de couler, ce que
+     * l'hémoglobine est devenue, et si le malade a mal réagi.
+     */
+    public function cloturerTransfusion(Request $request, Transfusion $transfusion): RedirectResponse
+    {
+        $this->autoriser();
+
+        if ($transfusion->estCloturee()) {
+            return back()->with('info', 'Cette transfusion est déjà clôturée.');
+        }
+
+        $donnees = $request->validate([
+            'heure_fin' => 'required|date_format:H:i',
+            'hemoglobine_apres' => 'nullable|numeric|min:1|max:25',
+            'incident' => ['required', Rule::in(array_keys(Transfusion::INCIDENTS))],
+            'observation' => 'nullable|string|max:1000',
+        ], [
+            'heure_fin.required' => 'L\'heure de fin est ce qui distingue une transfusion posée d\'une poche sortie du stock.',
+            'incident.required' => 'Dites si la transfusion s\'est passée sans incident : « aucun » est une réponse, le silence n\'en est pas une.',
+        ]);
+
+        $transfusion = $this->banque->cloturerTransfusion($transfusion, $donnees);
+
+        if ($transfusion->avecIncident()) {
+            return back()->with('error', sprintf(
+                'Transfusion %s clôturée avec incident : %s. Le prescripteur et le laboratoire sont prévenus.%s',
+                $transfusion->numero_poche,
+                $transfusion->libelleIncident(),
+                $transfusion->incidentEstGrave() ? ' Arrêtez toute autre poche du même donneur.' : ''
+            ));
+        }
+
+        $rendement = $transfusion->rendement();
+
+        return back()->with('success', sprintf(
+            'Transfusion %s clôturée — %s.%s',
+            $transfusion->numero_poche,
+            $transfusion->dureeMinutes() !== null ? $transfusion->dureeMinutes().' min de pose' : 'sans incident',
+            $rendement !== null
+                ? ' Hémoglobine '.($rendement >= 0 ? '+' : '').$rendement.' g/dL.'
+                    .($transfusion->rendementInsuffisant() ? ' Gain faible : le saignement se poursuit peut-être.' : '')
+                : ''
+        ));
+    }
+
+    /**
+     * Registre transfusionnel : ce qui a été posé, par qui, avec quelle suite.
+     */
+    public function registre(Request $request): View
+    {
+        $this->autoriser();
+
+        $filtres = [
+            'debut' => $request->query('debut', now()->startOfMonth()->toDateString()),
+            'fin' => $request->query('fin', now()->toDateString()),
+            'groupe' => $request->query('groupe'),
+            'etat' => $request->query('etat'),
+        ];
+
+        $transfusions = $this->banque->registre($this->etablissementId(), $filtres);
+
+        return view('banque-sang.registre', [
+            'transfusions' => $transfusions,
+            'filtres' => $filtres,
+            'groupes' => PocheSang::GROUPES,
+            'incidents' => Transfusion::INCIDENTS,
+            'enCours' => $transfusions->reject->estCloturee()->count(),
+            'avecIncident' => $transfusions->filter->avecIncident()->count(),
+        ]);
+    }
+
+    /**
+     * Le réseau : ce que les banques voisines ont en rayon.
+     *
+     * Chercher du sang à trois heures du matin ne devrait pas consister à
+     * appeler les hôpitaux un par un.
+     */
+    public function reseau(Request $request): View
+    {
+        $this->autoriser();
+
+        $groupe = $request->query('groupe');
+        $produit = $request->query('produit', 'sang_total');
+        $etablissement = $this->etablissementId();
+
+        return view('banque-sang.reseau', [
+            'maisons' => $this->banque->reseau($etablissement, $groupe, $produit),
+            'groupe' => $groupe,
+            'produit' => $produit,
+            'groupes' => PocheSang::GROUPES,
+            'produits' => PocheSang::PRODUITS,
+            'groupesAcceptes' => $groupe ? PocheSang::groupesCompatiblesPour($groupe, $produit) : [],
+            'nousPartageons' => $this->banque->partageSonStock($etablissement),
+            'peutRegler' => auth()->user()?->hasAnyRole(['super_admin', 'directeur']) ?? false,
+        ]);
+    }
+
+    /** Ouvre ou ferme le partage du stock avec les autres établissements. */
+    public function reglerPartage(Request $request): RedirectResponse
+    {
+        abort_unless(
+            auth()->user()?->hasAnyRole(['super_admin', 'directeur']),
+            403,
+            'Le partage engage l\'établissement : il relève de la direction.'
+        );
+
+        $partage = $request->boolean('partage');
+        $this->parametres->ecrire(BanqueSangService::CLE_PARTAGE, ['actif' => $partage]);
+
+        return back()->with('success', $partage
+            ? 'Votre stock est de nouveau visible des autres établissements du réseau.'
+            : 'Votre stock est retiré du réseau : les autres établissements ne le voient plus. Vous continuez de voir le leur.');
+    }
+
+    /** Écarte un donneur du fichier, ou l'y remet. */
+    public function reglerEligibilite(Request $request, DonneurSang $donneur): RedirectResponse
+    {
+        $this->autoriser();
+
+        $request->validate([
+            'motif_exclusion' => 'required_if:eligible,0|nullable|string|max:255',
+        ], [
+            'motif_exclusion.required_if' => 'Dites pourquoi ce donneur est écarté : sans motif, personne ne saura le réhabiliter.',
+        ]);
+
+        $eligible = $request->boolean('eligible');
+        $donneur = $this->banque->reglerEligibilite($donneur, $eligible, $request->input('motif_exclusion'));
+
+        return back()->with('success', $eligible
+            ? $donneur->nomComplet().' est de nouveau appelable.'
+            : $donneur->nomComplet().' est écarté du fichier — '.$donneur->motif_exclusion.'.');
+    }
+
     /** Refuse une demande, avec son motif. */
     public function refuser(Request $request, DemandeSang $demande): RedirectResponse
     {
@@ -273,7 +416,23 @@ class BanqueSangController extends Controller
 
         $demande->update(['statut' => 'refusee', 'motif_refus' => $request->motif_refus]);
 
-        return back()->with('success', 'Demande '.$demande->numero.' refusée — le service est informé du motif.');
+        // « Le service est informé » ne doit pas être une figure de style :
+        // le demandeur reçoit le motif dans ses notifications.
+        if ($demande->demandeur_id) {
+            app(NotificationService::class)->envoyer(
+                service: 'banque_sang',
+                type: 'demande_refusee',
+                titre: 'Demande de sang '.$demande->numero.' refusée',
+                message: $request->motif_refus,
+                referenceType: 'demande_sang',
+                referenceId: $demande->id,
+                codeReference: $demande->numero,
+                destinataireId: $demande->demandeur_id,
+                priorite: $demande->urgence ? 'urgente' : 'haute',
+            );
+        }
+
+        return back()->with('success', 'Demande '.$demande->numero.' refusée — le demandeur reçoit le motif.');
     }
 
     /**

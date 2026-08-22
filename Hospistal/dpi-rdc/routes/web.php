@@ -135,9 +135,14 @@ Route::middleware(['auth'])->group(function () {
 
     // Banque de sang : stock, donneurs, demandes, délivrance
     Route::get('/banque-sang', [BanqueSangController::class, 'index'])->name('banque-sang.index');
+    Route::get('/banque-sang/registre', [BanqueSangController::class, 'registre'])->name('banque-sang.registre');
+    Route::get('/banque-sang/reseau', [BanqueSangController::class, 'reseau'])->name('banque-sang.reseau');
+    Route::post('/banque-sang/reseau/partage', [BanqueSangController::class, 'reglerPartage'])->name('banque-sang.partage');
     Route::get('/banque-sang/donneurs', [BanqueSangController::class, 'donneurs'])->name('banque-sang.donneurs');
     Route::post('/banque-sang/donneurs', [BanqueSangController::class, 'enregistrerDonneur'])->name('banque-sang.donneurs.store');
     Route::post('/banque-sang/donneurs/{donneur}/don', [BanqueSangController::class, 'enregistrerDon'])->name('banque-sang.don');
+    Route::post('/banque-sang/donneurs/{donneur}/eligibilite', [BanqueSangController::class, 'reglerEligibilite'])->name('banque-sang.eligibilite');
+    Route::post('/banque-sang/transfusions/{transfusion}/cloturer', [BanqueSangController::class, 'cloturerTransfusion'])->name('banque-sang.cloturer');
     Route::post('/banque-sang/poches/{poche}/depister', [BanqueSangController::class, 'depister'])->name('banque-sang.depister');
     Route::post('/banque-sang/demandes', [BanqueSangController::class, 'demander'])->name('banque-sang.demander');
     Route::get('/banque-sang/demandes/{demande}', [BanqueSangController::class, 'demande'])->name('banque-sang.demande');
@@ -319,5 +324,4 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/caisse/{facture}/encaisser', [CaisseController::class, 'encaisser'])->name('caisse.encaisser');
     Route::post('/caisse/{facture}/utiliser-acompte', [CaisseController::class, 'utiliserAcompte'])->name('caisse.acompte');
     Route::post('/caisse/facturer/{prescription}', [CaisseController::class, 'facturer'])->name('caisse.facturer');
-    Route::post('/caisse/prescription/{prescription}', [CaisseController::class, 'creerDepuisPrescription'])->name('caisse.prescription');
 });

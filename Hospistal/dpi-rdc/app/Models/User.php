@@ -56,4 +56,33 @@ class User extends Authenticatable
     {
         return "{$this->nom} {$this->prenom}";
     }
+
+    /**
+     * Nom court des rôles, pour l'en-tête et les listes.
+     *
+     * Le paramétrage en donne la version longue, avec ses attributions ;
+     * ici on n'a la place que du métier.
+     */
+    public const NOMS_ROLES = [
+        'super_admin' => 'Administrateur',
+        'directeur' => 'Directeur',
+        'medecin' => 'Médecin',
+        'infirmier_chef' => 'Infirmier chef',
+        'infirmier' => 'Infirmier',
+        'laborantin' => 'Laborantin',
+        'radiologue' => 'Radiologue',
+        'pharmacien' => 'Pharmacien',
+        'caissier' => 'Caissier',
+        'agent_admin' => 'Agent administratif',
+    ];
+
+    /** Rôles de l'utilisateur, en clair. */
+    public function libelleRoles(): string
+    {
+        $roles = $this->getRoleNames()
+            ->map(fn (string $role) => self::NOMS_ROLES[$role] ?? $role)
+            ->implode(', ');
+
+        return $roles ?: 'Sans rôle attribué';
+    }
 }

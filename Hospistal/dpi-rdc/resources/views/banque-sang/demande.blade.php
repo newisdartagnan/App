@@ -121,19 +121,110 @@
         </div>
     </div>
 
-    {{-- Poches déjà délivrées --}}
+    {{-- Poches délivrées : c'est ici que la transfusion se clôture --}}
     @if($demande->transfusions->isNotEmpty())
     <div class="bg-white rounded-xl shadow overflow-hidden mb-5">
-        <div class="px-5 py-3 border-b font-semibold text-gray-700">Poches délivrées</div>
+        <div class="px-5 py-3 border-b font-semibold text-gray-700">
+            Poches délivrées
+            <span class="text-gray-400 font-normal text-sm">
+                — {{ $demande->transfusions->reject->estCloturee()->count() }} en cours de pose
+            </span>
+        </div>
         <div class="divide-y divide-gray-100">
             @foreach($demande->transfusions as $transfusion)
-            <div class="px-5 py-3 text-sm">
-                <span class="font-mono">{{ $transfusion->numero_poche }}</span>
-                — {{ $transfusion->groupe_donneur }} → {{ $transfusion->groupe_receveur }}
-                · {{ $transfusion->jour?->format('d/m/Y') }} à {{ $transfusion->heure_debut }}
-                @if($transfusion->controle_ultime)
-                <span class="text-xs text-green-700">✓ contrôle ultime</span>
-                @endif
+            <div class="px-5 py-3">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="text-sm">
+                        <p>
+                            <span class="font-mono">{{ $transfusion->numero_poche }}</span>
+                            — {{ $transfusion->groupe_donneur }} → {{ $transfusion->groupe_receveur }}
+                            · {{ $transfusion->jour?->format('d/m/Y') }} à {{ $transfusion->heure_debut }}
+                            @if($transfusion->controle_ultime)
+                            <span class="text-xs text-green-700">✓ contrôle ultime</span>
+                            @endif
+                        </p>
+                        @if($transfusion->estCloturee())
+                        <p class="text-xs mt-1 {{ $transfusion->avecIncident() ? 'text-red-700 font-semibold' : 'text-gray-500' }}">
+                            Terminée à {{ $transfusion->heure_fin }}
+                            @if($transfusion->dureeMinutes() !== null) ({{ $transfusion->dureeMinutes() }} min) @endif
+                            · {{ $transfusion->libelleIncident() }}
+                            @if($transfusion->rendement() !== null)
+                                · Hb {{ $transfusion->rendement() >= 0 ? '+' : '' }}{{ $transfusion->rendement() }} g/dL
+                                @if($transfusion->rendementInsuffisant()) — gain faible @endif
+                            @endif
+                        </p>
+                        @if($transfusion->observation)
+                        <p class="text-xs text-gray-500">{{ $transfusion->observation }}</p>
+                        @endif
+                        @else
+                        <p class="text-xs text-amber-700 font-semibold mt-1">
+                            Transfusion en cours — à clôturer une fois la poche passée
+                        </p>
+                        @endif
+                        @if($transfusion->facture)
+                        <p class="text-xs text-gray-400">
+                            Portée sur la facture {{ $transfusion->facture->numero_facture }}
+                        </p>
+                        @endif
+                    </div>
+                </div>
+
+                @unless($transfusion->estCloturee())
+                <details class="mt-2" {{ $errors->any() ? 'open' : '' }}>
+                    <summary class="cursor-pointer text-sm font-medium text-blue-700 select-none">
+                        ✓ Clôturer cette transfusion
+                    </summary>
+                    <form method="POST" action="{{ route('banque-sang.cloturer', $transfusion) }}"
+                          class="grid md:grid-cols-4 gap-3 mt-3 pt-3 border-t">
+                        @csrf
+                        <div>
+                            <label for="hf-{{ $transfusion->id }}" class="block text-xs font-semibold text-gray-600 mb-1">
+                                Heure de fin <span class="text-red-500">*</span>
+                            </label>
+                            <input id="hf-{{ $transfusion->id }}" name="heure_fin" type="time" required
+                                   value="{{ now()->format('H:i') }}"
+                                   class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label for="hba-{{ $transfusion->id }}" class="block text-xs font-semibold text-gray-600 mb-1">
+                                Hb de contrôle (g/dL)
+                            </label>
+                            <input id="hba-{{ $transfusion->id }}" name="hemoglobine_apres" type="number"
+                                   step="0.1" min="1" max="25"
+                                   class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label for="inc-{{ $transfusion->id }}" class="block text-xs font-semibold text-gray-600 mb-1">
+                                Incident <span class="text-red-500">*</span>
+                            </label>
+                            <select id="inc-{{ $transfusion->id }}" name="incident" required
+                                    class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm">
+                                @foreach(\App\Models\Transfusion::INCIDENTS as $cle => $libelle)
+                                <option value="{{ $cle }}">{{ $libelle }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button class="w-full bg-blue-700 hover:bg-blue-800 text-white rounded-lg px-4 py-2 text-sm font-semibold">
+                                Clôturer
+                            </button>
+                        </div>
+                        <div class="md:col-span-4">
+                            <label for="obs-{{ $transfusion->id }}" class="block text-xs font-semibold text-gray-600 mb-1">
+                                Observation
+                            </label>
+                            <input id="obs-{{ $transfusion->id }}" name="observation" maxlength="1000"
+                                   placeholder="Bien supportée, débit ralenti à la deuxième heure…"
+                                   class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm">
+                        </div>
+                        <p class="md:col-span-4 text-xs text-gray-500">
+                            Un incident déclaré part immédiatement au prescripteur et au
+                            laboratoire. Frissons et urticaire se traitent la poche en cours ;
+                            une dyspnée ou une suspicion d'hémolyse imposent de débrancher.
+                        </p>
+                    </form>
+                </details>
+                @endunless
             </div>
             @endforeach
         </div>

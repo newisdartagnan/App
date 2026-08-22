@@ -171,6 +171,31 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right">
+                            {{-- Écarter n'est pas toujours une sérologie : poids, grossesse,
+                                 traitement, refus. Cela doit se poser et se lever à la main. --}}
+                            @if($donneur->est_eligible)
+                            <details class="mb-1">
+                                <summary class="cursor-pointer text-xs text-red-700 select-none">Écarter du fichier</summary>
+                                <form method="POST" action="{{ route('banque-sang.eligibilite', $donneur) }}" class="mt-2 flex flex-col gap-1">
+                                    @csrf
+                                    <input type="hidden" name="eligible" value="0">
+                                    <label for="mx-{{ $donneur->id }}" class="sr-only">Motif de l'exclusion</label>
+                                    <input id="mx-{{ $donneur->id }}" name="motif_exclusion" required maxlength="255"
+                                           placeholder="Poids insuffisant, grossesse, traitement…"
+                                           class="border border-gray-300 rounded px-2 py-1 text-xs">
+                                    <button class="bg-red-700 hover:bg-red-800 text-white rounded px-2 py-1 text-xs font-semibold">
+                                        Écarter
+                                    </button>
+                                </form>
+                            </details>
+                            @else
+                            <form method="POST" action="{{ route('banque-sang.eligibilite', $donneur) }}" class="mb-1">
+                                @csrf
+                                <input type="hidden" name="eligible" value="1">
+                                <button class="text-xs text-green-700 hover:underline">Réintégrer au fichier</button>
+                            </form>
+                            @endif
+
                             @if($dispo)
                             <details>
                                 <summary class="cursor-pointer text-xs text-blue-700 select-none">Enregistrer un don</summary>

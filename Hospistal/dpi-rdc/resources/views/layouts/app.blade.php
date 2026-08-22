@@ -25,7 +25,27 @@
                 <p class="text-xs text-blue-200">{{ config('dpi.establishment_name') }}</p>
             </div>
             @auth
+            <div class="flex items-center gap-4">
                 @include('partials.sync-status')
+
+                {{--
+                    Qui est connecté, et par où l'on s'en va.
+                    Un poste d'hôpital passe de main en main toute la journée :
+                    sans cette ligne, l'infirmière de nuit signe encore sous le
+                    nom du médecin de garde parti à six heures.
+                --}}
+                <div class="text-right leading-tight">
+                    <p class="text-sm font-semibold">{{ auth()->user()->nom_complet }}</p>
+                    <p class="text-xs text-blue-200">{{ auth()->user()->libelleRoles() }}</p>
+                </div>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button class="bg-blue-900 hover:bg-blue-950 text-white text-xs font-semibold rounded-lg px-3 py-2"
+                            title="Fermer la session — le poste redevient disponible">
+                        Se déconnecter
+                    </button>
+                </form>
+            </div>
             @endauth
         </div>
     </header>

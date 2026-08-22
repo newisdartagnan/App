@@ -4,10 +4,14 @@ namespace App\Services;
 
 use App\Models\DemandeSang;
 use App\Models\DonneurSang;
+use App\Models\Establishment;
+use App\Models\Parametre;
 use App\Models\Patient;
 use App\Models\PocheSang;
 use App\Models\Transfusion;
+use App\Models\Visit;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -168,10 +172,320 @@ class BanqueSangService
                 'statut' => $demande->fresh()->pochesRestantes() <= 0 ? 'servie' : 'partiellement_servie',
             ]);
 
+            $this->facturerPoche($transfusion, $demande, $poche);
+
             return $transfusion;
         });
 
-        return ['transfusion' => $transfusion, 'erreur' => null];
+        $this->prevenirLeDemandeur($demande, $poche);
+
+        return ['transfusion' => $transfusion->fresh(), 'erreur' => null];
+    }
+
+    /**
+     * Porte l'unité délivrée sur la facture du séjour.
+     *
+     * Sans séjour ouvert — la transfusion posée aux urgences avant toute
+     * admission — il n'y a rien à facturer : le passage sera régularisé à
+     * l'admission, et une facture sans visite n'aurait pas de destinataire.
+     */
+    private function facturerPoche(Transfusion $transfusion, DemandeSang $demande, PocheSang $poche): void
+    {
+        $tarif = $poche->tarif();
+
+        if ($tarif <= 0 || ! $demande->visit_id) {
+            return;
+        }
+
+        $visite = $demande->visit ?? Visit::find($demande->visit_id);
+
+        if (! $visite) {
+            return;
+        }
+
+        $facture = app(FacturationService::class)->creerFactureAmbulatoire(
+            $demande->patient,
+            $visite,
+            'transfusion',
+            $poche->libelleProduit().' — poche '.$poche->numero.' ('.$poche->groupe_sanguin.')',
+            $tarif,
+            'CDF',
+            $transfusion->id
+        );
+
+        $transfusion->update(['facture_id' => $facture->id]);
+    }
+
+    /**
+     * Prévient le service qui a demandé le sang.
+     *
+     * Le prescripteur n'a pas à guetter l'écran de la banque : c'est la
+     * banque qui lui dit que sa poche est prête, comme le laboratoire lui
+     * annonce ses résultats.
+     */
+    private function prevenirLeDemandeur(DemandeSang $demande, PocheSang $poche): void
+    {
+        if (! $demande->demandeur_id) {
+            return;
+        }
+
+        app(NotificationService::class)->envoyer(
+            service: 'banque_sang',
+            type: 'poche_delivree',
+            titre: 'Poche '.$poche->numero.' délivrée',
+            message: sprintf(
+                '%s (%s) pour %s. Posez-la, puis clôturez la transfusion : heure de fin, hémoglobine de contrôle et incident éventuel.',
+                $poche->libelleProduit(),
+                $poche->groupe_sanguin,
+                $demande->patient?->nom_complet ?? 'le patient'
+            ),
+            referenceType: 'demande_sang',
+            referenceId: $demande->id,
+            codeReference: $demande->numero,
+            destinataireId: $demande->demandeur_id,
+            priorite: $demande->urgence ? 'urgente' : 'normale',
+        );
+    }
+
+    /**
+     * Clôture la feuille de transfusion : c'est là que se fait l'hémovigilance.
+     *
+     * Tant que personne n'écrit l'heure de fin, l'hémoglobine de contrôle et
+     * l'incident éventuel, la poche n'est qu'une sortie de stock. Un incident
+     * grave remonte immédiatement au prescripteur et au laboratoire : une
+     * suspicion d'hémolyse ne s'archive pas, elle s'annonce.
+     */
+    public function cloturerTransfusion(Transfusion $transfusion, array $donnees): Transfusion
+    {
+        $transfusion->update([
+            'heure_fin' => $donnees['heure_fin'] ?? now()->format('H:i'),
+            'hemoglobine_apres' => $donnees['hemoglobine_apres'] ?? null,
+            'incident' => $donnees['incident'] ?? 'aucun',
+            'observation' => $donnees['observation'] ?? null,
+            'cloturee_le' => now(),
+            'cloturee_par' => auth()->id(),
+        ]);
+
+        $transfusion->refresh();
+
+        if ($transfusion->avecIncident()) {
+            $this->declarerIncident($transfusion);
+        }
+
+        return $transfusion;
+    }
+
+    /**
+     * Fait remonter un incident transfusionnel.
+     *
+     * Il part au prescripteur, qui doit décider de la suite, et au
+     * laboratoire, qui tient le registre et devra peut-être bloquer les
+     * autres poches du même donneur.
+     */
+    private function declarerIncident(Transfusion $transfusion): void
+    {
+        $notifications = app(NotificationService::class);
+
+        $message = sprintf(
+            '%s pendant la transfusion de la poche %s (%s → %s) chez %s.%s',
+            $transfusion->libelleIncident(),
+            $transfusion->numero_poche,
+            $transfusion->groupe_donneur,
+            $transfusion->groupe_receveur,
+            $transfusion->patient?->nom_complet ?? 'un patient',
+            $transfusion->incidentEstGrave()
+                ? ' Transfusion à arrêter immédiatement : prévenez le médecin.'
+                : ''
+        );
+
+        $priorite = $transfusion->incidentEstGrave() ? 'urgente' : 'haute';
+
+        foreach (array_filter([$transfusion->demande?->demandeur_id, $transfusion->user_id]) as $destinataire) {
+            $notifications->envoyer(
+                service: 'banque_sang',
+                type: 'incident_transfusionnel',
+                titre: 'Incident transfusionnel — '.$transfusion->numero_poche,
+                message: $message,
+                referenceType: 'transfusion',
+                referenceId: $transfusion->id,
+                codeReference: $transfusion->numero_poche,
+                destinataireId: $destinataire,
+                priorite: $priorite,
+            );
+        }
+
+        $notifications->envoyer(
+            service: 'banque_sang',
+            type: 'incident_transfusionnel',
+            titre: 'Incident transfusionnel — '.$transfusion->numero_poche,
+            message: $message,
+            referenceType: 'transfusion',
+            referenceId: $transfusion->id,
+            codeReference: $transfusion->numero_poche,
+            groupeDestinataire: 'laborantin',
+            priorite: $priorite,
+        );
+    }
+
+    /**
+     * Écarte un donneur du fichier, ou l'y remet.
+     *
+     * L'exclusion n'est pas toujours une sérologie : un poids insuffisant,
+     * une grossesse en cours, un traitement, un refus. Elle doit pouvoir se
+     * poser et se lever à la main, avec son motif.
+     */
+    public function reglerEligibilite(DonneurSang $donneur, bool $eligible, ?string $motif = null): DonneurSang
+    {
+        $donneur->update([
+            'est_eligible' => $eligible,
+            'motif_exclusion' => $eligible ? null : ($motif ?: 'Écarté sans motif précisé'),
+        ]);
+
+        return $donneur->fresh();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Le réseau : où trouver du sang quand la maison n'en a plus
+    // ═══════════════════════════════════════════════════════════
+
+    /** Clé du réglage de partage, établissement par établissement. */
+    public const CLE_PARTAGE = 'banque_sang.partage_reseau';
+
+    /**
+     * Établissements qui acceptent d'être visibles du réseau.
+     *
+     * Le partage est ouvert par défaut : une banque qui n'annonce rien ne
+     * sert à personne, et c'est bien le but que ces registres se répondent.
+     * Un établissement peut s'en retirer, et son stock disparaît alors des
+     * écrans des autres.
+     *
+     * @return Collection<int, Establishment>
+     */
+    public function etablissementsPartageurs(?string $exclure = null): Collection
+    {
+        $refus = Parametre::where('cle', self::CLE_PARTAGE)
+            ->get()
+            ->reject(fn (Parametre $p) => $this->valeurVraie($p->valeur))
+            ->pluck('establishment_id')
+            ->all();
+
+        return Establishment::query()
+            ->where('is_active', true)
+            ->when($exclure, fn ($q) => $q->where('id', '!=', $exclure))
+            ->when($refus !== [], fn ($q) => $q->whereNotIn('id', $refus))
+            ->orderBy('name')
+            ->get();
+    }
+
+    /** Le réglage est-il à « oui » ? Il a pu être écrit en booléen ou en tableau. */
+    private function valeurVraie(mixed $valeur): bool
+    {
+        if (is_array($valeur)) {
+            $valeur = $valeur['actif'] ?? true;
+        }
+
+        return filter_var($valeur, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /** Cet établissement partage-t-il son stock avec le réseau ? */
+    public function partageSonStock(?string $etablissementId): bool
+    {
+        if (! $etablissementId) {
+            return false;
+        }
+
+        $reglage = Parametre::where('establishment_id', $etablissementId)
+            ->where('cle', self::CLE_PARTAGE)
+            ->first();
+
+        // Rien de saisi : le partage est ouvert. C'est le but du registre.
+        return $reglage === null || $this->valeurVraie($reglage->valeur);
+    }
+
+    /**
+     * Ce que les autres établissements ont sous la main.
+     *
+     * C'est la demande d'origine : ne plus téléphoner à l'aveugle à trois
+     * heures du matin. Pour chaque maison du réseau, ce qu'elle a de
+     * délivrable — et, à défaut de poche, qui elle peut appeler.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function reseau(?string $etablissementCourant, ?string $groupeReceveur = null, string $typeProduit = 'sang_total'): Collection
+    {
+        $maisons = $this->etablissementsPartageurs($etablissementCourant);
+
+        if ($maisons->isEmpty()) {
+            return collect();
+        }
+
+        $ids = $maisons->pluck('id')->all();
+        $groupesUtiles = $groupeReceveur
+            ? PocheSang::groupesCompatiblesPour($groupeReceveur, $typeProduit)
+            : PocheSang::GROUPES;
+
+        $poches = PocheSang::whereIn('establishment_id', $ids)
+            ->where('statut', 'disponible')
+            ->get()
+            ->filter->estDelivrable()
+            ->groupBy('establishment_id');
+
+        $donneurs = DonneurSang::whereIn('establishment_id', $ids)
+            ->where('est_eligible', true)
+            ->get()
+            ->filter->peutDonnerMaintenant()
+            ->groupBy('establishment_id');
+
+        return $maisons->map(function (Establishment $maison) use ($poches, $donneurs, $groupesUtiles, $groupeReceveur) {
+            $stock = $poches->get($maison->id, collect());
+            $fichier = $donneurs->get($maison->id, collect());
+
+            $compatibles = $stock->whereIn('groupe_sanguin', $groupesUtiles);
+            $donneursCompatibles = $fichier->whereIn('groupe_sanguin', $groupesUtiles);
+
+            return [
+                'id' => $maison->id,
+                'nom' => $maison->name,
+                'ville' => $maison->ville,
+                'telephone' => $maison->telephone,
+                'total' => $stock->count(),
+                'compatibles' => $compatibles->count(),
+                'par_groupe' => collect(PocheSang::GROUPES)
+                    ->mapWithKeys(fn ($g) => [$g => $stock->where('groupe_sanguin', $g)->count()])
+                    ->filter(),
+                'donneurs' => $fichier->count(),
+                'donneurs_compatibles' => $donneursCompatibles->count(),
+                // Les téléphones ne sortent que quand on cherche un groupe
+                // précis : le réseau sert à trouver du sang, pas à recopier
+                // le fichier des donneurs de la maison d'à côté.
+                'a_appeler' => $groupeReceveur
+                    ? $donneursCompatibles->sortBy(fn ($d) => $d->dernier_don?->timestamp ?? 0)->take(5)->values()
+                    : collect(),
+            ];
+        })->sortByDesc('compatibles')->values();
+    }
+
+    /**
+     * Registre transfusionnel : la trace de ce qui a été posé.
+     *
+     * @return Collection<int, Transfusion>
+     */
+    public function registre(?string $etablissementId, array $filtres = []): Collection
+    {
+        return Transfusion::query()
+            ->with(['patient', 'poche.donneur', 'demande', 'auteur', 'cloturePar', 'facture'])
+            ->when($etablissementId, fn ($q) => $q->whereHas(
+                'patient',
+                fn ($sub) => $sub->where('establishment_id', $etablissementId)
+            ))
+            ->when($filtres['debut'] ?? null, fn ($q, $debut) => $q->whereDate('jour', '>=', $debut))
+            ->when($filtres['fin'] ?? null, fn ($q, $fin) => $q->whereDate('jour', '<=', $fin))
+            ->when($filtres['groupe'] ?? null, fn ($q, $groupe) => $q->where('groupe_receveur', $groupe))
+            ->when(($filtres['etat'] ?? null) === 'en_cours', fn ($q) => $q->whereNull('cloturee_le'))
+            ->when(($filtres['etat'] ?? null) === 'incident', fn ($q) => $q->where('incident', '!=', 'aucun'))
+            ->orderByDesc('jour')
+            ->orderByDesc('heure_debut')
+            ->get();
     }
 
     /**
