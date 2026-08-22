@@ -156,6 +156,47 @@
         @endif
     </div>
 
+    {{--
+        Rendez-vous à venir.
+
+        C'est ici qu'on vient quand le patient revient sans son papier, ou
+        quand il téléphone pour demander sa date. Sans cette section, il
+        fallait chercher le bon jour dans l'agenda pour la retrouver.
+    --}}
+    @if($rendezVous->isNotEmpty())
+    <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b">
+            <h3 class="font-semibold text-gray-700">
+                📅 Rendez-vous à venir
+                <span class="text-xs font-normal text-gray-400">— {{ $rendezVous->count() }}</span>
+            </h3>
+        </div>
+        <div class="divide-y divide-gray-100">
+            @foreach($rendezVous as $rv)
+            <div class="px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <p class="font-medium text-gray-800">
+                        {{ $rv->debut->format('d/m/Y à H:i') }}
+                        <span class="text-xs font-normal text-gray-400">· {{ $rv->duree_minutes }} min</span>
+                    </p>
+                    <p class="text-sm text-gray-600">
+                        {{ $rv->typeConsultation?->libelle ?? 'Consultation' }}
+                        @if($rv->prestataire) — Dr {{ $rv->prestataire->nom }} {{ $rv->prestataire->prenom }} @endif
+                    </p>
+                    @if($rv->motif)<p class="text-xs text-gray-400 mt-0.5">{{ $rv->motif }}</p>@endif
+                </div>
+                <a href="{{ route('agenda.convocation', $rv) }}" target="_blank"
+                   title="Ouvre le papier à remettre au patient, prêt à imprimer"
+                   class="shrink-0 inline-flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white
+                          font-semibold rounded-lg px-4 py-2 text-sm min-h-[44px]">
+                    🖨️ Imprimer le rendez-vous
+                </a>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- Historique des consultations --}}
     <div class="bg-white rounded-xl shadow overflow-hidden">
         <div class="px-6 py-4 border-b">

@@ -83,7 +83,7 @@ class AgendaController extends Controller
         ]);
 
         try {
-            $this->agenda->fixer(
+            $rendezVous = $this->agenda->fixer(
                 Patient::where('dossier_number', $request->dossier_number)->firstOrFail(),
                 User::findOrFail($request->prestataire_id),
                 $request->debut,
@@ -96,7 +96,14 @@ class AgendaController extends Controller
             return back()->with('error', $e->getMessage())->withInput();
         }
 
-        return back()->with('success', 'Rendez-vous fixé.');
+        // Le patient est devant le guichet à cette seconde précise : c'est
+        // maintenant qu'il faut lui donner son papier, pas dans dix minutes
+        // quand il sera reparti. Le bouton s'affiche donc dans le message.
+        return back()
+            ->with('success', 'Rendez-vous fixé pour '.$rendezVous->patient?->nom_complet
+                .' le '.$rendezVous->debut->format('d/m/Y à H:i').'.')
+            ->with('imprimer', route('agenda.convocation', $rendezVous))
+            ->with('imprimer_libelle', 'Imprimer le rendez-vous à remettre au patient');
     }
 
     public function bloquer(Request $request): RedirectResponse

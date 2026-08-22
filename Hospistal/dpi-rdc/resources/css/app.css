@@ -120,3 +120,39 @@
     color: #fff;
     font-weight: 600;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   L'impression.
+
+   Tout ce qui est imprimé dans cet hôpital finit dans la main de
+   quelqu'un : une convocation, un bulletin de sortie, un résultat
+   d'examen. Sans ces règles, le bandeau bleu, les dix-huit onglets du
+   menu et le bouton « Se déconnecter » partaient sur le papier — un
+   tiers de la première feuille perdu, et un document qui ne ressemble
+   pas à un document d'hôpital.
+   ═══════════════════════════════════════════════════════════════════ */
+@media print {
+    .dpi-sans-impression,
+    .dpi-nav,
+    #offline-banner {
+        display: none !important;
+    }
+
+    body {
+        background: #fff !important;
+    }
+
+    /* Les encadrés doivent rester lisibles : les imprimantes ignorent les
+       fonds par défaut, or c'est le fond qui délimite la date du rendez-vous. */
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Pas d'ombre portée sur du papier, et pas de marge perdue. */
+    .shadow, .shadow-lg, .shadow-xl { box-shadow: none !important; }
+    main { padding: 0 !important; max-width: none !important; }
+
+    /* Une ligne de tableau ne se coupe pas entre deux feuilles. */
+    tr, .dpi-bloc-insecable { break-inside: avoid; }
+}

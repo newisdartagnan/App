@@ -96,9 +96,14 @@
                         </form>
                         @else
                         {{-- Un rendez-vous que le patient ne repart pas avec
-                             sur un papier est un rendez-vous oublié. --}}
+                             sur un papier est un rendez-vous oublié. Le bouton
+                             doit se voir depuis l'autre bout du guichet. --}}
                         <a href="{{ route('agenda.convocation', $rv) }}" target="_blank"
-                           class="block mt-1 text-[11px] text-blue-700 hover:underline">🖨️ Convocation</a>
+                           title="Ouvre le papier à remettre au patient, prêt à imprimer"
+                           class="mt-1 inline-flex items-center gap-1 bg-blue-700 hover:bg-blue-800 text-white
+                                  text-xs font-semibold rounded-lg px-3 py-2 min-h-[36px]">
+                            🖨️ Imprimer
+                        </a>
                         @endif
 
                         @if($rv->statut === 'fixe')
