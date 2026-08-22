@@ -6,6 +6,16 @@ return [
     'central_api_url' => env('CENTRAL_API_URL'),
     'central_sync_token' => env('CENTRAL_SYNC_TOKEN'),
     'offline_token_ttl_hours' => 48,
+
+    /*
+     * Le coupe-circuit du service worker.
+     *
+     * Il a déjà fallu le débrancher une fois, en production, pour une
+     * histoire de jetons périmés. Que cela se règle dans le .env, en dix
+     * secondes, et non par un déploiement : à false, le service worker
+     * déjà installé se désinstalle tout seul et vide son cache.
+     */
+    'service_worker' => env('SERVICE_WORKER_ACTIF', true),
     'sync_batch_size' => 500,
     'sync_interval_minutes' => 15,
     'backup_retention_days' => 7,

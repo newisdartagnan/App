@@ -7,6 +7,8 @@
     <meta name="theme-color" content="#1e40af">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    {{-- Le coupe-circuit du service worker, réglable dans le .env. --}}
+    <meta name="sw-actif" content="{{ config('dpi.service_worker') ? '1' : '0' }}">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <title>@yield('title', 'DPI-RDC') — {{ config('dpi.establishment_name') }}</title>
