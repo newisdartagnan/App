@@ -58,8 +58,11 @@ class ParcoursTemporelService
 
         $jalons = collect();
 
+        // L'heure d'arrivée, pas celle de l'écriture en base : un passage
+        // saisi après coup afficherait sinon des heures d'attente fantômes
+        // entre son enregistrement et le triage qui l'a précédé.
         $jalons->push($this->jalon('accueil', 'Enregistrement du passage',
-            $visit->created_at ?? $visit->date_entree, $visit->user));
+            $visit->date_entree ?? $visit->created_at, $visit->user));
 
         foreach ($visit->factures as $facture) {
             $jalons->push($this->jalon('guichet', 'Facture '.$facture->numero_facture.' émise',

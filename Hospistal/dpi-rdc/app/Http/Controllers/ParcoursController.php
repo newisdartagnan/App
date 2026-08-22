@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Visit;
 use App\Services\ParcoursTemporelService;
+use App\Services\StatistiquesAttenteService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -18,6 +19,33 @@ use Illuminate\View\View;
 class ParcoursController extends Controller
 {
     public function __construct(private readonly ParcoursTemporelService $parcours) {}
+
+    /**
+     * L'attente à l'échelle de l'hôpital.
+     *
+     * La chronologie dit ce qu'un patient a attendu ; elle ne dit pas qu'il
+     * manque un caissier le lundi matin. Ici on empile les parcours.
+     */
+    public function attente(Request $request): View
+    {
+        abort_unless(
+            auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'infirmier_chef']),
+            403,
+            'Le pilotage de l\'attente relève de la direction et de l\'encadrement.'
+        );
+
+        $debut = $request->query('debut', now()->startOfMonth()->toDateString());
+        $fin = $request->query('fin', now()->toDateString());
+        $type = $request->query('type') ?: null;
+
+        return view('parcours.attente', [
+            'analyse' => app(StatistiquesAttenteService::class)
+                ->analyse($debut, $fin, auth()->user()?->establishment_id, $type),
+            'debut' => $debut,
+            'fin' => $fin,
+            'type' => $type,
+        ]);
+    }
 
     /** Chronologie d'un séjour, jalon par jalon. */
     public function chronologie(Visit $visit): View

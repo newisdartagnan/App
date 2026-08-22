@@ -198,6 +198,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/utilisateurs/{utilisateur}', [UtilisateurController::class, 'update'])->name('utilisateurs.update');
     Route::post('/utilisateurs/{utilisateur}/basculer', [UtilisateurController::class, 'basculer'])->name('utilisateurs.basculer');
     Route::post('/utilisateurs/{utilisateur}/mot-de-passe', [UtilisateurController::class, 'motDePasse'])->name('utilisateurs.mot-de-passe');
+    // L'attente à l'échelle de l'hôpital : quel poste, quel jour, quelle heure.
+    Route::get('/attente', [ParcoursController::class, 'attente'])->name('parcours.attente');
     Route::get('/mon-temps', [ParcoursController::class, 'profil'])->name('parcours.moi');
     Route::get('/utilisateurs/{utilisateur}/temps', [ParcoursController::class, 'profil'])->name('parcours.profil');
 
