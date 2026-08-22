@@ -25,6 +25,15 @@
                 <p class="text-xs text-blue-200">{{ config('dpi.establishment_name') }}</p>
             </div>
             @auth
+            {{-- On ne pouvait chercher un patient que depuis l'écran Patients :
+                 il fallait quitter ce qu'on faisait, chercher, revenir. --}}
+            <form method="GET" action="{{ route('recherche') }}" class="flex-1 max-w-md mx-4 hidden md:flex">
+                <label for="q-entete" class="sr-only">Chercher un patient, une facture, un bon</label>
+                <input id="q-entete" name="q" value="{{ request()->routeIs('recherche') ? request()->query('q') : '' }}"
+                       placeholder="Nom, dossier, facture, bon d'examen…"
+                       class="w-full rounded-l-lg border border-blue-900 px-3 py-1.5 text-sm text-gray-900">
+                <button class="bg-blue-900 hover:bg-blue-950 border border-blue-900 rounded-r-lg px-3 text-sm">🔎</button>
+            </form>
             <div class="flex items-center gap-4">
                 @include('partials.sync-status')
 
