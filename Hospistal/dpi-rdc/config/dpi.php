@@ -113,4 +113,19 @@ return [
             ['libelle' => 'Réfection de fistule', 'prix' => 350000, 'duree' => 90],
         ],
     ],
+
+    /*
+     * Le sang n'est pas gratuit même quand le donneur est bénévole : le
+     * prélèvement, les cinq dépistages, la poche et la chaîne du froid se
+     * paient. Le tarif porte sur l'unité délivrée, pas sur la demande.
+     */
+    'sang' => [
+        'tarifs' => [
+            'sang_total' => 45000,
+            'concentre_globulaire' => 55000,
+            'plasma_frais' => 40000,
+            'plaquettes' => 65000,
+            'cryoprecipite' => 50000,
+        ],
+    ],
 ];

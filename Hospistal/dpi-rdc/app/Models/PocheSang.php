@@ -142,6 +142,19 @@ class PocheSang extends Model
         );
     }
 
+    /**
+     * Ce que coûte l'unité délivrée.
+     *
+     * Le don est bénévole, la poche ne l'est pas : prélèvement, cinq
+     * dépistages, poche et chaîne du froid sont à la charge de l'hôpital.
+     */
+    public function tarif(): float
+    {
+        $tarifs = config('dpi.sang.tarifs', []);
+
+        return (float) ($tarifs[$this->type_produit] ?? ($tarifs['sang_total'] ?? 0));
+    }
+
     /** Receveurs auxquels cette poche peut être donnée. */
     public function receveursPossibles(): array
     {

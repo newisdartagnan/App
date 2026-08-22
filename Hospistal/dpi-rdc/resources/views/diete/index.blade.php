@@ -152,6 +152,18 @@
                                 </select>
                                 <button class="bg-blue-700 hover:bg-blue-800 text-white rounded px-3 py-1 text-xs font-semibold">Prescrire</button>
                             </form>
+                            @if($diete && $diete->fin === null)
+                            {{-- Une mise à jeun avant bloc arrête la diète : sans ce
+                                 bouton, la cuisine continuait de servir et la facture
+                                 de compter les jours. --}}
+                            <form method="POST" action="{{ route('diete.arreter', $v) }}" class="mb-2">
+                                @csrf
+                                <button class="text-xs text-red-700 hover:underline"
+                                        title="Clôture la diète en cours — à faire avant une mise à jeun">
+                                    Arrêter la diète
+                                </button>
+                            </form>
+                            @endif
                             <form method="POST" action="{{ route('diete.menage', $v) }}" class="flex flex-wrap gap-1">
                                 @csrf
                                 <input type="hidden" name="jour" value="{{ $jour }}">

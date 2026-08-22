@@ -82,6 +82,10 @@ class NotificationInterne extends Model
 
         return match ($this->reference_type) {
             'prescription' => route('pharmacie.prescription', $this->reference_id),
+            // Une poche délivrée ou une demande refusée renvoie à la demande :
+            // c'est là que le prescripteur clôture sa transfusion ou relance.
+            'demande_sang' => route('banque-sang.demande', $this->reference_id),
+            'transfusion' => route('banque-sang.registre'),
             default => null,
         };
     }

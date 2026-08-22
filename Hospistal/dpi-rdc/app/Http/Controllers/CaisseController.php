@@ -198,10 +198,4 @@ class CaisseController extends Controller
 
         return redirect()->route('caisse.show', $facture);
     }
-
-    /** @deprecated alias */
-    public function creerDepuisPrescription(Prescription $prescription): RedirectResponse
-    {
-        return $this->facturer($prescription);
-    }
 }

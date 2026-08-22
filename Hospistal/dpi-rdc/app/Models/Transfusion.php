@@ -28,6 +28,9 @@ class Transfusion extends Model
         // qui l'a motivée, et le contrôle ultime au lit du malade.
         'poche_id', 'demande_id', 'patient_id',
         'controle_ultime', 'hemoglobine_avant', 'hemoglobine_apres',
+        // Hémovigilance : quand la poche a fini de couler, qui l'a constaté,
+        // et sur quelle facture elle a été portée.
+        'cloturee_le', 'cloturee_par', 'facture_id',
     ];
 
     protected function casts(): array
@@ -37,6 +40,7 @@ class Transfusion extends Model
             'controle_ultime' => 'boolean',
             'hemoglobine_avant' => 'decimal:1',
             'hemoglobine_apres' => 'decimal:1',
+            'cloturee_le' => 'datetime',
         ];
     }
 
@@ -96,6 +100,60 @@ class Transfusion extends Model
     public function patient(): BelongsTo
     {
         return $this->belongsTo(Patient::class);
+    }
+
+    public function facture(): BelongsTo
+    {
+        return $this->belongsTo(Facture::class);
+    }
+
+    public function cloturePar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cloturee_par');
+    }
+
+    /**
+     * Incidents qui imposent d'arrêter la perfusion sur-le-champ.
+     *
+     * Frissons et urticaire se traitent la poche en cours ; une suspicion
+     * d'hémolyse ou une dyspnée, non — on débranche et on appelle.
+     */
+    public const INCIDENTS_GRAVES = ['hemolyse', 'dyspnee', 'surcharge'];
+
+    public function incidentEstGrave(): bool
+    {
+        return in_array($this->incident, self::INCIDENTS_GRAVES, true);
+    }
+
+    public function estCloturee(): bool
+    {
+        return $this->cloturee_le !== null;
+    }
+
+    /**
+     * Gain d'hémoglobine constaté, en g/dL.
+     *
+     * Une poche de globules rouges fait normalement monter l'hémoglobine
+     * d'environ 1 g/dL chez l'adulte. Un gain nul interroge : soit le malade
+     * saigne encore, soit la poche n'a pas été transfusée en entier.
+     */
+    public function rendement(): ?float
+    {
+        if ($this->hemoglobine_avant === null || $this->hemoglobine_apres === null) {
+            return null;
+        }
+
+        return round((float) $this->hemoglobine_apres - (float) $this->hemoglobine_avant, 1);
+    }
+
+    /** Le gain d'hémoglobine est-il en deçà de ce qu'une poche doit donner ? */
+    public function rendementInsuffisant(): bool
+    {
+        $rendement = $this->rendement();
+
+        return $rendement !== null
+            && in_array($this->produit, ['cgr', 'sang_total'], true)
+            && $rendement < 0.5;
     }
 
     /**
