@@ -123,10 +123,38 @@
             <p class="text-sm text-gray-800">{{ $consultation->antecedents_personnels }}</p>
         </div>
         @endif
+        {{--
+            Antécédents familiaux, chirurgicaux et traitements en cours : le
+            médecin les saisissait à la consultation et ils ne reparaissaient
+            nulle part. Le confrère qui reprend le dossier prescrivait sans
+            savoir ce que le patient prend déjà.
+        --}}
+        @if($consultation->antecedents_familiaux)
+        <div>
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Antécédents familiaux</p>
+            <p class="text-sm text-gray-800">{{ $consultation->antecedents_familiaux }}</p>
+        </div>
+        @endif
+        @if($consultation->antecedents_chirurgicaux)
+        <div>
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Antécédents chirurgicaux</p>
+            <p class="text-sm text-gray-800">{{ $consultation->antecedents_chirurgicaux }}</p>
+        </div>
+        @endif
         @if($consultation->allergies)
         <div>
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Allergies</p>
             <p class="text-sm text-red-700 font-medium">⚠️ {{ $consultation->allergies }}</p>
+        </div>
+        @endif
+        @if(collect($consultation->traitements_en_cours ?? [])->filter()->isNotEmpty())
+        <div>
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Traitements en cours</p>
+            <ul class="text-sm text-gray-800 list-disc list-inside">
+                @foreach(collect($consultation->traitements_en_cours)->filter() as $traitement)
+                <li>{{ $traitement }}</li>
+                @endforeach
+            </ul>
         </div>
         @endif
         @if($consultation->examen_general)
@@ -142,17 +170,21 @@
     <div class="bg-white rounded-xl shadow p-6 mb-4">
         <h3 class="font-semibold text-gray-700 pb-2 border-b mb-3">Diagnostics</h3>
         <ul class="space-y-2">
+            {{-- Le code CIM-10 est facultatif et le type peut manquer sur un
+                 diagnostic ancien : les lire sans garde faisait tomber la page
+                 entière du dossier. --}}
             @foreach($consultation->diagnostics as $diag)
+            @php $typeDiag = $diag['type'] ?? 'principal'; @endphp
             <li class="flex items-center gap-3 text-sm">
-                @if($diag['code_cim10'])
+                @if($diag['code_cim10'] ?? null)
                 <span class="font-mono text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
                     {{ $diag['code_cim10'] }}
                 </span>
                 @endif
-                <span class="flex-1">{{ $diag['libelle'] }}</span>
+                <span class="flex-1">{{ $diag['libelle'] ?? 'Diagnostic non libellé' }}</span>
                 <span class="text-xs px-2 py-1 rounded-full
-                    {{ $diag['type'] === 'principal' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600' }}">
-                    {{ $diag['type'] }}
+                    {{ $typeDiag === 'principal' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600' }}">
+                    {{ $typeDiag }}
                 </span>
             </li>
             @endforeach

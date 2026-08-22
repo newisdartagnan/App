@@ -178,9 +178,11 @@
         @if($examen->fichiers->count() > 0)
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             @foreach($examen->fichiers as $fichier)
-            <a href="{{ asset('storage/' . $fichier->chemin) }}" target="_blank" class="border rounded-lg p-2 hover:border-blue-400 block">
+            {{-- La pièce passe par l'application : le disque public la
+                 servait à quiconque connaissait son adresse. --}}
+            <a href="{{ route('examens.piece', [$examen, $fichier]) }}" target="_blank" class="border rounded-lg p-2 hover:border-blue-400 block">
                 @if($fichier->type === 'image')
-                <img src="{{ asset('storage/' . $fichier->chemin) }}" alt="{{ $fichier->nom_original }}" class="w-full h-24 object-cover rounded mb-1">
+                <img src="{{ route('examens.piece', [$examen, $fichier]) }}" alt="{{ $fichier->nom_original }}" class="w-full h-24 object-cover rounded mb-1">
                 @else
                 <div class="w-full h-24 bg-gray-100 rounded mb-1 flex items-center justify-center text-3xl">
                     {{ $fichier->type === 'video' ? '🎬' : ($fichier->type === 'pdf' ? '📄' : '📁') }}

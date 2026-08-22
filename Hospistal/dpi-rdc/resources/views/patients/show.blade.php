@@ -142,6 +142,8 @@
         <div><span class="font-medium text-gray-600">Territoire :</span> {{ $patient->territoire ?? '—' }}</div>
         <div><span class="font-medium text-gray-600">Adresse :</span> {{ $patient->adresse ?? '—' }}</div>
         <div><span class="font-medium text-gray-600">Profession :</span> {{ $patient->profession ?? '—' }}</div>
+        {{-- Saisie à l'accueil et jamais relue jusqu'ici. --}}
+        <div><span class="font-medium text-gray-600">Nationalité :</span> {{ $patient->nationalite ?? '—' }}</div>
         <div><span class="font-medium text-gray-600">Situation matrimoniale :</span> {{ $patient->situation_matrimoniale }}</div>
         <div><span class="font-medium text-gray-600">Niveau d'instruction :</span> {{ $patient->niveau_instruction }}</div>
         <div><span class="font-medium text-gray-600">Prise en charge :</span> {{ $patient->type_prise_en_charge }}</div>

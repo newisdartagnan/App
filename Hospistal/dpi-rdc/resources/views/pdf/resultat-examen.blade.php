@@ -171,9 +171,21 @@
 </div>
 
 @if($pieces->isNotEmpty())
+@php
+    // Les images se placent ici même ; les PDF sont reliés à la suite du
+    // document et n'ont besoin que d'une entrée au sommaire.
+    $reliees = $pieces->filter(fn ($p) => $p['pdf'] !== null);
+    $pagesReliees = $reliees->sum(fn ($p) => $p['pages'] ?? 0);
+@endphp
 <div style="page-break-before: always;"></div>
 <div class="bloc">
     <div class="bloc-titre">Documents annexes ({{ $pieces->count() }})</div>
+    @if($reliees->isNotEmpty())
+    <div class="legende" style="padding:4px 0;">
+        {{ $reliees->count() }} document(s) reproduit(s) intégralement à la suite
+        de ce compte rendu{{ $pagesReliees ? ', sur '.$pagesReliees.' page(s)' : '' }}.
+    </div>
+    @endif
 </div>
 @foreach($pieces as $index => $piece)
 <div class="piece">
@@ -182,10 +194,16 @@
     @if($piece['image'])
         <div style="margin-top:4px;"><img src="{{ $piece['image'] }}" alt="{{ $piece['nom'] }}"></div>
     @else
-        {{-- Une vidéo ou un fichier DICOM ne s'imprime pas : on l'annonce
-             pour que le prescripteur sache qu'il existe et où le demander. --}}
+        {{-- Ce qui ne s'imprime pas — vidéo, DICOM — est annoncé avec
+             l'adresse où l'ouvrir, et non par un « voyez dans le dossier »
+             qui ne mène nulle part. --}}
         <div class="encadre-gris" style="margin-top:4px;">
             {{ $piece['mention'] }}
+            @unless($piece['pdf'])
+            <div class="legende" style="margin-top:2px; word-break:break-all;">
+                {{ $piece['lien'] }}
+            </div>
+            @endunless
         </div>
     @endif
     <div class="legende">Ajouté le {{ $piece['date'] }}</div>

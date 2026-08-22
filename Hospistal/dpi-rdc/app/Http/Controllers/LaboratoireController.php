@@ -7,6 +7,7 @@ use App\Models\ExamenLaboratoire;
 use App\Models\Patient;
 use App\Models\TypeExamen;
 use App\Models\Visit;
+use App\Services\AssemblagePdfService;
 use App\Services\FacturationService;
 use App\Services\LaboratoireService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 class LaboratoireController extends Controller
@@ -314,44 +316,116 @@ class LaboratoireController extends Controller
         $examen->load(['patient.assurances.assurance', 'prescripteur', 'laborantin',
             'resultats.typeExamen', 'fichiers']);
 
+        $pieces = $this->piecesJointes($examen);
+
         $pdf = Pdf::loadView('pdf.resultat-examen', [
             'examen' => $examen,
             'estImagerie' => $examen->domaine === 'imagerie',
             'etablissement' => config('dpi.establishment_name', config('app.name')),
-            'pieces' => $this->piecesJointes($examen),
+            'pieces' => $pieces,
         ])->setPaper('a4');
 
         $nom = ($examen->domaine === 'imagerie' ? 'CR_' : 'RES_').$examen->numero_bon.'.pdf';
 
         // Affiché dans le navigateur : la notification ouvre le document,
         // elle ne déclenche pas un téléchargement.
-        return $pdf->stream($nom);
+        return $this->avecAnnexesReliees($pdf->output(), $pieces, $nom);
+    }
+
+    /**
+     * Relie les documents PDF joints à la suite du compte rendu.
+     *
+     * Annoncer une pièce en fin de document revient à demander au
+     * prescripteur d'aller la chercher dans un service où il n'entre pas.
+     * Elle doit être dans le document — et un PDF ne s'incorpore pas par le
+     * moteur de rendu, il se relie.
+     */
+    private function avecAnnexesReliees(string $contenu, Collection $pieces, string $nom): Response
+    {
+        $entetes = [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$nom.'"',
+        ];
+
+        $aRelier = $pieces->pluck('pdf')->filter()->values()->all();
+
+        if ($aRelier === []) {
+            return response($contenu, 200, $entetes);
+        }
+
+        $principal = tempnam(sys_get_temp_dir(), 'dpi-cr-').'.pdf';
+        file_put_contents($principal, $contenu);
+
+        $relie = app(AssemblagePdfService::class)->relier($principal, $aRelier);
+        $final = $relie ? file_get_contents($relie) : $contenu;
+
+        @unlink($principal);
+        if ($relie) {
+            @unlink($relie);
+        }
+
+        return response($final, 200, $entetes);
     }
 
     /**
      * Pièces jointes préparées pour le PDF.
      *
+     * Une image s'incorpore, un PDF se relie à la suite, une vidéo ou un
+     * fichier DICOM ne s'impriment pas : on les annonce avec l'adresse où les
+     * ouvrir, plutôt qu'avec un « voyez dans le dossier » qui ne mène nulle
+     * part.
+     *
      * @return Collection<int, array<string, mixed>>
      */
     private function piecesJointes(ExamenLaboratoire $examen)
     {
-        return $examen->fichiers->map(function ($fichier) {
+        $reliure = app(AssemblagePdfService::class);
+
+        return $examen->fichiers->map(function ($fichier) use ($examen, $reliure) {
             $chemin = Storage::disk('public')->path($fichier->chemin);
-            $lisible = $fichier->type === 'image' && is_file($chemin);
+            $existe = is_file($chemin);
+
+            $pdfReliable = $fichier->type === 'pdf' && $existe && $reliure->estReliable($chemin);
 
             return [
                 'nom' => $fichier->nom_original,
                 'description' => $fichier->description,
                 'date' => $fichier->created_at?->format('d/m/Y H:i') ?? '—',
-                'image' => $lisible ? $chemin : null,
-                'mention' => match ($fichier->type) {
-                    'video' => 'Séquence vidéo — consultable dans le dossier du patient.',
-                    'pdf' => 'Document PDF joint — consultable dans le dossier du patient.',
-                    'image' => 'Image indisponible sur le serveur.',
-                    default => 'Fichier DICOM ou pièce technique — consultable dans le dossier du patient.',
+                'image' => $fichier->type === 'image' && $existe ? $chemin : null,
+                'pdf' => $pdfReliable ? $chemin : null,
+                'pages' => $pdfReliable ? $reliure->nombreDePages($chemin) : null,
+                'lien' => route('examens.piece', [$examen, $fichier]),
+                'mention' => match (true) {
+                    $fichier->type === 'pdf' && $pdfReliable => 'Document reproduit intégralement à la suite de ce compte rendu.',
+                    $fichier->type === 'pdf' => 'Document PDF joint, illisible par la reliure automatique — à ouvrir depuis le lien ci-dessous.',
+                    $fichier->type === 'video' => 'Séquence vidéo — elle ne s\'imprime pas, ouvrez-la depuis le lien ci-dessous.',
+                    $fichier->type === 'image' => 'Image introuvable sur le serveur.',
+                    default => 'Fichier DICOM ou pièce technique — à ouvrir depuis le lien ci-dessous.',
                 },
             ];
         });
+    }
+
+    /**
+     * Ouvre une pièce jointe, sous la même règle que le compte rendu.
+     *
+     * Les fichiers vivaient sur le disque public : leur adresse suffisait à
+     * les lire, sans connexion. Une radiographie nominative n'a pas à être
+     * servie par le serveur web comme une feuille de style.
+     */
+    public function piece(ExamenLaboratoire $examen, ExamenFichier $fichier): BinaryFileResponse
+    {
+        $this->autoriserLecture($examen);
+
+        abort_unless($fichier->examen_id === $examen->id, 404);
+
+        $chemin = Storage::disk('public')->path($fichier->chemin);
+
+        abort_unless(is_file($chemin), 404, 'Pièce jointe introuvable sur le serveur.');
+
+        return response()->file($chemin, [
+            'Content-Disposition' => 'inline; filename="'.$fichier->nom_original.'"',
+        ]);
     }
 
     /**
