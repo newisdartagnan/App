@@ -4,7 +4,8 @@
 <div class="max-w-4xl mx-auto px-4 py-6">
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
-            <a href="{{ $examen->domaine === 'imagerie' ? route('imagerie.index') : route('labo.index') }}" class="text-blue-700 text-sm">← Retour</a>
+            @php $mots = \App\Support\Plateau::mots($examen->domaine); @endphp
+            <a href="{{ route($mots['retour']) }}" class="text-blue-700 hover:underline text-sm">← {{ $mots['service_court'] }}</a>
             <h2 class="text-2xl font-bold">{{ $examen->domaine === 'imagerie' ? 'Imagerie' : 'Bilan' }} — {{ $examen->patient->nom_complet }}</h2>
         </div>
         <div class="flex gap-2">
@@ -92,13 +93,18 @@
 
     {{-- Résultats --}}
     <div class="bg-white rounded-xl shadow overflow-hidden">
-        <div class="px-6 py-4 border-b font-semibold">Résultats</div>
+        <div class="px-6 py-4 border-b font-semibold">
+            {{ $examen->domaine === 'imagerie' ? 'Examens réalisés' : 'Résultats' }}
+        </div>
+        @php $chiffre = \App\Support\Plateau::aDesValeursDeReference($examen->domaine); @endphp
         <table class="w-full text-sm">
             <thead class="bg-gray-50"><tr>
                 <th class="px-4 py-2 text-left">Examen / paramètre</th>
                 <th class="px-4 py-2 text-left">Résultat</th>
+                @if($chiffre)
                 <th class="px-4 py-2 text-left">Référence</th>
                 <th class="px-4 py-2 text-left">Interprétation</th>
+                @endif
             </tr></thead>
             <tbody>
                 @foreach($examen->resultats as $r)
@@ -108,6 +114,7 @@
                         @if($r->parametre)<span class="text-gray-500">— {{ $r->parametre }}</span>@endif
                     </td>
                     <td class="px-4 py-3 font-medium">{{ $r->valeur_brute ?? ($r->valeur_numerique !== null ? $r->valeur_numerique + 0 : '—') }} {{ $r->unite }}</td>
+                    @if($chiffre)
                     <td class="px-4 py-3 text-xs text-gray-500">
                         @if($r->valeur_reference_min !== null || $r->valeur_reference_max !== null)
                         {{ $r->valeur_reference_min + 0 }} — {{ $r->valeur_reference_max + 0 }}
@@ -122,6 +129,7 @@
                             @else bg-gray-100 @endif">{{ $r->interpretation }}</span>
                         @endif
                     </td>
+                    @endif
                 </tr>
                 @endforeach
             </tbody>

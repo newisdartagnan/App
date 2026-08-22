@@ -4,9 +4,16 @@
 @php use App\Services\ParcoursTemporelService as PT; @endphp
 <div class="max-w-6xl mx-auto px-4 py-6">
 
-    <h2 class="text-2xl font-bold text-gray-800 mb-1">
-        ⏱️ {{ $estSoiMeme ? 'Mon temps d\'utilisation' : $utilisateur->nom_complet }}
-    </h2>
+    <div class="flex items-center gap-3 mb-1">
+        @unless($estSoiMeme)
+        <a href="{{ route('utilisateurs.index') }}" class="text-blue-700 hover:underline text-sm">← Comptes du personnel</a>
+        @else
+        <a href="{{ route('dashboard') }}" class="text-blue-700 hover:underline text-sm">← Accueil</a>
+        @endunless
+        <h2 class="text-2xl font-bold text-gray-800">
+            ⏱️ {{ $estSoiMeme ? 'Mon temps d\'utilisation' : $utilisateur->nom_complet }}
+        </h2>
+    </div>
     <p class="text-sm text-gray-500 mb-5">
         {{ $utilisateur->libelleRoles() }}
         @if($utilisateur->matricule) · matricule {{ $utilisateur->matricule }} @endif

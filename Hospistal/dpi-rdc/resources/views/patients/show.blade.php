@@ -6,7 +6,7 @@
     {{-- En-tête --}}
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
-            <a href="{{ route('patients.index') }}" class="text-blue-700 hover:underline text-sm">← Retour</a>
+            <a href="{{ route('patients.index') }}" class="text-blue-700 hover:underline text-sm">← Patients</a>
             <h2 class="text-2xl font-bold text-gray-800">{{ $patient->nom_complet }}</h2>
             <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{{ $patient->dossier_number }}</span>
         </div>

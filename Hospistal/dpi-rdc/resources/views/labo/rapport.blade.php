@@ -2,7 +2,11 @@
 @section('title', 'Rapport journalier')
 @section('content')
 @php
-    $titreService = $domaine === 'imagerie' ? 'Imagerie médicale' : "Laboratoire d'analyses médicales";
+    // Un radiologue ne fait pas d'analyses et n'est pas un laborantin :
+    // le registre parle la langue du plateau qu'il sert.
+    $mots = \App\Support\Plateau::mots($domaine);
+    $chiffre = \App\Support\Plateau::aDesValeursDeReference($domaine);
+    $titreService = $mots['service'];
     $jours = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
     $mois = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
     $d = \Carbon\Carbon::parse($date);
@@ -11,7 +15,12 @@
 @endphp
 <div class="max-w-7xl mx-auto px-4 py-6">
     <div class="flex items-center justify-between mb-4 flex-wrap gap-3 no-print">
-        <h2 class="text-2xl font-bold text-gray-800">Rapport journalier — {{ $domaine === 'imagerie' ? 'Imagerie' : 'Laboratoire' }}</h2>
+        <div class="flex items-center gap-3">
+            {{-- Chaque page doit savoir d'où l'on vient : ici, du plateau
+                 dont on lit le registre. --}}
+            <a href="{{ route($mots['retour']) }}" class="text-blue-700 hover:underline text-sm">← {{ $mots['service_court'] }}</a>
+            <h2 class="text-2xl font-bold text-gray-800">Rapport journalier — {{ $mots['service_court'] }}</h2>
+        </div>
         <form method="GET" class="flex gap-2 items-center">
             <label for="rapport-date" class="text-sm text-gray-600">Date</label>
             <input id="rapport-date" type="date" name="date" value="{{ $date }}" class="min-h-[40px] rounded-lg border border-gray-300 px-3 py-1">
@@ -28,7 +37,7 @@
     <div class="text-center border-b-2 border-blue-800 pb-3 mb-5">
         <p class="text-lg font-bold text-blue-900 uppercase">{{ config('app.name', 'DPI-RDC') }}</p>
         <p class="text-sm text-gray-600">{{ $titreService }}</p>
-        <p class="text-base font-bold mt-1">REGISTRE JOURNALIER DES ANALYSES — {{ strtoupper($dateFr) }}</p>
+        <p class="text-base font-bold mt-1">{{ strtoupper($mots['registre']) }} — {{ strtoupper($dateFr) }}</p>
     </div>
 
     {{-- Statistiques du jour --}}
@@ -77,8 +86,8 @@
                         <th class="border border-gray-300 px-2 py-1.5 text-left">Examen</th>
                         <th class="border border-gray-300 px-2 py-1.5 text-left">Résultats</th>
                         <th class="border border-gray-300 px-2 py-1.5 text-left">Dr Prescripteur</th>
-                        <th class="border border-gray-300 px-2 py-1.5 text-left">Laborantin</th>
-                        <th class="border border-gray-300 px-2 py-1.5 text-center w-20">Interp.</th>
+                        <th class="border border-gray-300 px-2 py-1.5 text-left">{{ $mots['operateur'] }}</th>
+                        @if($chiffre)<th class="border border-gray-300 px-2 py-1.5 text-center w-20">Interp.</th>@endif
                         <th class="border border-gray-300 px-2 py-1.5 text-right w-24">Montant</th>
                         <th class="border border-gray-300 px-2 py-1.5 text-center w-14">Heure</th>
                     </tr>
@@ -110,7 +119,7 @@
                                 @if($resultat->parametre)<span class="text-gray-500">{{ $resultat->parametre }} :</span>@endif
                                 <span class="font-semibold">{{ $resultat->valeur_numerique !== null ? ($resultat->valeur_numerique + 0) : ($resultat->valeur_brute ?: '—') }}</span>
                                 @if($resultat->unite)<span class="text-gray-400">{{ $resultat->unite }}</span>@endif
-                                @if($resultat->valeur_reference_min !== null || $resultat->valeur_reference_max !== null)
+                                @if($chiffre && ($resultat->valeur_reference_min !== null || $resultat->valeur_reference_max !== null))
                                 <span class="text-gray-400 text-[10px]">(réf. {{ $resultat->valeur_reference_min + 0 }}–{{ $resultat->valeur_reference_max + 0 }})</span>
                                 @endif
                             </div>
@@ -125,12 +134,14 @@
                         <td class="border border-gray-300 px-2 py-1.5">
                             {{ $examen->laborantin ? trim($examen->laborantin->prenom . ' ' . $examen->laborantin->nom) : '—' }}
                         </td>
+                        @if($chiffre)
                         <td class="border border-gray-300 px-2 py-1.5 text-center">
                             @if($pire === 'critique')<span class="bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">Critique</span>
                             @elseif($pire === 'anormal')<span class="bg-amber-400 text-amber-950 px-1.5 py-0.5 rounded text-[10px] font-bold">Anormal</span>
                             @elseif($pire === 'normal')<span class="bg-green-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">Normal</span>
                             @else<span class="text-gray-400">—</span>@endif
                         </td>
+                        @endif
                         <td class="border border-gray-300 px-2 py-1.5 text-right whitespace-nowrap">{{ number_format($ligne['montant'], 0, ',', ' ') }} CDF</td>
                         <td class="border border-gray-300 px-2 py-1.5 text-center text-gray-500">{{ $ligne['heure']?->format('H:i') ?? '—' }}</td>
                     </tr>
@@ -154,14 +165,14 @@
     </div>
     @endforelse
 
-    {{-- Activité par laborantin --}}
+    {{-- Activité par opérateur du plateau --}}
     @if($parLaborantin->isNotEmpty())
     <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
-        <div class="px-4 py-3 border-b font-semibold text-gray-700">Activité des laborantins</div>
+        <div class="px-4 py-3 border-b font-semibold text-gray-700">{{ $mots['activite_operateurs'] }}</div>
         <table class="w-full text-sm">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-4 py-2 text-left">Laborantin</th>
+                    <th class="px-4 py-2 text-left">{{ $mots['operateur'] }}</th>
                     <th class="px-4 py-2 text-center">Bilans traités</th>
                     <th class="px-4 py-2 text-center">Examens analysés</th>
                 </tr>
