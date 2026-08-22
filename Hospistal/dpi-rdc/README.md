@@ -78,7 +78,51 @@ docker compose exec app php artisan queue:work --once
 
 # Horizon (monitoring queues)
 # http://localhost/horizon
+
+# Réseau des banques de sang : publier notre stock, rapporter celui des autres
+docker compose exec app php artisan dpi:sang-reseau
 ```
+
+## Réseau des banques de sang entre hôpitaux
+
+Chaque hôpital tourne sur son propre serveur, avec sa propre base : aucun ne
+peut lire le stock d'un autre. Les banques échangent donc des **bulletins** —
+combien de poches par groupe et par produit, et à quel numéro on rappelle.
+Ce qui voyage n'est qu'un décompte : jamais un nom de donneur, jamais un
+numéro de poche, jamais un patient.
+
+Un hôpital du groupe tient le **point de rendez-vous** ; il n'y a pas de
+logiciel supplémentaire à installer, n'importe quelle installation de DPI-RDC
+sait tenir ce rôle.
+
+**Chez chaque hôpital participant**, dans le `.env` :
+
+```bash
+CENTRAL_API_URL=https://hopital-qui-tient-le-rendez-vous.example
+```
+
+**Chez celui qui tient le point de rendez-vous**, chaque hôpital participant
+doit être enregistré — c'est ainsi que son jeton est vérifié :
+
+```sql
+INSERT INTO establishments (id, code, name, type, ville, telephone, is_active, central_sync_token, created_at, updated_at)
+VALUES (gen_random_uuid(), 'HGR_KIKWIT_02', 'HGR de Kikwit', 'hopital_general',
+        'Kikwit', '0999888777', true, '<le même jeton que chez lui>', now(), now());
+```
+
+Le jeton (`establishments.central_sync_token`) doit être **identique des deux
+côtés** ; il tient lieu de mot de passe entre les deux serveurs. Sans lui, ou
+avec le jeton d'un autre, le point de rendez-vous répond 401 : sans cela,
+n'importe qui annoncerait n'importe quoi au nom de l'hôpital d'à côté, et on
+enverrait une ambulance pour rien.
+
+L'échange se fait tout seul **toutes les quinze minutes** (tâche planifiée) ;
+le bouton « Rafraîchir » de l'écran Réseau le déclenche à la demande. Chaque
+ligne de l'écran porte l'heure de l'annonce, et un bulletin de plus de 24 h
+n'est plus affiché du tout : mieux vaut rien qu'un stock d'hier.
+
+Un hôpital peut se retirer du réseau depuis l'écran Réseau (direction) : il
+cesse alors de publier, mais continue de voir les autres.
 
 ## Architecture
 

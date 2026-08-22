@@ -12,6 +12,7 @@ use App\Models\Visit;
 use App\Services\BanqueSangService;
 use App\Services\NotificationService;
 use App\Services\ParametreService;
+use App\Services\ReseauSangService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,6 +26,7 @@ class BanqueSangController extends Controller
     public function __construct(
         private readonly BanqueSangService $banque,
         private readonly ParametreService $parametres,
+        private readonly ReseauSangService $reseau,
     ) {}
 
     /**
@@ -359,8 +361,21 @@ class BanqueSangController extends Controller
         $produit = $request->query('produit', 'sang_total');
         $etablissement = $this->etablissementId();
 
+        // Les maisons de la même base répondent en direct ; les hôpitaux
+        // distants, eux, par le dernier bulletin qu'ils ont publié. Là où un
+        // bulletin existe, c'est lui qui fait foi : la fiche locale d'un
+        // hôpital distant n'a aucune poche et annoncerait « 0 » pour une
+        // banque qui en a quinze.
+        $annonces = $this->reseau->codesAnnonces();
+
+        $maisons = $this->banque->reseau($etablissement, $groupe, $produit)
+            ->reject(fn (array $m) => in_array($m['code'] ?? null, $annonces, true))
+            ->concat($this->reseau->maisonsDistantes($groupe, $produit))
+            ->sortByDesc('compatibles')
+            ->values();
+
         return view('banque-sang.reseau', [
-            'maisons' => $this->banque->reseau($etablissement, $groupe, $produit),
+            'maisons' => $maisons,
             'groupe' => $groupe,
             'produit' => $produit,
             'groupes' => PocheSang::GROUPES,
@@ -368,7 +383,33 @@ class BanqueSangController extends Controller
             'groupesAcceptes' => $groupe ? PocheSang::groupesCompatiblesPour($groupe, $produit) : [],
             'nousPartageons' => $this->banque->partageSonStock($etablissement),
             'peutRegler' => auth()->user()?->hasAnyRole(['super_admin', 'directeur']) ?? false,
+            'reseauConfigure' => $this->reseau->configure(),
+            'pointDeRendezVous' => $this->reseau->pointDeRendezVous(),
         ]);
+    }
+
+    /**
+     * Publier notre stock et rapporter celui des autres, à la demande.
+     *
+     * L'échange se fait aussi tout seul, par la tâche planifiée ; ce bouton
+     * est là pour l'urgence, quand on ne veut pas attendre le quart d'heure
+     * suivant.
+     */
+    public function rafraichirReseau(): RedirectResponse
+    {
+        $this->autoriser();
+
+        $maison = Establishment::find($this->etablissementId());
+
+        if (! $maison) {
+            return back()->with('error', 'Établissement introuvable.');
+        }
+
+        $resultat = $this->reseau->echanger($maison);
+
+        $abouti = $resultat['publie'] || $resultat['connus'] > 0;
+
+        return back()->with($abouti ? 'success' : 'error', $resultat['message']);
     }
 
     /** Ouvre ou ferme le partage du stock avec les autres établissements. */
