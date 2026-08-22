@@ -17,7 +17,7 @@ class Patient extends Model
         'establishment_id', 'dossier_number', 'global_patient_id',
         'nom', 'postnom', 'prenom', 'nom_soundex', 'prenom_soundex',
         'date_naissance', 'lieu_naissance', 'sexe', 'nationalite',
-        'telephone', 'adresse', 'province', 'territoire',
+        'telephone', 'telephone_index', 'adresse', 'province', 'territoire',
         'profession', 'situation_matrimoniale', 'niveau_instruction',
         'contact_urgence_nom', 'contact_urgence_telephone', 'contact_urgence_lien',
         'type_prise_en_charge', 'assurance_nom', 'assurance_numero', 'groupe_sanguin',
@@ -34,6 +34,56 @@ class Patient extends Model
             'adresse' => 'encrypted',
             'contact_urgence_telephone' => 'encrypted',
         ];
+    }
+
+    /**
+     * L'empreinte du numéro suit le numéro, sans qu'on ait à y penser.
+     *
+     * Le téléphone est chiffré : on ne peut pas le chercher en base. On tient
+     * donc à côté une signature qui, elle, se compare à l'identique.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Patient $patient) {
+            if ($patient->isDirty('telephone')) {
+                $patient->telephone_index = self::empreinteTelephone($patient->telephone);
+            }
+        });
+    }
+
+    /**
+     * La signature d'un numéro de téléphone, ou null s'il n'y en a pas.
+     *
+     * On ne garde que les chiffres qui font le numéro : indicatif du pays et
+     * zéro d'appel sautent, pour que « +243 81 555 0001 », « 0815550001 » et
+     * « 243815550001 » désignent bien la même personne. La signature est une
+     * HMAC : sans la clé de l'application, elle ne se remonte pas — neuf
+     * chiffres se retrouveraient sinon par simple énumération.
+     */
+    public static function empreinteTelephone(?string $telephone): ?string
+    {
+        $chiffres = preg_replace('/\D+/', '', (string) $telephone);
+
+        if (str_starts_with($chiffres, '243') && mb_strlen($chiffres) > 9) {
+            $chiffres = mb_substr($chiffres, 3);
+        }
+
+        $chiffres = ltrim($chiffres, '0');
+
+        if (mb_strlen($chiffres) < 6) {
+            return null;
+        }
+
+        return hash_hmac('sha256', $chiffres, (string) config('app.key'));
+    }
+
+    /**
+     * Le terme cherché ressemble-t-il à un numéro qu'on aurait recopié ?
+     */
+    public static function ressembleAUnTelephone(string $terme): bool
+    {
+        return self::empreinteTelephone($terme) !== null
+            && preg_match('/^[\d\s.+()-]+$/', trim($terme)) === 1;
     }
 
     public function establishment(): BelongsTo

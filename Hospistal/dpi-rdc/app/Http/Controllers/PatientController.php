@@ -72,8 +72,13 @@ class PatientController extends Controller
             $q->whereRaw('LOWER(nom) LIKE ?', [$like])
                 ->orWhereRaw('LOWER(prenom) LIKE ?', [$like])
                 ->orWhereRaw("LOWER(nom || ' ' || prenom) LIKE ?", [$like])
-                ->orWhereRaw('LOWER(dossier_number) LIKE ?', [$like])
-                ->orWhereRaw("LOWER(COALESCE(telephone, '')) LIKE ?", [$like]);
+                ->orWhereRaw('LOWER(dossier_number) LIKE ?', [$like]);
+
+            // Le téléphone est chiffré : il ne se cherche que par son
+            // empreinte, et donc en entier.
+            if ($empreinte = Patient::empreinteTelephone($terme)) {
+                $q->orWhere('telephone_index', $empreinte);
+            }
         });
     }
 

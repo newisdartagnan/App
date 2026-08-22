@@ -30,6 +30,7 @@ use App\Http\Controllers\PharmacieController;
 use App\Http\Controllers\PlanAdministrationController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\RapportSnisController;
+use App\Http\Controllers\RechercheController;
 use App\Http\Controllers\ServiceHospitalierController;
 use App\Http\Controllers\StatistiqueController;
 use App\Http\Controllers\TarifController;
@@ -52,6 +53,9 @@ Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth')->
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // La recherche, depuis n'importe quel écran : un geste gagné à chaque fois.
+    Route::get('/recherche', [RechercheController::class, 'index'])->name('recherche');
 
     // Patients
     Route::get('/patients', [PatientController::class, 'index'])->name('patients.index');
