@@ -29,6 +29,7 @@ use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PharmacieController;
 use App\Http\Controllers\PlanAdministrationController;
 use App\Http\Controllers\PrescriptionController;
+use App\Http\Controllers\RapportSnisController;
 use App\Http\Controllers\ServiceHospitalierController;
 use App\Http\Controllers\StatistiqueController;
 use App\Http\Controllers\TarifController;
@@ -292,6 +293,11 @@ Route::middleware(['auth'])->group(function () {
 
     // Statistiques de pilotage
     Route::get('/statistiques', [StatistiqueController::class, 'index'])->name('statistiques.index');
+
+    // Rapport mensuel remonté à la zone de santé : il se remplissait à la main.
+    Route::get('/snis', [RapportSnisController::class, 'index'])->name('snis.index');
+    Route::get('/snis/csv', [RapportSnisController::class, 'csv'])->name('snis.csv');
+    Route::get('/snis/imprimer', [RapportSnisController::class, 'imprimer'])->name('snis.imprimer');
 
     // Agenda des rendez-vous
     Route::get('/agenda', [AgendaController::class, 'index'])->name('agenda.index');

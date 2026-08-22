@@ -11,6 +11,10 @@
 <div class="max-w-7xl mx-auto px-4 py-6">
     <div class="flex items-center justify-between mb-4 flex-wrap gap-3 no-print">
         <h2 class="text-2xl font-bold text-gray-800">📊 Statistiques de pilotage</h2>
+    @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'infirmier_chef', 'agent_admin']))
+    <a href="{{ route('snis.index') }}"
+       class="text-sm text-blue-700 hover:underline">📋 Rapport mensuel SNIS →</a>
+    @endif
         <form method="GET" class="flex gap-2 items-center">
             <input type="hidden" name="onglet" value="{{ $onglet }}">
             <label for="debut" class="text-sm text-gray-600">Du</label>
