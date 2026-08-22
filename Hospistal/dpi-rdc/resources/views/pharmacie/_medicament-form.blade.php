@@ -24,10 +24,45 @@
             <div>
                 <label for="med-forme" class="block text-sm font-medium text-gray-700 mb-1">Forme <span class="text-red-500">*</span></label>
                 <select id="med-forme" name="forme" class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
-                    @foreach(['comprime' => 'Comprimé', 'gelule' => 'Gélule', 'sirop' => 'Sirop', 'injectable' => 'Injectable', 'pommade' => 'Pommade', 'sachet' => 'Sachet', 'autre' => 'Autre'] as $val => $lbl)
+                    @foreach(['comprime' => 'Comprimé', 'gelule' => 'Gélule', 'sirop' => 'Sirop', 'injectable' => 'Injectable', 'suppositoire' => 'Suppositoire', 'pommade' => 'Pommade', 'creme' => 'Crème', 'collyre' => 'Collyre', 'sachet' => 'Sachet', 'autre' => 'Autre'] as $val => $lbl)
                     <option value="{{ $val }}" @selected(old('forme') === $val)>{{ $lbl }}</option>
                     @endforeach
                 </select>
+            </div>
+
+            {{--
+                Voie et conditionnement : ce que le médecin lit en prescrivant,
+                et ce sur quoi le système arrondit la quantité. Laissés vides,
+                ils se déduisent de la forme — mais tous les comprimés ne vont
+                pas par dix, et c'est ici qu'on le corrige.
+            --}}
+            <div>
+                <label for="med-voie" class="block text-sm font-medium text-gray-700 mb-1">Voie d'administration</label>
+                <select id="med-voie" name="voie_administration" class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
+                    <option value="">— d'après la forme —</option>
+                    @foreach(\App\Models\Medicament::VOIES as $val => $lbl)
+                    <option value="{{ $val }}" @selected(old('voie_administration') === $val)>{{ $lbl }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label for="med-cond" class="block text-sm font-medium text-gray-700 mb-1">Conditionnement</label>
+                <select id="med-cond" name="conditionnement" class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
+                    <option value="">— d'après la forme —</option>
+                    @foreach(\App\Models\Medicament::CONDITIONNEMENTS as $val => $lbl)
+                    <option value="{{ $val }}" @selected(old('conditionnement') === $val)>{{ $lbl }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label for="med-upc" class="block text-sm font-medium text-gray-700 mb-1">Unités par conditionnement</label>
+                <input id="med-upc" name="unites_par_conditionnement" value="{{ old('unites_par_conditionnement') }}"
+                    type="number" min="1" max="1000" placeholder="10"
+                    class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
+                <p class="text-xs text-gray-500 mt-1">
+                    Combien d'unités dans un contenant — 10 comprimés par plaquette.
+                    Une prescription de 15 comprimés fera sortir 2 plaquettes.
+                </p>
             </div>
             <div>
                 <label for="med-dosage" class="block text-sm font-medium text-gray-700 mb-1">Dosage <span class="text-red-500">*</span></label>
@@ -45,9 +80,13 @@
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
             </div>
             <div>
-                <label for="med-pv" class="block text-sm font-medium text-gray-700 mb-1">Prix vente (CDF) <span class="text-red-500">*</span></label>
+                <label for="med-pv" class="block text-sm font-medium text-gray-700 mb-1">Prix de vente d'UNE unité (CDF) <span class="text-red-500">*</span></label>
                 <input id="med-pv" name="prix_unitaire_vente" value="{{ old('prix_unitaire_vente') }}" type="number" step="0.01" min="0"
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
+                <p class="text-xs text-gray-500 mt-1">
+                    Le prix d'un comprimé, pas celui de la plaquette : une plaquette
+                    de 10 à 500 CDF fait 50 CDF le comprimé.
+                </p>
             </div>
             <div>
                 <label for="med-pa" class="block text-sm font-medium text-gray-700 mb-1">Prix achat (CDF)</label>
@@ -60,9 +99,13 @@
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
             </div>
             <div>
-                <label for="med-qte" class="block text-sm font-medium text-gray-700 mb-1">Quantité initiale en stock</label>
+                <label for="med-qte" class="block text-sm font-medium text-gray-700 mb-1">Quantité initiale au dépôt</label>
                 <input id="med-qte" name="quantite_initiale" value="{{ old('quantite_initiale', 0) }}" type="number" step="0.5" min="0"
                     class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
+                <p class="text-xs text-gray-500 mt-1">
+                    En unités. Le produit entre au dépôt central ; les officines
+                    s'y approvisionnent par réquisition.
+                </p>
             </div>
             <div>
                 <label for="med-peremption" class="block text-sm font-medium text-gray-700 mb-1">Date péremption</label>

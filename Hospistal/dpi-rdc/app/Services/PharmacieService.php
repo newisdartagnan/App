@@ -137,26 +137,47 @@ class PharmacieService
 
     /**
      * Crée un médicament avec son stock initial (mouvement d'entrée tracé).
+     *
+     * Le produit naît au dépôt central : c'est là qu'une livraison arrive,
+     * et les officines s'y approvisionnent par réquisition. Un stock initial
+     * sans officine n'appartiendrait à personne et n'apparaîtrait sur aucun
+     * écran.
+     *
+     * Voie, conditionnement et nombre d'unités sont renseignés d'office
+     * depuis la forme quand le pharmacien ne les précise pas : sans eux, le
+     * médecin ne voit ni « voie orale / plaquette de 10 », ni le calcul de la
+     * quantité à partir de la posologie.
      */
     public function creerMedicament(array $donnees): Medicament
     {
         return DB::transaction(function () use ($donnees) {
+            $forme = $donnees['forme'];
+            [$contenantParDefaut, $unitesParDefaut] = Medicament::CONDITIONNEMENT_PAR_FORME[$forme]
+                ?? ['unite', 1];
+
             $medicament = Medicament::create([
                 'establishment_id' => auth()->user()->establishment_id,
                 'denomination_commune' => $donnees['denomination_commune'],
                 'nom_commercial' => ($donnees['nom_commercial'] ?? null) ?: null,
-                'forme' => $donnees['forme'],
+                'forme' => $forme,
                 'dosage' => $donnees['dosage'],
                 'unite_dispensation' => $donnees['unite_dispensation'],
                 'classe_therapeutique' => ($donnees['classe_therapeutique'] ?? null) ?: null,
                 'necessite_ordonnance' => (bool) ($donnees['necessite_ordonnance'] ?? true),
+                'voie_administration' => ($donnees['voie_administration'] ?? null)
+                    ?: (Medicament::VOIE_PAR_FORME[$forme] ?? 'autre'),
+                'conditionnement' => ($donnees['conditionnement'] ?? null) ?: $contenantParDefaut,
+                'unites_par_conditionnement' => max(1, (int) (($donnees['unites_par_conditionnement'] ?? 0)
+                    ?: $unitesParDefaut)),
             ]);
 
             $quantiteInitiale = (float) ($donnees['quantite_initiale'] ?? 0);
+            $depot = Officine::where('type', 'depot_central')->where('est_actif', true)->first();
 
             StockMedicament::create([
                 'medicament_id' => $medicament->id,
                 'establishment_id' => auth()->user()->establishment_id,
+                'officine_id' => $depot?->id,
                 'quantite_disponible' => $quantiteInitiale,
                 'quantite_alerte' => (int) ($donnees['quantite_alerte'] ?? 10),
                 'prix_unitaire_vente' => $donnees['prix_unitaire_vente'],
@@ -169,6 +190,7 @@ class PharmacieService
                 MouvementStock::create([
                     'medicament_id' => $medicament->id,
                     'establishment_id' => auth()->user()->establishment_id,
+                    'officine_id' => $depot?->id,
                     'user_id' => auth()->id(),
                     'type' => 'entree',
                     'quantite' => $quantiteInitiale,
@@ -195,9 +217,14 @@ class PharmacieService
         }
 
         return DB::transaction(function () use ($medicament, $type, $quantite, $lot, $reference) {
+            // Une entrée de marchandise arrive au dépôt central. Un stock
+            // rattaché à aucune officine n'apparaîtrait sur aucun écran.
+            $depot = Officine::where('type', 'depot_central')->where('est_actif', true)->first();
+
             $stock = $medicament->stock ?: StockMedicament::create([
                 'medicament_id' => $medicament->id,
                 'establishment_id' => auth()->user()->establishment_id,
+                'officine_id' => $depot?->id,
                 'quantite_disponible' => 0,
                 'quantite_alerte' => 10,
             ]);
@@ -225,6 +252,7 @@ class PharmacieService
             MouvementStock::create([
                 'medicament_id' => $medicament->id,
                 'establishment_id' => auth()->user()->establishment_id,
+                'officine_id' => $stock->officine_id ?? $depot?->id,
                 'user_id' => auth()->id(),
                 'type' => $type,
                 'quantite' => abs($delta),

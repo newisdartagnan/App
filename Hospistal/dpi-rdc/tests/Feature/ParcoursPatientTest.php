@@ -18,6 +18,7 @@ use App\Models\TypeConsultation;
 use App\Models\TypeExamen;
 use App\Models\User;
 use App\Models\Visit;
+use App\Services\ParametreService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -276,7 +277,9 @@ class ParcoursPatientTest extends TestCase
 
     public function test_consultation_specialisee_tarif_usd_et_controle_gratuit_7_jours(): void
     {
-        config(['dpi.taux_usd_cdf' => 2800]);
+        // Le taux vient du paramétrage, comme au guichet : le fixer dans la
+        // configuration ne suffit plus, et c'est justement ce qu'on veut.
+        app(ParametreService::class)->reviserTaux('USD', 2800, 'Cours du jour');
 
         $etab = Establishment::firstOrFail();
         $patient = Patient::create([

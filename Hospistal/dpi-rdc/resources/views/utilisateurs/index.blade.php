@@ -12,6 +12,8 @@
         décide de ce qu'il voit et de ce qu'il peut faire.
     </p>
 
+    @include('parametres._onglets')
+
     @foreach(['success','error'] as $t)
         @if(session($t))
         <div class="mb-4 rounded-lg px-4 py-3 text-sm border {{ $t==='success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800' }}">{{ session($t) }}</div>

@@ -7,7 +7,7 @@
         @if($compteurs['toutes'] > 0)
         <form method="POST" action="{{ route('notifications.tout-lu') }}">
             @csrf
-            @if(in_array($onglet, ['labo','imagerie','pharmacie']))
+            @if(\App\Models\NotificationInterne::estUnService($onglet))
             <input type="hidden" name="service" value="{{ $onglet }}">
             @endif
             <button class="min-h-[40px] px-4 py-1.5 border border-blue-700 text-blue-700 rounded-lg text-sm hover:bg-blue-50">✓ Tout marquer comme lu</button>
@@ -21,7 +21,7 @@
 
     {{-- Onglets par service (modèle CSK) --}}
     <div class="flex flex-wrap gap-1 border-b border-gray-300 mb-3 text-sm">
-        @foreach(['toutes' => 'Toutes', 'labo' => '🔬 Labo', 'imagerie' => '📷 Imagerie', 'pharmacie' => '💊 Pharmacie'] as $cle => $libelle)
+        @foreach(\App\Models\NotificationInterne::SERVICES as $cle => $libelle)
         <a href="{{ route('notifications.index', ['onglet' => $cle]) }}"
            class="px-4 py-2 rounded-t-lg border border-b-0 {{ $onglet === $cle ? 'bg-white font-semibold text-blue-800 border-gray-300' : 'bg-gray-50 text-gray-600 border-transparent hover:bg-gray-100' }}">
             {{ $libelle }}
@@ -40,24 +40,21 @@
     <div class="bg-white rounded-xl shadow divide-y divide-gray-100">
         @forelse($notifications as $notif)
         @php
-            $couleur = match($notif->service) {
-                'labo' => 'border-purple-500', 'imagerie' => 'border-cyan-500',
-                'pharmacie' => 'border-green-600', default => 'border-gray-400',
-            };
-            $badge = match($notif->service) {
-                'labo' => 'bg-purple-100 text-purple-800', 'imagerie' => 'bg-cyan-100 text-cyan-800',
-                'pharmacie' => 'bg-green-100 text-green-800', default => 'bg-gray-100 text-gray-600',
-            };
+            [$couleur, $badge] = \App\Models\NotificationInterne::COULEURS[$notif->service]
+                ?? ['border-gray-400', 'bg-gray-100 text-gray-600'];
             $icone = match($notif->type) {
                 'prescription_recue' => '📋', 'resultat_pret' => '✅',
-                'medicament_delivre' => '💊', 'alerte' => '⚠️', default => '🔔',
+                'medicament_delivre' => '💊', 'poche_delivree' => '🩸',
+                'incident_transfusionnel' => '🚨', 'demande_refusee' => '🚫',
+                'transfert_service' => '🛏️', 'alerte_soins' => '⚠️',
+                'alerte' => '⚠️', default => '🔔',
             };
         @endphp
         <div class="flex items-start gap-3 px-4 py-3 {{ $notif->lu ? 'bg-gray-50/60' : 'border-l-4 ' . $couleur }}">
             <span class="text-xl mt-0.5">{{ $icone }}</span>
             <div class="flex-1 min-w-0">
                 <div class="flex flex-wrap items-center gap-2 mb-0.5">
-                    <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded {{ $badge }}">{{ $notif->service }}</span>
+                    <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded {{ $badge }}">{{ $notif->libelleService() }}</span>
                     @if($notif->priorite === 'urgente')<span class="text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded">URGENT</span>
                     @elseif($notif->priorite === 'haute')<span class="text-[10px] font-bold bg-amber-400 text-amber-950 px-1.5 py-0.5 rounded">HAUTE</span>@endif
                     @unless($notif->lu)<span class="text-[10px] font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded">NOUVEAU</span>@endunless
