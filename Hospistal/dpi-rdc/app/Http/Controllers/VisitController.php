@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Prescription;
 use App\Models\Service;
 use App\Models\Visit;
 use App\Services\FacturationService;
@@ -152,10 +153,42 @@ class VisitController extends Controller
             ->with('success', 'Facture hospitalisation émise.');
     }
 
+    /**
+     * Bulletin de sortie : ce que le patient emporte, et ce que son médecin lira.
+     *
+     * Tout y est déjà dans le dossier — motif, diagnostics, examens, actes,
+     * traitements, évolution. Il ne manquait que la feuille qui les rassemble.
+     */
+    public function bulletin(Visit $visit): View
+    {
+        $visit->load([
+            'patient.assurances.assurance', 'service', 'user', 'sortiePar',
+            'consultations.user', 'examensLaboratoire.resultats.typeExamen',
+            'actesCliniques.operateur', 'notesEvolution.user', 'transfusions',
+        ]);
+
+        return view('visites.bulletin', [
+            'visit' => $visit,
+            'etablissement' => config('dpi.establishment_name', config('app.name')),
+            'prescriptions' => Prescription::with(['lignes.medicament'])
+                ->whereIn('consultation_id', $visit->consultations->pluck('id'))
+                ->get(),
+            'diagnostics' => $visit->consultations
+                ->flatMap(fn ($c) => collect($c->diagnostics ?? []))
+                ->filter(fn ($d) => filled($d['libelle'] ?? null))
+                ->values(),
+        ]);
+    }
+
     public function sortir(Request $request, Visit $visit): RedirectResponse
     {
-        $request->validate([
+        $donnees = $request->validate([
             'mode_sortie' => 'required|in:gueri,ameliore,stationnaire,agrave,transfert,sortie_contre_avis,deces,inconnu',
+            'observations_sortie' => 'nullable|string|max:2000',
+            'recommandations_sortie' => 'nullable|string|max:2000',
+            'rendez_vous_controle' => 'nullable|date|after_or_equal:today',
+        ], [
+            'rendez_vous_controle.after_or_equal' => 'Un contrôle se fixe à venir, pas dans le passé.',
         ]);
 
         $service = app(VisiteService::class);
@@ -168,9 +201,17 @@ class VisitController extends Controller
             return back()->with('error', 'Facturer le séjour avant la sortie : '.implode(' et ', $manquants).'.');
         }
 
-        $service->sortir($visit, $request->mode_sortie);
+        $service->sortir(
+            $visit,
+            $donnees['mode_sortie'],
+            $donnees['observations_sortie'] ?? null,
+            $donnees['recommandations_sortie'] ?? null,
+            $donnees['rendez_vous_controle'] ?? null,
+        );
 
-        return redirect()->route('visites.index', ['statut' => 'termine'])
-            ->with('success', 'Sortie enregistrée — lit libéré.');
+        // Le patient ne repart pas les mains vides : le bulletin s'imprime
+        // dans la foulée, et le médecin traitant a de quoi lire.
+        return redirect()->route('visites.bulletin', $visit)
+            ->with('success', 'Sortie enregistrée — lit libéré. Voici le bulletin à remettre au patient.');
     }
 }

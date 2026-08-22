@@ -140,6 +140,10 @@
                             @if($utilisateur->telephone)
                             <p class="text-xs text-gray-400">{{ $utilisateur->telephone }}</p>
                             @endif
+                            <p class="mt-1">
+                                <a href="{{ route('parcours.profil', $utilisateur) }}"
+                                   class="text-xs text-blue-700 hover:underline">⏱️ Temps d'utilisation</a>
+                            </p>
                         </td>
                         <td class="px-4 py-3 text-xs">
                             {{ $utilisateur->matricule ?: '—' }}

@@ -38,6 +38,10 @@
                     <p class="text-sm font-semibold">{{ auth()->user()->nom_complet }}</p>
                     <p class="text-xs text-blue-200">{{ auth()->user()->libelleRoles() }}</p>
                 </div>
+                <a href="{{ route('parcours.moi') }}" title="Mon temps d'utilisation"
+                   class="bg-blue-900 hover:bg-blue-950 text-white text-xs font-semibold rounded-lg px-3 py-2">
+                    ⏱️ Mon temps
+                </a>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button class="bg-blue-900 hover:bg-blue-950 text-white text-xs font-semibold rounded-lg px-3 py-2"
@@ -55,6 +59,9 @@
     @endauth
 
     <main class="max-w-7xl mx-auto px-4 py-6">
+        @auth
+        <div class="max-w-7xl mx-auto">@include('partials._flash')</div>
+        @endauth
         @yield('content')
     </main>
 

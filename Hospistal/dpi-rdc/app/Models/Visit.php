@@ -20,6 +20,8 @@ class Visit extends Model
         'temperature', 'frequence_cardiaque', 'frequence_respiratoire', 'saturation_o2', 'glasgow',
         'motif_consultation', 'symptomes_principaux', 'tarif_consultation', 'est_payant', 'gratuite',
         'triage_fait_at', 'triage_par', 'sync_status', 'jours_factures',
+        // Ce que le patient emporte en partant, et que le médecin traitant lira.
+        'observations_sortie', 'recommandations_sortie', 'rendez_vous_controle', 'sortie_par',
         'consultation_debutee_at', 'consultation_par',
         'forfait_id', 'forfait_montant', 'forfait_facture_id',
     ];
@@ -32,6 +34,7 @@ class Visit extends Model
             'est_payant' => 'boolean',
             'gratuite' => 'boolean',
             'triage_fait_at' => 'datetime',
+            'rendez_vous_controle' => 'date',
             'consultation_debutee_at' => 'datetime',
         ];
     }
@@ -155,6 +158,33 @@ class Visit extends Model
     public function typeConsultation(): BelongsTo
     {
         return $this->belongsTo(TypeConsultation::class, 'type_consultation_id');
+    }
+
+    public function sortiePar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sortie_par');
+    }
+
+    /**
+     * Modes de sortie, tels qu'ils se notent au registre.
+     *
+     * Le décès en fait partie : un registre qui ne sait pas l'écrire oblige à
+     * mentir sur l'issue du séjour.
+     */
+    public const MODES_SORTIE = [
+        'gueri' => 'Guéri',
+        'ameliore' => 'Amélioré',
+        'stationnaire' => 'État stationnaire',
+        'agrave' => 'État aggravé',
+        'transfert' => 'Transféré vers un autre établissement',
+        'sortie_contre_avis' => 'Sortie contre avis médical',
+        'deces' => 'Décès',
+        'inconnu' => 'Non précisé',
+    ];
+
+    public function libelleModeSortie(): string
+    {
+        return self::MODES_SORTIE[$this->mode_sortie] ?? 'Non précisé';
     }
 
     public function triagePar(): BelongsTo
