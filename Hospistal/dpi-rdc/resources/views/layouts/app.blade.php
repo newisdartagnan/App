@@ -20,7 +20,7 @@
         Mode hors ligne — les données seront synchronisées à la reconnexion
     </div>
 
-    <header class="bg-blue-800 text-white shadow">
+    <header class="bg-blue-800 text-white shadow dpi-sans-impression">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <div>
                 <h1 class="text-lg font-bold">DPI-RDC</h1>
@@ -71,7 +71,7 @@
 
     <main class="max-w-7xl mx-auto px-4 py-6">
         @auth
-        <div class="max-w-7xl mx-auto">@include('partials._flash')</div>
+        <div class="max-w-7xl mx-auto dpi-sans-impression">@include('partials._flash')</div>
         @endauth
         @yield('content')
     </main>

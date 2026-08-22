@@ -3,9 +3,14 @@
 @section('content')
 <div class="max-w-4xl mx-auto px-4 py-6">
 
-    <div class="mb-4 print:hidden">
+    <div class="mb-4 flex flex-wrap items-center gap-3 dpi-sans-impression">
         <a href="{{ route('snis.index', ['annee' => $rapport['periode']['annee'], 'mois' => $rapport['periode']['mois']]) }}"
            class="text-blue-700 hover:underline text-sm">← Le rapport</a>
+        <button type="button" data-imprimer
+                class="ml-auto inline-flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white
+                       font-semibold rounded-lg px-5 py-2.5 text-sm min-h-[44px]">
+            🖨️ Imprimer
+        </button>
     </div>
 
     <div class="bg-white rounded-xl shadow p-8 text-sm">

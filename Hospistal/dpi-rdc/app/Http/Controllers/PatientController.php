@@ -273,6 +273,16 @@ class PatientController extends Controller
 
     public function show(Patient $patient): View
     {
-        return view('patients.show', compact('patient'));
+        // Le patient qui revient sans son papier, ou qui téléphone pour
+        // demander sa date : sa fiche doit répondre sans qu'on aille
+        // chercher le bon jour dans l'agenda.
+        $rendezVous = $patient->rendezVous()
+            ->with(['prestataire', 'typeConsultation'])
+            ->where('statut', 'fixe')
+            ->where('debut', '>=', now()->startOfDay())
+            ->orderBy('debut')
+            ->get();
+
+        return view('patients.show', compact('patient', 'rendezVous'));
     }
 }

@@ -187,7 +187,9 @@ class CorrectionsAuditTerrainTest extends TestCase
             'prestataire_id' => $this->admin->id,
         ]))
             ->assertOk()
-            ->assertSee('Convocation')
+            // Le lien s'appelait « Convocation » : personne ne cherchait ce
+            // mot-là. On cherche « Imprimer ».
+            ->assertSee('🖨️ Imprimer')
             ->assertSee(route('agenda.convocation', $rdv), false);
     }
 

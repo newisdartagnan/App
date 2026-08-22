@@ -31,6 +31,26 @@ document.addEventListener('submit', (evenement) => {
     }
 });
 
+/*
+ * Le bouton « Imprimer ».
+ *
+ * Rien n'invitait à imprimer : il fallait connaître Ctrl+P. Or tout ce qui
+ * sort d'ici finit dans la main de quelqu'un — une convocation, un bulletin
+ * de sortie, un résultat d'examen.
+ *
+ * L'appel est branché ici plutôt qu'en attribut onclick : les postes dont la
+ * politique de sécurité interdit les scripts en ligne gardent un document
+ * imprimable par le menu du navigateur.
+ */
+document.addEventListener('click', (evenement) => {
+    const bouton = evenement.target.closest('[data-imprimer]');
+
+    if (bouton) {
+        evenement.preventDefault();
+        window.print();
+    }
+});
+
 /* ── Le service worker ───────────────────────────────────────────────── */
 
 const marqueur = document.querySelector('meta[name="sw-actif"]');

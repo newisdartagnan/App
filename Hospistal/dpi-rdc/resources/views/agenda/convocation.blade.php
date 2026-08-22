@@ -3,12 +3,21 @@
 @section('content')
 <div class="max-w-2xl mx-auto px-4 py-6">
 
-    <div class="flex flex-wrap items-center gap-3 mb-4 print:hidden">
+    <div class="flex flex-wrap items-center gap-3 mb-4 dpi-sans-impression">
         <a href="{{ route('agenda.index', ['jour' => $rendezVous->debut->toDateString()]) }}"
            class="text-blue-700 hover:underline text-sm">← L'agenda</a>
-        <h2 class="text-2xl font-bold text-gray-800">🖨️ Convocation</h2>
-        <span class="ml-auto text-xs text-gray-500">À remettre au patient.</span>
+        <h2 class="text-2xl font-bold text-gray-800">Rendez-vous à remettre</h2>
+
+        {{-- Rien n'invitait à imprimer : il fallait connaître Ctrl+P. --}}
+        <button type="button" data-imprimer
+                class="ml-auto inline-flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white
+                       font-semibold rounded-lg px-5 py-2.5 text-sm min-h-[44px]">
+            🖨️ Imprimer
+        </button>
     </div>
+    <p class="text-xs text-gray-500 mb-4 dpi-sans-impression">
+        Le papier ci-dessous est à donner au patient avant qu'il ne reparte.
+    </p>
 
     <div class="bg-white rounded-xl shadow p-8">
 
@@ -71,12 +80,16 @@
         <div class="border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 mb-5">
             <p class="font-semibold mb-1">À apporter</p>
             <p>
-                Ce papier, votre carte de dossier
-                @if($rendezVous->patient->estAssure())
-                    et votre carte d'assuré{{ $rendezVous->patient->assuranceEnVigueur()?->assurance?->nom
-                        ? ' ('.$rendezVous->patient->assuranceEnVigueur()->assurance->nom.')' : '' }}
-                @endif,
-                ainsi que vos derniers examens s'il y en a.
+                @php
+                    // Un @if collé à un mot n'est pas compilé par Blade, et
+                    // l'espace avant la virgule se voyait sur le papier.
+                    $assurance = $rendezVous->patient->estAssure()
+                        ? ' et votre carte d\'assuré'.($rendezVous->patient->assuranceEnVigueur()?->assurance?->nom
+                            ? ' ('.$rendezVous->patient->assuranceEnVigueur()->assurance->nom.')' : '')
+                        : '';
+                @endphp
+                Ce papier, votre carte de dossier{{ $assurance }}, ainsi que vos
+                derniers examens s'il y en a.
             </p>
             <p class="mt-1 text-gray-500">
                 En cas d'empêchement, prévenez l'accueil pour libérer le créneau.

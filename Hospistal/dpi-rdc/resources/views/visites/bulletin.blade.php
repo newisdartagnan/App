@@ -3,13 +3,18 @@
 @section('content')
 <div class="max-w-4xl mx-auto px-4 py-6">
 
-    <div class="flex flex-wrap items-center gap-3 mb-4 print:hidden">
+    <div class="flex flex-wrap items-center gap-3 mb-4 dpi-sans-impression">
         <a href="{{ route('visites.show', $visit) }}" class="text-blue-700 hover:underline text-sm">← Le séjour</a>
-        <h2 class="text-2xl font-bold text-gray-800">🖨️ Bulletin de sortie</h2>
-        <span class="ml-auto text-xs text-gray-500">
-            Remettre au patient ; un exemplaire pour le médecin traitant.
-        </span>
+        <h2 class="text-2xl font-bold text-gray-800">Bulletin de sortie</h2>
+        <button type="button" data-imprimer
+                class="ml-auto inline-flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white
+                       font-semibold rounded-lg px-5 py-2.5 text-sm min-h-[44px]">
+            🖨️ Imprimer
+        </button>
     </div>
+    <p class="text-xs text-gray-500 mb-4 dpi-sans-impression">
+        Remettre au patient ; un exemplaire pour le médecin traitant.
+    </p>
 
     @include('partials._flash')
 
