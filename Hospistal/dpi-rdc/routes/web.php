@@ -86,6 +86,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/labo/{examen}/bulletin', [LaboratoireController::class, 'bulletin'])->name('labo.bulletin');
     // Résultats en PDF pour le prescripteur : il lit sans entrer au plateau technique.
     Route::get('/examens/{examen}/resultat.pdf', [LaboratoireController::class, 'pdfResultat'])->name('examens.pdf');
+    // Les pièces jointes passent par l'application : une radiographie
+    // nominative n'est pas servie comme une feuille de style.
+    Route::get('/examens/{examen}/pieces/{fichier}', [LaboratoireController::class, 'piece'])->name('examens.piece');
     Route::post('/labo/{examen}/resultats', [LaboratoireController::class, 'saisirResultats'])->name('labo.resultats');
     Route::post('/labo/{examen}/valider', [LaboratoireController::class, 'valider'])->name('labo.valider');
     Route::post('/labo/{examen}/rouvrir', [LaboratoireController::class, 'rouvrir'])->name('labo.rouvrir');

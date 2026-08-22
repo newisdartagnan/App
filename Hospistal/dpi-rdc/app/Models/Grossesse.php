@@ -116,4 +116,54 @@ class Grossesse extends Model
             ->map(fn ($cle) => self::SEROLOGIES[$cle] ?? $cle)
             ->all();
     }
+
+    /**
+     * Doses de SP recommandées sur une grossesse, à partir du 2e trimestre.
+     *
+     * Le traitement préventif intermittent du paludisme se donne au moins
+     * trois fois : c'est la mesure qui pèse le plus sur le petit poids de
+     * naissance en zone d'endémie.
+     */
+    public const SP_RECOMMANDEES = 3;
+
+    /** Doses d'un schéma complet de vaccin antitétanique. */
+    public const VAT_COMPLET = 5;
+
+    /**
+     * Paquet préventif reçu au fil des consultations prénatales.
+     *
+     * La sage-femme cochait fer, SP et moustiquaire à chaque visite sans
+     * jamais pouvoir relire ce qui avait déjà été donné : elle redonnait ou
+     * elle oubliait. Voici le compte, et ce qui reste dû.
+     *
+     * @return array<string, mixed>
+     */
+    public function paquetPreventif(): array
+    {
+        $cpn = $this->relationLoaded('consultations')
+            ? $this->consultations
+            : $this->consultations()->get();
+
+        $vat = (int) ($cpn->max('vat_dose') ?? 0);
+        $sp = $cpn->where('sulfadoxine_pyrimethamine', true)->count();
+        $fer = $cpn->where('fer_folates', true)->count();
+        $moustiquaire = $cpn->where('moustiquaire_remise', true)->isNotEmpty();
+
+        return [
+            'vat_dose' => $vat,
+            'vat_complet' => $vat >= self::VAT_COMPLET,
+            'sp_recues' => $sp,
+            'sp_restantes' => max(0, self::SP_RECOMMANDEES - $sp),
+            'fer_visites' => $fer,
+            'moustiquaire' => $moustiquaire,
+            'manques' => array_values(array_filter([
+                $sp < self::SP_RECOMMANDEES
+                    ? (self::SP_RECOMMANDEES - $sp).' dose(s) de SP à donner'
+                    : null,
+                $fer === 0 ? 'Fer et acide folique jamais délivrés' : null,
+                $moustiquaire ? null : 'Moustiquaire imprégnée non remise',
+                $vat === 0 ? 'Aucune dose de vaccin antitétanique notée' : null,
+            ])),
+        ];
+    }
 }

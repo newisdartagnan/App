@@ -15,6 +15,11 @@ RUN apk add --no-cache \
 
 RUN apk add --no-cache nodejs npm
 
+# qpdf relie les pièces jointes au compte rendu : un PDF joint doit se lire
+# dans le document du prescripteur, pas s'y annoncer. Les bibliothèques PHP
+# libres butent sur les tables de références compressées des PDF récents.
+RUN apk add --no-cache qpdf
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www

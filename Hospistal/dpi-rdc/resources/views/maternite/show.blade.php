@@ -60,6 +60,39 @@
     </div>
     @endif
 
+    {{-- Paquet préventif : le compte de ce qui a été donné, et ce qui reste dû --}}
+    @php $paquet = $grossesse->paquetPreventif(); @endphp
+    <div class="bg-white rounded-xl shadow p-5 mb-5">
+        <h3 class="font-semibold text-gray-700 mb-3">Paquet préventif de la grossesse</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="rounded-lg border p-3 {{ $paquet['vat_dose'] > 0 ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50' }}">
+                <p class="text-xl font-bold text-gray-800">VAT {{ $paquet['vat_dose'] ?: '—' }}</p>
+                <p class="text-xs text-gray-600 mt-0.5">
+                    Vaccin antitétanique{{ $paquet['vat_complet'] ? ' — schéma complet' : '' }}
+                </p>
+            </div>
+            <div class="rounded-lg border p-3 {{ $paquet['sp_restantes'] === 0 ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50' }}">
+                <p class="text-xl font-bold text-gray-800">{{ $paquet['sp_recues'] }} / {{ \App\Models\Grossesse::SP_RECOMMANDEES }}</p>
+                <p class="text-xs text-gray-600 mt-0.5">
+                    Doses de SP (paludisme){{ $paquet['sp_restantes'] ? ' — '.$paquet['sp_restantes'].' à donner' : '' }}
+                </p>
+            </div>
+            <div class="rounded-lg border p-3 {{ $paquet['fer_visites'] > 0 ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50' }}">
+                <p class="text-xl font-bold text-gray-800">{{ $paquet['fer_visites'] }}</p>
+                <p class="text-xs text-gray-600 mt-0.5">Visites avec fer et acide folique</p>
+            </div>
+            <div class="rounded-lg border p-3 {{ $paquet['moustiquaire'] ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50' }}">
+                <p class="text-xl font-bold text-gray-800">{{ $paquet['moustiquaire'] ? 'Remise' : 'Non remise' }}</p>
+                <p class="text-xs text-gray-600 mt-0.5">Moustiquaire imprégnée</p>
+            </div>
+        </div>
+        @if($paquet['manques'] !== [] && $grossesse->estEnCours())
+        <div class="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
+            <strong>Reste à faire :</strong> {{ implode(' · ', $paquet['manques']) }}
+        </div>
+        @endif
+    </div>
+
     {{-- Consultations prénatales --}}
     <div class="bg-white rounded-xl shadow overflow-hidden mb-5">
         <div class="px-5 py-3 border-b font-semibold text-gray-700">Suivi prénatal</div>
@@ -74,8 +107,10 @@
                         <th class="px-3 py-2 text-center">Tension</th>
                         <th class="px-3 py-2 text-center">HU</th>
                         <th class="px-3 py-2 text-center">BCF</th>
+                        <th class="px-3 py-2 text-center">Œdèmes</th>
                         <th class="px-3 py-2 text-center">Alb.</th>
                         <th class="px-3 py-2 text-center">Hb</th>
+                        <th class="px-3 py-2 text-center" title="Vaccin antitétanique · fer-folates · SP · moustiquaire">Prévention</th>
                         <th class="px-3 py-2">Alertes</th>
                     </tr>
                 </thead>
@@ -90,12 +125,40 @@
                         <td class="px-3 py-2 text-center text-xs">{{ $cpn->tension() ?? '—' }}</td>
                         <td class="px-3 py-2 text-center text-xs">{{ $cpn->hauteur_uterine_cm ? ($cpn->hauteur_uterine_cm + 0).' cm' : '—' }}</td>
                         <td class="px-3 py-2 text-center text-xs">{{ $cpn->bruits_coeur_foetal ?? '—' }}</td>
+                        <td class="px-3 py-2 text-center text-xs">{{ $cpn->oedemes ?: '—' }}</td>
                         <td class="px-3 py-2 text-center text-xs">{{ $cpn->albuminurie ?: '—' }}</td>
                         <td class="px-3 py-2 text-center text-xs">{{ $cpn->hemoglobine ? ($cpn->hemoglobine + 0) : '—' }}</td>
+                        <td class="px-3 py-2 text-center text-xs whitespace-nowrap">
+                            {{-- Ce que la sage-femme a coché à cette visite : sans
+                                 ce rappel, elle redonnait ou elle oubliait. --}}
+                            @if($cpn->vat_dose)<span title="Vaccin antitétanique">VAT{{ $cpn->vat_dose }}</span>@endif
+                            @if($cpn->fer_folates)<span title="Fer et acide folique"> Fe</span>@endif
+                            @if($cpn->sulfadoxine_pyrimethamine)<span title="Sulfadoxine-pyriméthamine"> SP</span>@endif
+                            @if($cpn->moustiquaire_remise)<span title="Moustiquaire imprégnée remise"> 🛏️</span>@endif
+                            @if(! $cpn->vat_dose && ! $cpn->fer_folates && ! $cpn->sulfadoxine_pyrimethamine && ! $cpn->moustiquaire_remise)—@endif
+                        </td>
                         <td class="px-3 py-2 text-xs text-red-700">{{ implode(' · ', $alertes) ?: '—' }}</td>
                     </tr>
+                    @if($cpn->observations || $cpn->conduite_a_tenir || $cpn->prochain_rendez_vous)
+                    {{-- Observations, conduite à tenir et date de retour : saisies
+                         à chaque visite, elles ne reparaissaient nulle part. --}}
+                    <tr class="{{ $alertes !== [] ? 'bg-red-50/50' : '' }}">
+                        <td></td>
+                        <td colspan="11" class="px-3 pb-2 pt-0 text-xs text-gray-600">
+                            @if($cpn->observations)<p>{{ $cpn->observations }}</p>@endif
+                            @if($cpn->conduite_a_tenir)
+                            <p><span class="font-semibold">Conduite à tenir :</span> {{ $cpn->conduite_a_tenir }}</p>
+                            @endif
+                            @if($cpn->prochain_rendez_vous)
+                            <p class="text-blue-800 font-medium">
+                                Prochain rendez-vous : {{ $cpn->prochain_rendez_vous->format('d/m/Y') }}
+                            </p>
+                            @endif
+                        </td>
+                    </tr>
+                    @endif
                     @empty
-                    <tr><td colspan="10" class="px-4 py-8 text-center text-gray-400">Aucune consultation enregistrée</td></tr>
+                    <tr><td colspan="12" class="px-4 py-8 text-center text-gray-400">Aucune consultation enregistrée</td></tr>
                     @endforelse
                 </tbody>
             </table>
