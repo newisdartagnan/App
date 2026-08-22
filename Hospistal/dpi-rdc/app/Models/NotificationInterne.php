@@ -34,6 +34,43 @@ class NotificationInterne extends Model
     }
 
     /**
+     * Services qui émettent des notifications, et leur onglet.
+     *
+     * La liste vit ici et non dans l'écran : un service oublié, et ses
+     * notifications n'ont plus ni filtre ni compteur — elles se noient dans
+     * « toutes » sans que personne ne s'en aperçoive.
+     */
+    public const SERVICES = [
+        'toutes' => 'Toutes',
+        'labo' => '🔬 Labo',
+        'imagerie' => '📷 Imagerie',
+        'pharmacie' => '💊 Pharmacie',
+        'hospitalisation' => '🛏️ Hospitalisation',
+        'banque_sang' => '🩸 Banque de sang',
+    ];
+
+    /** Couleur d'accentuation de chaque service. */
+    public const COULEURS = [
+        'labo' => ['border-purple-500', 'bg-purple-100 text-purple-800'],
+        'imagerie' => ['border-cyan-500', 'bg-cyan-100 text-cyan-800'],
+        'pharmacie' => ['border-green-600', 'bg-green-100 text-green-800'],
+        'hospitalisation' => ['border-blue-500', 'bg-blue-100 text-blue-800'],
+        'banque_sang' => ['border-red-500', 'bg-red-100 text-red-800'],
+    ];
+
+    public static function estUnService(?string $onglet): bool
+    {
+        return $onglet !== null
+            && $onglet !== 'toutes'
+            && array_key_exists($onglet, self::SERVICES);
+    }
+
+    public function libelleService(): string
+    {
+        return str_replace('_', ' ', $this->service);
+    }
+
+    /**
      * Visibilité : l'administration voit tout, chacun voit les siennes et
      * celles adressées à son rôle (modèle CSK getNotifications).
      */
@@ -85,9 +122,47 @@ class NotificationInterne extends Model
             // Une poche délivrée ou une demande refusée renvoie à la demande :
             // c'est là que le prescripteur clôture sa transfusion ou relance.
             'demande_sang' => route('banque-sang.demande', $this->reference_id),
+            // Un incident transfusionnel mène au registre : c'est là que se
+            // lisent la poche, son donneur et les autres poches du même don,
+            // qu'il faudra peut-être bloquer.
             'transfusion' => route('banque-sang.registre'),
+            // Les alertes de soins nomment le pansement ou l'évaluation, pas
+            // le séjour : on remonte au dossier du patient, seul endroit où le
+            // médecin peut faire quelque chose de l'information.
+            'pansement' => $this->lienVersLeSejour(SoinPansement::class),
+            'gavage' => $this->lienVersLeSejour(SoinGavage::class),
+            'evaluation_neuro' => $this->lienVersLeSejour(EvaluationNeuro::class),
+            'transfert_service' => $this->lienVersLeSejour(TransfertService::class),
             default => null,
         };
+    }
+
+    /**
+     * Dossier du séjour auquel se rattache un soin.
+     *
+     * Le dossier de service quand le patient est dans un service, la fiche de
+     * séjour sinon : un transfert enregistré aux urgences n'a pas encore de
+     * service d'accueil.
+     *
+     * @param  class-string<Model>  $modele
+     */
+    private function lienVersLeSejour(string $modele): ?string
+    {
+        if (! $this->reference_id) {
+            return null;
+        }
+
+        $visiteId = $modele::whereKey($this->reference_id)->value('visit_id');
+
+        if (! $visiteId) {
+            return null;
+        }
+
+        $serviceId = Visit::whereKey($visiteId)->value('service_id');
+
+        return $serviceId
+            ? route('services.dossier', [$serviceId, $visiteId])
+            : route('visites.show', $visiteId);
     }
 
     /** Le lien ouvre-t-il un document plutôt qu'un écran de l'application ? */

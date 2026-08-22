@@ -16,7 +16,7 @@ class NotificationController extends Controller
         $nonLuesSeulement = $request->query('lu') === '0';
 
         $compteurs = [];
-        foreach (['toutes', 'labo', 'imagerie', 'pharmacie'] as $cle) {
+        foreach (array_keys(NotificationInterne::SERVICES) as $cle) {
             $compteurs[$cle] = NotificationInterne::query()
                 ->pourUtilisateur($user)->actives()->nonLues()
                 ->when($cle !== 'toutes', fn ($q) => $q->where('service', $cle))
@@ -26,7 +26,7 @@ class NotificationController extends Controller
         $notifications = NotificationInterne::query()
             ->pourUtilisateur($user)
             ->actives()
-            ->when(in_array($onglet, ['labo', 'imagerie', 'pharmacie'], true),
+            ->when(NotificationInterne::estUnService($onglet),
                 fn ($q) => $q->where('service', $onglet))
             ->when($nonLuesSeulement, fn ($q) => $q->where('lu', false))
             ->orderByDesc('created_at')

@@ -67,6 +67,13 @@ class PharmacieController extends Controller
             'dosage' => 'required|string|max:100',
             'unite_dispensation' => 'required|string|max:50',
             'classe_therapeutique' => 'nullable|string|max:150',
+            // Sans ces trois-là, l'ordonnance ne sait pas dire « voie orale,
+            // plaquette de 10 » et la quantité ne se déduit plus de la
+            // posologie. Ils se devinent depuis la forme, mais restent
+            // corrigeables : tous les comprimés ne vont pas par dix.
+            'voie_administration' => 'nullable|in:'.implode(',', array_keys(Medicament::VOIES)),
+            'conditionnement' => 'nullable|in:'.implode(',', array_keys(Medicament::CONDITIONNEMENTS)),
+            'unites_par_conditionnement' => 'nullable|integer|min:1|max:1000',
             'prix_unitaire_vente' => 'required|numeric|min:0',
             'prix_unitaire_achat' => 'nullable|numeric|min:0',
             'quantite_alerte' => 'nullable|integer|min:0',
@@ -83,7 +90,10 @@ class PharmacieController extends Controller
             'necessite_ordonnance' => $request->boolean('necessite_ordonnance', true),
         ]);
 
-        return back()->with('success', "Médicament « {$medicament->denomination_commune} » ajouté au stock.");
+        return back()->with('success', sprintf(
+            'Produit ajouté au dépôt central : %s. Les officines s\'y approvisionnent par réquisition.',
+            $medicament->libelleComplet()
+        ));
     }
 
     /**

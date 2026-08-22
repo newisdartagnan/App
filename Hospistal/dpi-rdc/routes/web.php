@@ -30,6 +30,7 @@ use App\Http\Controllers\PlanAdministrationController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\ServiceHospitalierController;
 use App\Http\Controllers\StatistiqueController;
+use App\Http\Controllers\TarifController;
 use App\Http\Controllers\TransfertServiceController;
 use App\Http\Controllers\UrgenceController;
 use App\Http\Controllers\UtilisateurController;
@@ -174,6 +175,14 @@ Route::middleware(['auth'])->group(function () {
     // ══════════════════════════════════════════════════════════════
     Route::get('/parametres', [ParametreController::class, 'index'])->name('parametres.index');
     Route::post('/parametres/taux', [ParametreController::class, 'reviserTaux'])->name('parametres.taux');
+
+    // Tarifs : ce que coûte chaque prestation, révisable sans développeur
+    Route::get('/parametres/tarifs', [TarifController::class, 'index'])->name('tarifs.index');
+    Route::post('/parametres/tarifs/consultation/{type}', [TarifController::class, 'consultation'])->name('tarifs.consultation');
+    Route::post('/parametres/tarifs/examen/{type}', [TarifController::class, 'examen'])->name('tarifs.examen');
+    Route::post('/parametres/tarifs/medicament/{medicament}', [TarifController::class, 'medicament'])->name('tarifs.medicament');
+    Route::post('/parametres/tarifs/diete/{type}', [TarifController::class, 'diete'])->name('tarifs.diete');
+    Route::post('/parametres/tarifs/{famille}/{id}/basculer', [TarifController::class, 'basculer'])->name('tarifs.basculer');
 
     // Comptes du personnel et profils d'utilisation
     Route::get('/utilisateurs', [UtilisateurController::class, 'index'])->name('utilisateurs.index');

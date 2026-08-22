@@ -10,7 +10,14 @@ return [
     'sync_interval_minutes' => 15,
     'backup_retention_days' => 7,
 
-    // Taux appliqué aux tarifs exprimés en dollars (consultations 20 $/24 $)
+    /*
+     * Taux de départ du dollar, en francs congolais.
+     *
+     * Valeur d'amorçage uniquement : dès qu'un taux est saisi en paramétrage,
+     * c'est lui qui s'applique partout. Ne rien lire ici directement — passer
+     * par DeviseService, sinon un écran continuerait de facturer à l'ancien
+     * cours pendant que la direction révise le taux.
+     */
     'taux_usd_cdf' => env('DPI_TAUX_USD_CDF', 2300),
 
     /*

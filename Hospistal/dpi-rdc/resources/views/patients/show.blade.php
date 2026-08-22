@@ -75,7 +75,9 @@
             <select id="type-consultation" name="type_consultation_id" class="min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
                 <option value="">— Choisir —</option>
                 @foreach(\App\Models\TypeConsultation::where('est_actif', true)->orderBy('categorie')->orderBy('libelle')->get()->groupBy('categorie') as $cat => $types)
-                <optgroup label="{{ $cat === 'generale' ? 'Consultations générales (20 $)' : 'Consultations spécialisées (24 $)' }}">
+                {{-- Le tarif se lit sur chaque ligne : l'annoncer en tête du
+                     groupe devenait faux dès la première révision de prix. --}}
+                <optgroup label="{{ $cat === 'generale' ? 'Consultations générales' : 'Consultations spécialisées' }}">
                     @foreach($types as $tc)
                     <option value="{{ $tc->id }}">{{ $tc->libelle }} — {{ $tc->prix_usd + 0 }} $</option>
                     @endforeach

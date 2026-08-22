@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\DeviseService;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -24,10 +25,15 @@ class TypeConsultation extends Model
     }
 
     /**
-     * Prix converti en francs congolais (taux configurable).
+     * Prix en francs congolais, au taux en vigueur.
+     *
+     * Le taux vient du paramétrage, révisé au guichet à chaque mouvement du
+     * dollar — et non plus d'une valeur figée dans un fichier. Sans cela, la
+     * direction relevait le taux dans l'application et la consultation
+     * continuait de se facturer à l'ancien cours.
      */
     public function prixCdf(): float
     {
-        return (float) $this->prix_usd * (float) config('dpi.taux_usd_cdf', 2800);
+        return app(DeviseService::class)->versCdf((float) $this->prix_usd, 'USD');
     }
 }
