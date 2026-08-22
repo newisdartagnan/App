@@ -44,6 +44,13 @@ Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
 });
 
+/*
+ * La page servie par le service worker quand le réseau est coupé. Elle est
+ * ouverte à tous : hors connexion, il n'y a plus de session à vérifier — et
+ * elle ne montre rien de plus que le nom de l'application.
+ */
+Route::view('/hors-ligne', 'hors-ligne')->name('hors-ligne');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
     Route::post('/login', [LoginController::class, 'login']);

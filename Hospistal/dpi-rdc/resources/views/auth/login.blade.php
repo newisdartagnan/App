@@ -5,9 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Connexion — DPI-RDC</title>
+    {{-- Le coupe-circuit du service worker, réglable dans le .env. --}}
+    <meta name="sw-actif" content="{{ config('dpi.service_worker') ? '1' : '0' }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+{{--
+    Le poste passe de main en main : revenir ici, c'est que quelqu'un s'en
+    va. Le cache du service worker est vidé à ce moment-là.
+--}}
+<body data-ecran="connexion" class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
         <h1 class="text-2xl font-bold text-blue-900 text-center mb-2">DPI-RDC</h1>
         <p class="text-sm text-gray-600 text-center mb-8">{{ config('dpi.establishment_name') }}</p>
