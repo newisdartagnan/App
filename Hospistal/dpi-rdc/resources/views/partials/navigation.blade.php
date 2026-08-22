@@ -115,6 +115,10 @@
 
         <a href="{{ route('officines.tableau') }}" class="nav-lien {{ request()->routeIs('pharmacie.*') || request()->routeIs('officines.*') ? 'est-actif' : '' }}">Pharmacie</a>
         <a href="{{ route('statistiques.index') }}" class="nav-lien {{ request()->routeIs('statistiques.*') ? 'est-actif' : '' }}">Statistiques</a>
+        @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'infirmier_chef', 'agent_admin']))
+        <a href="{{ route('snis.index') }}" title="Rapport mensuel à la zone de santé"
+           class="nav-lien {{ request()->routeIs('snis.*') ? 'est-actif' : '' }}">📋 SNIS</a>
+        @endif
 
         @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'caissier']))
         <a href="{{ route('parametres.index') }}" title="Paramétrage"
