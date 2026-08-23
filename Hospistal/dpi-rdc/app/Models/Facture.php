@@ -83,11 +83,22 @@ class Facture extends Model
     public function libellePriseEnCharge(): string
     {
         if ($this->type_prise_en_charge === 'assurance') {
+            // La pièce recopie le nom à son émission, la fiche le porte
+            // aussi — mais c'est le contrat qui fait foi. Quand les deux
+            // copies manquent (reprise de données, contrat enregistré
+            // directement), il faut aller le lire là plutôt que d'annoncer
+            // « Assurance » tout court : c'est cette ligne que le tiers
+            // payant recopie sur son bordereau.
+            $contrat = $this->patient?->assuranceEnVigueur();
+
             $nom = $this->assurance_nom
-                ?: $this->patient?->assurance_nom;
+                ?: $this->patient?->assurance_nom
+                ?: $contrat?->assurance?->nom;
 
             if (filled($nom)) {
-                $numero = $this->assurance_numero ?: $this->patient?->assurance_numero;
+                $numero = $this->assurance_numero
+                    ?: $this->patient?->assurance_numero
+                    ?: $contrat?->numero_police;
 
                 return filled($numero) ? $nom.' — n° '.$numero : $nom;
             }

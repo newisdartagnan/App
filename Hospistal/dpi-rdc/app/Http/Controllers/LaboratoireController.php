@@ -321,7 +321,8 @@ class LaboratoireController extends Controller
         $pdf = Pdf::loadView('pdf.resultat-examen', [
             'examen' => $examen,
             'estImagerie' => $examen->domaine === 'imagerie',
-            'etablissement' => config('dpi.establishment_name', config('app.name')),
+            'etablissement' => $examen->patient?->establishment?->name
+                ?: config('dpi.establishment_name', config('app.name')),
             'pieces' => $pieces,
         ])->setPaper('a4');
 
