@@ -169,7 +169,8 @@ class VisitController extends Controller
 
         return view('visites.bulletin', [
             'visit' => $visit,
-            'etablissement' => config('dpi.establishment_name', config('app.name')),
+            'etablissement' => $visit->patient?->establishment?->name
+                ?: config('dpi.establishment_name', config('app.name')),
             'prescriptions' => Prescription::with(['lignes.medicament'])
                 ->whereIn('consultation_id', $visit->consultations->pluck('id'))
                 ->get(),

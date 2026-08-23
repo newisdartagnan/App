@@ -63,7 +63,11 @@ class AgendaController extends Controller
 
         return view('agenda.convocation', [
             'rendezVous' => $rendezVous,
-            'etablissement' => config('dpi.establishment_name', config('app.name')),
+            // L'établissement du patient, pas celui du fichier de
+            // configuration : sur le même papier, l'en-tête lisait la base
+            // et le pied de page le .env — deux noms pour un hôpital.
+            'etablissement' => $rendezVous->patient?->establishment?->name
+                ?: config('dpi.establishment_name', config('app.name')),
         ]);
     }
 
