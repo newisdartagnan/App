@@ -1,3 +1,5 @@
+export type RsvpStatus = "pending" | "yes" | "no" | "maybe";
+
 export interface Invitation {
   token: string;
   honorific: string | null; // "M.", "Mme", "Mlle"...
@@ -11,4 +13,11 @@ export interface Invitation {
   event_venue_note: string | null; // ex : "Plan à suivre"
   message: string;
   signature: string | null; // ex : "Avec toute notre reconnaissance"
+  rsvp_status: RsvpStatus;
+  party_size: number;
+}
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Starfield from "./components/Starfield";
 import Invitation from "./components/Invitation";
+import Assistant from "./components/Assistant";
 import { getInvitation } from "./lib/supabase";
 import type { Invitation as InvitationData } from "./types";
 
@@ -57,7 +58,12 @@ export default function App() {
         </div>
       )}
 
-      {status === "ready" && data && <Invitation data={data} />}
+      {status === "ready" && data && (
+        <>
+          <Invitation data={data} />
+          <Assistant data={data} />
+        </>
+      )}
     </>
   );
 }

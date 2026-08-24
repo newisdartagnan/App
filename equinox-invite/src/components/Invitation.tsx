@@ -1,5 +1,7 @@
-import { useRef, useState } from "react";
-import type { Invitation as InvitationData } from "../types";
+import { useMemo, useRef, useState } from "react";
+import type { Invitation as InvitationData, RsvpStatus } from "../types";
+import { setRsvp } from "../lib/supabase";
+import QrCode from "./QrCode";
 
 const CelestialMark = () => (
   <svg className="mark reveal d1" viewBox="0 0 120 60" aria-hidden="true">
@@ -27,8 +29,16 @@ const CelestialMark = () => (
 export default function Invitation({ data }: { data: InvitationData }) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [busy, setBusy] = useState(false);
+  const [rsvp, setRsvpState] = useState<RsvpStatus>(data.rsvp_status);
+  const [rsvpBusy, setRsvpBusy] = useState(false);
 
   const fullName = [data.honorific, data.guest_name].filter(Boolean).join(" ");
+
+  // Lien encodé dans le QR : la page personnalisée de cet invité.
+  const inviteUrl = useMemo(
+    () => `${window.location.origin}/i/${encodeURIComponent(data.token)}`,
+    [data.token],
+  );
 
   const handleDownload = async () => {
     if (!cardRef.current || busy) return;
@@ -43,6 +53,16 @@ export default function Invitation({ data }: { data: InvitationData }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  const answer = async (status: Exclude<RsvpStatus, "pending">) => {
+    if (rsvpBusy) return;
+    setRsvpBusy(true);
+    const previous = rsvp;
+    setRsvpState(status); // optimiste
+    const ok = await setRsvp(data.token, status);
+    if (!ok) setRsvpState(previous);
+    setRsvpBusy(false);
   };
 
   return (
@@ -82,16 +102,50 @@ export default function Invitation({ data }: { data: InvitationData }) {
           </div>
         </div>
 
+        <div className="reveal d5">
+          <QrCode value={inviteUrl} />
+        </div>
+
         {data.signature && <p className="sig reveal d6">{data.signature}</p>}
       </article>
+
+      <div className="rsvp reveal d5">
+        <p className="rsvp-q">
+          {rsvp === "yes"
+            ? "Votre présence est confirmée. Merci !"
+            : rsvp === "no"
+              ? "Vous avez décliné. Merci de nous avoir prévenus."
+              : rsvp === "maybe"
+                ? "Vous avez répondu « peut-être »."
+                : "Nous ferez-vous l'honneur de votre présence ?"}
+        </p>
+        <div className="rsvp-actions">
+          <button
+            type="button"
+            className={rsvp === "yes" ? "pill on" : "pill"}
+            onClick={() => void answer("yes")}
+            disabled={rsvpBusy}
+            aria-pressed={rsvp === "yes"}
+          >
+            Je serai présent·e
+          </button>
+          <button
+            type="button"
+            className={rsvp === "no" ? "pill on" : "pill"}
+            onClick={() => void answer("no")}
+            disabled={rsvpBusy}
+            aria-pressed={rsvp === "no"}
+          >
+            Je ne pourrai pas
+          </button>
+        </div>
+      </div>
 
       <div className="cta-wrap reveal d5">
         <button className="cta" type="button" onClick={handleDownload} disabled={busy}>
           {busy ? "Préparation…" : "Télécharger votre invitation"}
         </button>
-        <p className="hint">
-          Cliquez pour enregistrer votre invitation au format PDF.
-        </p>
+        <p className="hint">Le PDF inclut votre QR code d'entrée.</p>
       </div>
     </main>
   );

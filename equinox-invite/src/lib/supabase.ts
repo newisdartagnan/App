@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Invitation } from "../types";
+import type { ChatTurn, Invitation, RsvpStatus } from "../types";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -26,13 +26,15 @@ const SAMPLE: Invitation = {
   message:
     "Votre présence sera pour nous un honneur et rendra cette journée encore plus mémorable.",
   signature: "Avec toute notre reconnaissance",
+  rsvp_status: "pending",
+  party_size: 1,
 };
 
 /**
  * Récupère une invitation par son token.
- * - Avec backend : appelle la fonction Postgres `get_invitation` (SECURITY DEFINER),
- *   qui ne renvoie que la ligne correspondant au token — pas d'exposition de la table.
- * - Sans backend : renvoie l'exemple (le token affecte seulement le nom, pour la démo).
+ * - Avec backend : RPC `get_invitation` (SECURITY DEFINER), qui ne renvoie que
+ *   la ligne correspondant au token — la table n'est jamais exposée.
+ * - Sans backend : renvoie l'exemple.
  */
 export async function getInvitation(token: string | null): Promise<Invitation | null> {
   if (!token) return { ...SAMPLE };
@@ -48,4 +50,45 @@ export async function getInvitation(token: string | null): Promise<Invitation | 
   }
   const row = Array.isArray(data) ? data[0] : data;
   return (row as Invitation) ?? null;
+}
+
+/** Enregistre la réponse de l'invité. En mode démo, l'état reste local. */
+export async function setRsvp(
+  token: string,
+  status: Exclude<RsvpStatus, "pending">,
+): Promise<boolean> {
+  if (!hasBackend || !supabase) return true;
+
+  const { error } = await supabase.rpc("set_rsvp", {
+    p_token: token,
+    p_status: status,
+    p_party_size: 1,
+  });
+  if (error) {
+    console.error("set_rsvp:", error.message);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Pose une question à l'assistant.
+ * Avec backend : Edge Function `assistant` (la clé Anthropic reste serveur).
+ * Sans backend : `null`, l'appelant utilise sa réponse de repli locale.
+ */
+export async function askAssistant(
+  token: string,
+  question: string,
+  history: ChatTurn[],
+): Promise<string | null> {
+  if (!hasBackend || !supabase) return null;
+
+  const { data, error } = await supabase.functions.invoke("assistant", {
+    body: { token, question, history },
+  });
+  if (error) {
+    console.error("assistant:", error.message);
+    return null;
+  }
+  return (data as { answer?: string } | null)?.answer ?? null;
 }
