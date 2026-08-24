@@ -1,0 +1,6 @@
+# Configuration locale Supabase (supabase start / supabase functions serve)
+project_id = "equinox-invite"
+
+[functions.invite-preview]
+# La page d'aperçu doit être publique (crawlers de réseaux sociaux, pas de JWT).
+verify_jwt = false
