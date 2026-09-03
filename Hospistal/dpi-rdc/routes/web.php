@@ -3,6 +3,7 @@
 use App\Http\Controllers\AcompteController;
 use App\Http\Controllers\ActeCliniqueController;
 use App\Http\Controllers\AgendaController;
+use App\Http\Controllers\ApparenceController;
 use App\Http\Controllers\AssuranceController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BanqueSangController;
@@ -248,6 +249,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/lits/{lit}/statut', [ServiceHospitalierController::class, 'statutLit'])->name('lits.statut');
 
     // Notifications internes (labo / imagerie / pharmacie ↔ médecins)
+    // Le thème de chacun : « trop de blanc », disaient ceux qui passent la
+    // journée devant l'écran.
+    Route::get('/apparence', [ApparenceController::class, 'index'])->name('apparence.index');
+    Route::post('/apparence', [ApparenceController::class, 'enregistrer'])->name('apparence.enregistrer');
+
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/tout-lu', [NotificationController::class, 'toutMarquerLues'])->name('notifications.tout-lu');
     Route::post('/notifications/{notification}/lue', [NotificationController::class, 'marquerLue'])->name('notifications.lue');

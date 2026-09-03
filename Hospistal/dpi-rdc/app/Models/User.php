@@ -19,7 +19,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'establishment_id', 'matricule', 'nom', 'prenom', 'email',
-        'telephone', 'password', 'specialite', 'is_active',
+        'telephone', 'password', 'specialite', 'theme', 'is_active',
         'last_login_at', 'offline_token', 'offline_token_expires_at',
     ];
 

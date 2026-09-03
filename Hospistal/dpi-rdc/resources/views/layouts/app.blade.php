@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="{{ \App\Http\Controllers\ApparenceController::theme() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -49,6 +49,10 @@
                     <p class="text-sm font-semibold">{{ auth()->user()->nom_complet }}</p>
                     <p class="text-xs text-blue-200">{{ auth()->user()->libelleRoles() }}</p>
                 </div>
+                <a href="{{ route('apparence.index') }}" title="Apparence — choisir un thème"
+                   class="bg-blue-900 hover:bg-blue-950 text-white text-xs font-semibold rounded-lg px-3 py-2">
+                    🎨
+                </a>
                 <a href="{{ route('parcours.moi') }}" title="Mon temps d'utilisation"
                    class="bg-blue-900 hover:bg-blue-950 text-white text-xs font-semibold rounded-lg px-3 py-2">
                     ⏱️ Mon temps
