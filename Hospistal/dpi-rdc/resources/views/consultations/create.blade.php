@@ -139,6 +139,58 @@
             </div>
         </div>
 
+        {{--
+            Ce que devient le patient.
+
+            La consultation s'arrêtait sur une conduite à tenir en toutes
+            lettres : personne ne savait, en la lisant, si le patient rentrait
+            chez lui ou s'il fallait lui trouver un lit. Le service
+            l'apprenait quand le patient se présentait à sa porte — s'il s'y
+            présentait.
+        --}}
+        <div class="bg-white rounded-xl shadow p-6 space-y-4 border-l-4 border-blue-500">
+            <h3 class="font-semibold text-gray-700 pb-2 border-b">Orientation du patient</h3>
+
+            <div class="grid gap-4 md:grid-cols-2">
+                <div>
+                    <label for="orientation" class="block text-sm font-medium text-gray-700 mb-1">
+                        Que devient le patient ?
+                    </label>
+                    <select id="orientation" name="orientation"
+                            class="w-full min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                        <option value="">— à préciser —</option>
+                        @foreach(\App\Models\Consultation::ORIENTATIONS as $cle => $libelle)
+                        <option value="{{ $cle }}" @selected(old('orientation') === $cle)>{{ $libelle }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">
+                        « En attente de résultats » est une décision : on la reprend
+                        quand les examens reviennent.
+                    </p>
+                </div>
+
+                <div>
+                    <label for="service_oriente" class="block text-sm font-medium text-gray-700 mb-1">
+                        Service d'hospitalisation
+                        <span class="text-gray-400 font-normal text-xs">— si le patient est interné</span>
+                    </label>
+                    <select id="service_oriente" name="service_oriente_id"
+                            class="w-full min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                        <option value="">— aucun —</option>
+                        @foreach($servicesHospitalisation as $service)
+                        <option value="{{ $service->id }}" @selected(old('service_oriente_id') === $service->id)>
+                            {{ $service->nom }}
+                        </option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Le patient apparaîtra aussitôt dans ce service, en attente de
+                        lit. C'est le service qui l'attribue.
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <div class="flex justify-end gap-3">
             <a href="{{ route('consultations.index') }}" class="min-h-[44px] px-5 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 inline-flex items-center">Annuler</a>
             <button type="submit" class="min-h-[44px] px-6 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg">

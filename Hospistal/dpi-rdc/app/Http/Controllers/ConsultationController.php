@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\Consultation;
 use App\Models\Facture;
 use App\Models\Patient;
+use App\Models\Service;
 use App\Models\Visit;
 use App\Services\DiagnosticService;
 use App\Services\FacturationService;
+use App\Services\NotificationService;
 use App\Services\VisiteService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ConsultationController extends Controller
@@ -197,6 +200,8 @@ class ConsultationController extends Controller
         return view('consultations.create', [
             'visit' => $visit,
             'patient' => $visit->patient,
+            'servicesHospitalisation' => Service::where('is_active', true)
+                ->orderBy('nom')->get(),
             'referentielDiagnostics' => $this->diagnostics->referentiel()->map(fn ($e) => [
                 'valeur' => $this->diagnostics->proposition($e),
                 'aide' => trim($e->categorie.($e->synonymes ? ' — '.$e->synonymes : '')),
@@ -233,6 +238,8 @@ class ConsultationController extends Controller
             'diagnostics.*.libelle' => 'nullable|string|max:255',
             'diagnostics.*.code_cim10' => 'nullable|string|max:20',
             'diagnostics.*.code_cim11' => 'nullable|string|max:20',
+            'orientation' => ['nullable', Rule::in(array_keys(Consultation::ORIENTATIONS))],
+            'service_oriente_id' => 'nullable|uuid|exists:services,id',
         ]);
 
         $diagnostics = [];
@@ -271,8 +278,17 @@ class ConsultationController extends Controller
             'diagnostics' => $diagnostics,
             'conclusion' => $donnees['conclusion'] ?? null,
             'conduite_a_tenir' => $donnees['conduite_a_tenir'] ?? null,
+            'orientation' => $donnees['orientation'] ?? null,
+            'service_oriente_id' => $donnees['service_oriente_id'] ?? null,
             'statut' => 'finalise',
         ]);
+
+        // Le patient qu'on interne doit apparaître dans le service avant d'y
+        // arriver : c'est ainsi que l'équipe prépare le lit au lieu de le
+        // découvrir à sa porte.
+        if ($consultation->demandeUnLit() && $consultation->service_oriente_id) {
+            $this->demanderLadmission($visit, $consultation);
+        }
 
         $visit->update(['user_id' => auth()->id()]);
 
@@ -308,5 +324,39 @@ class ConsultationController extends Controller
 
         return redirect()->route('caisse.show', $facture)
             ->with('success', 'Facture consultation émise — patient au guichet.');
+    }
+
+    /**
+     * Pose la demande d'admission et prévient le service.
+     *
+     * Le lit n'est pas attribué ici : le médecin décide du service, le
+     * service place le patient. Un médecin en consultation ne sait pas quel
+     * lit vient de se libérer en pédiatrie, et ce n'est pas son travail de
+     * le savoir.
+     */
+    private function demanderLadmission(Visit $visit, Consultation $consultation): void
+    {
+        $visit->update([
+            'admission_demandee_le' => now(),
+            'admission_service_id' => $consultation->service_oriente_id,
+            'admission_par' => auth()->id(),
+        ]);
+
+        $consultation->loadMissing('serviceOriente');
+
+        app(NotificationService::class)->envoyer(
+            service: 'hospitalisation',
+            type: 'admission_demandee',
+            titre: 'Admission demandée en '.($consultation->serviceOriente?->nom ?? 'hospitalisation'),
+            message: $visit->patient->nom_complet.' attend un lit — '
+                .($consultation->libelleOrientation() ?? 'hospitalisation')
+                .'. Décidé par '.(auth()->user()?->nom_complet ?? 'le médecin').'.',
+            referenceType: 'visit',
+            referenceId: $visit->id,
+            codeReference: $visit->patient->dossier_number,
+            groupeDestinataire: 'infirmier_chef',
+            priorite: 'haute',
+            patientId: $visit->patient_id,
+        );
     }
 }

@@ -18,6 +18,73 @@
         @endif
     @endforeach
 
+    {{--
+        Les patients que le médecin vient d'orienter ici.
+
+        Ils ne sont pas encore hospitalisés : leur nom paraît dans le service
+        avant qu'ils n'arrivent, pour qu'on prépare le lit au lieu de les
+        découvrir à la porte. C'est le service qui attribue la place — le
+        médecin ne sait pas quel lit vient de se libérer, et ce n'est pas son
+        travail de le savoir.
+    --}}
+    @if($admissionsDemandees->isNotEmpty())
+    <div class="bg-white rounded-xl shadow overflow-hidden mb-6 border-l-4 border-amber-500">
+        <div class="px-5 py-3 border-b bg-amber-50">
+            <h3 class="font-semibold text-amber-900 text-sm">
+                🛏️ Admissions demandées — en attente de lit
+                <span class="font-normal text-amber-700">({{ $admissionsDemandees->count() }})</span>
+            </h3>
+        </div>
+        <div class="divide-y divide-gray-100">
+            @foreach($admissionsDemandees as $attente)
+            <div class="px-5 py-4">
+                <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <div>
+                        <p class="font-semibold text-gray-800">
+                            {{ $attente->patient->nom_complet }}
+                            <span class="text-xs font-normal text-gray-500">{{ $attente->patient->dossier_number }}</span>
+                        </p>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            Orienté {{ $attente->admission_demandee_le->diffForHumans() }}
+                            @if($attente->admissionPar) par {{ $attente->admissionPar->nom_complet }} @endif
+                            @if($attente->motif_consultation) · {{ $attente->motif_consultation }} @endif
+                        </p>
+                    </div>
+                    <a href="{{ route('visites.show', $attente) }}"
+                       class="text-sm font-semibold text-blue-700 hover:underline shrink-0">Le dossier →</a>
+                </div>
+
+                @php $litsLibres = $lits->where('statut', 'libre'); @endphp
+                @if($litsLibres->isNotEmpty())
+                <form method="POST" action="{{ route('services.admettre', [$service, $attente]) }}"
+                      class="flex flex-wrap items-end gap-3">
+                    @csrf
+                    <div>
+                        <label for="lit-{{ $attente->id }}" class="block text-xs text-gray-500 mb-1">Lit</label>
+                        <select id="lit-{{ $attente->id }}" name="lit_id" required
+                                class="min-h-[44px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <option value="">— choisir —</option>
+                            @foreach($litsLibres as $lit)
+                            <option value="{{ $lit->id }}">Lit {{ $lit->numero }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button class="min-h-[44px] bg-green-700 hover:bg-green-800 text-white font-semibold rounded-lg px-5 text-sm">
+                        Admettre dans ce lit
+                    </button>
+                </form>
+                @else
+                <p class="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    Aucun lit libre dans ce service. Le patient attend — prévenez le
+                    médecin si l'attente se prolonge.
+                </p>
+                @endif
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     <div class="bg-white rounded-xl shadow overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-sm">

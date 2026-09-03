@@ -246,6 +246,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/services/{service}/patient/{visit}', [ServiceHospitalierController::class, 'dossier'])->name('services.dossier');
     Route::post('/visites/{visit}/evolution', [ServiceHospitalierController::class, 'storeNote'])->name('visites.evolution');
     Route::post('/visites/{visit}/signes-vitaux', [ServiceHospitalierController::class, 'storeSignesVitaux'])->name('visites.signes-vitaux');
+    // Le service place le patient que le médecin lui a orienté : la décision
+    // médicale nomme le service, la logistique choisit le lit.
+    Route::post('/services/{service}/admissions/{visit}', [ServiceHospitalierController::class, 'admettre'])->name('services.admettre');
     Route::post('/lits/{lit}/statut', [ServiceHospitalierController::class, 'statutLit'])->name('lits.statut');
 
     // Notifications internes (labo / imagerie / pharmacie ↔ médecins)

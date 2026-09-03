@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Lit;
 use App\Models\Prescription;
 use App\Models\Service;
 use App\Models\Visit;
@@ -126,13 +127,25 @@ class VisitController extends Controller
     public function hospitaliser(Request $request, Visit $visit): RedirectResponse
     {
         $request->validate([
-            'service_id' => 'required|uuid|exists:services,id',
             'lit_id' => 'required|uuid|exists:lits,id',
+            // Le service se déduit du lit : le demander séparément obligeait
+            // à lier deux listes par un script, et ouvrait la porte à une
+            // paire incohérente.
+            'service_id' => 'nullable|uuid|exists:services,id',
+        ], [
+            'lit_id.required' => 'Choisissez le lit où coucher le patient.',
         ]);
 
-        app(VisiteService::class)->hospitaliser($visit, $request->service_id, $request->lit_id);
+        $lit = Lit::findOrFail($request->lit_id);
 
-        return back()->with('success', 'Patient hospitalisé — lit assigné.');
+        try {
+            app(VisiteService::class)->hospitaliser($visit, $lit->service_id, $lit->id);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Ce lit vient d\'être pris — choisissez-en un autre.');
+        }
+
+        return back()->with('success',
+            'Patient hospitalisé — lit '.$lit->numero.' en '.($lit->service?->nom ?? 'hospitalisation').'.');
     }
 
     public function facturerSejour(Visit $visit): RedirectResponse

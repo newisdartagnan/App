@@ -101,25 +101,39 @@
     <div class="bg-white rounded-xl shadow p-6 mb-6">
         <h3 class="font-semibold text-gray-700 mb-4">Hospitalisation</h3>
         @if($visit->type !== 'hospitalisation')
-        <form method="POST" action="{{ route('visites.hospitaliser', $visit) }}" class="grid md:grid-cols-3 gap-4">
+        {{--
+            Un seul choix : le lit, groupé par service.
+
+            Les deux listes étaient liées par un onchange écrit dans la page,
+            qui remplissait la seconde à partir de la première. Sur un poste
+            dont la politique de sécurité interdit les scripts en ligne, la
+            liste des lits restait vide : on ne pouvait pas admettre du tout.
+        --}}
+        <form method="POST" action="{{ route('visites.hospitaliser', $visit) }}" class="grid md:grid-cols-2 gap-4">
             @csrf
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Service</label>
-                <select name="service_id" required class="w-full border rounded-lg px-3 py-2 text-sm" onchange="this.form.querySelector('[name=lit_id]').innerHTML=this.options[this.selectedIndex].dataset.lits||''">
-                    <option value="">— Choisir —</option>
+                <label for="lit-admission" class="block text-xs text-gray-500 mb-1">Service et lit</label>
+                <select id="lit-admission" name="lit_id" required
+                        class="w-full min-h-[44px] border rounded-lg px-3 py-2 text-sm">
+                    <option value="">— Choisir un lit libre —</option>
                     @foreach($services as $service)
-                    <option value="{{ $service->id }}" data-lits="@foreach($service->lits as $lit)<option value='{{ $lit->id }}'>Lit {{ $lit->numero }}</option>@endforeach">
-                        {{ $service->nom }} ({{ $service->lits->count() }} lits libres)
-                    </option>
+                        @if($service->lits->isNotEmpty())
+                        <optgroup label="{{ $service->nom }} ({{ $service->lits->count() }} libre(s))">
+                            @foreach($service->lits as $lit)
+                            <option value="{{ $lit->id }}">Lit {{ $lit->numero }}</option>
+                            @endforeach
+                        </optgroup>
+                        @endif
                     @endforeach
                 </select>
-            </div>
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Lit</label>
-                <select name="lit_id" required class="w-full border rounded-lg px-3 py-2 text-sm"><option value="">— Service d'abord —</option></select>
+                @if($services->sum(fn ($s) => $s->lits->count()) === 0)
+                <p class="text-xs text-amber-800 mt-1">Aucun lit libre dans l'hôpital.</p>
+                @endif
             </div>
             <div class="flex items-end">
-                <button type="submit" class="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm w-full">Admettre en hospitalisation</button>
+                <button type="submit" class="min-h-[44px] bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm w-full font-semibold">
+                    Admettre en hospitalisation
+                </button>
             </div>
         </form>
         @else
