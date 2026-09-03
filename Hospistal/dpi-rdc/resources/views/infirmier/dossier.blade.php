@@ -57,6 +57,115 @@
     <div class="bg-white rounded-b-xl shadow p-5">
 
     {{-- ══════════════════ PANSEMENT ══════════════════ --}}
+    {{--
+        Le registre des actes.
+
+        Tout ce que fait une équipe infirmière hors pansement, gavage et
+        transfusion ne laissait aucune trace : l'injection posée à deux
+        heures, la perfusion changée, la sonde placée, l'oxygène branché, la
+        toilette d'un grabataire. Un acte non écrit est un acte qu'on refait
+        ou qu'on oublie — à la relève, on ne sait pas si la deuxième
+        injection a été faite.
+    --}}
+    @if($onglet === 'actes')
+    <div class="bg-white rounded-xl shadow p-6 mb-6">
+        <h3 class="font-semibold text-gray-700 mb-1">Inscrire un acte</h3>
+        <p class="text-xs text-gray-500 mb-4">
+            L'acte porte votre nom et l'heure de maintenant : ni l'un ni l'autre
+            ne se choisissent, c'est ce qui fait la valeur de la trace.
+        </p>
+
+        <form method="POST" action="{{ route('infirmier.actes', $visit) }}" class="grid gap-4 md:grid-cols-2">
+            @csrf
+            <div>
+                <label for="acte-type" class="block text-sm font-medium text-gray-700 mb-1">Acte réalisé</label>
+                <select id="acte-type" name="type" required
+                        class="w-full min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                    <option value="">— choisir —</option>
+                    @foreach(\App\Models\ActeInfirmier::TYPES as $cle => $type)
+                    <option value="{{ $cle }}" @selected(old('type') === $cle)>{{ $type['libelle'] }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label for="acte-ordonnance" class="block text-sm font-medium text-gray-700 mb-1">
+                    Sur ordonnance <span class="text-gray-400 font-normal text-xs">— si l'acte en découle</span>
+                </label>
+                <select id="acte-ordonnance" name="prescription_id"
+                        class="w-full min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                    <option value="">— aucune</option>
+                    @foreach($ordonnances as $ordonnance)
+                    <option value="{{ $ordonnance->id }}">
+                        {{ $ordonnance->date_prescription?->format('d/m/Y') }} —
+                        {{ $ordonnance->lignes->pluck('medicament.nom_commercial')->filter()->take(2)->implode(', ') ?: 'ordonnance' }}
+                    </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="md:col-span-2">
+                <label for="acte-precisions" class="block text-sm font-medium text-gray-700 mb-1">
+                    Précisions
+                </label>
+                <input id="acte-precisions" name="precisions" maxlength="1000"
+                       value="{{ old('precisions') }}"
+                       placeholder="Produit, dose, site, débit, calibre…"
+                       class="w-full min-h-[44px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            </div>
+
+            <div class="md:col-span-2">
+                <label for="acte-observation" class="block text-sm font-medium text-gray-700 mb-1">
+                    Ce que vous avez observé
+                    <span class="text-gray-400 font-normal text-xs">— c'est souvent là qu'une complication se voit d'abord</span>
+                </label>
+                <input id="acte-observation" name="observation" maxlength="1000"
+                       value="{{ old('observation') }}"
+                       placeholder="Point de ponction rouge, patient algique, urines troubles…"
+                       class="w-full min-h-[44px] rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            </div>
+
+            <div class="md:col-span-2 flex justify-end">
+                <button class="min-h-[44px] bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg px-6">
+                    Inscrire l'acte
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="px-5 py-3 border-b font-semibold text-gray-700">
+            Actes du séjour <span class="text-gray-400 font-normal text-sm">— {{ $actes->count() }}</span>
+        </div>
+        <div class="divide-y divide-gray-100">
+            @forelse($actes as $acte)
+            <div class="px-5 py-3">
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <p class="font-medium text-gray-800">
+                        {{ $acte->libelleType() }}
+                        @if($acte->precisions)<span class="font-normal text-gray-600">— {{ $acte->precisions }}</span>@endif
+                    </p>
+                    <p class="text-xs text-gray-500">
+                        {{ $acte->realise_a->format('d/m/Y à H:i') }}
+                        · {{ $acte->auteur?->nom_complet ?? 'agent inconnu' }}
+                    </p>
+                </div>
+                @if($acte->observation)
+                <p class="text-sm text-gray-600 mt-1">👁 {{ $acte->observation }}</p>
+                @endif
+                @if($acte->prescription_id)
+                <p class="text-xs text-blue-700 mt-0.5">Sur ordonnance du médecin.</p>
+                @endif
+            </div>
+            @empty
+            <p class="px-5 py-10 text-center text-sm text-gray-400">
+                Aucun acte inscrit pour ce séjour.
+            </p>
+            @endforelse
+        </div>
+    </div>
+    @endif
+
     @if($onglet === 'pansement')
         @php $due = $pansements->first(fn ($p) => $p->refectionDue()); @endphp
         @if($due)

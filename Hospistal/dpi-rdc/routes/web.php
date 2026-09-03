@@ -336,6 +336,9 @@ Route::middleware(['auth'])->group(function () {
 
     // Dossier infirmier : pansement, gavage, évaluation neuro, transfusion
     Route::get('/visites/{visit}/dossier-infirmier', [DossierInfirmierController::class, 'index'])->name('infirmier.index');
+    // Le registre des actes : tout ce que fait l'équipe et qui ne laissait
+    // aucune trace — injection, perfusion, sondage, oxygène, nursing.
+    Route::post('/visites/{visit}/dossier-infirmier/actes', [DossierInfirmierController::class, 'storeActe'])->name('infirmier.actes');
     Route::post('/visites/{visit}/dossier-infirmier/pansement', [DossierInfirmierController::class, 'storePansement'])->name('infirmier.pansement');
     Route::post('/visites/{visit}/dossier-infirmier/gavage', [DossierInfirmierController::class, 'storeGavage'])->name('infirmier.gavage');
     Route::post('/visites/{visit}/dossier-infirmier/neuro', [DossierInfirmierController::class, 'storeNeuro'])->name('infirmier.neuro');

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActeInfirmier;
 use App\Models\EvaluationNeuro;
+use App\Models\Prescription;
 use App\Models\SoinGavage;
 use App\Models\SoinPansement;
 use App\Models\Transfusion;
@@ -10,6 +12,7 @@ use App\Models\Visit;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -21,6 +24,9 @@ use Illuminate\View\View;
 class DossierInfirmierController extends Controller
 {
     public const ONGLETS = [
+        // Le registre d'abord : c'est ce qu'on ouvre le plus souvent, et ce
+        // qui manquait entièrement.
+        'actes' => 'Actes infirmiers',
         'pansement' => 'Pansement',
         'gavage' => 'Gavage',
         'neuro' => 'Évaluation neuro',
@@ -29,8 +35,24 @@ class DossierInfirmierController extends Controller
 
     public function __construct(private readonly NotificationService $notifications) {}
 
+    /**
+     * Qui entre au dossier de soins.
+     *
+     * Il n'était gardé par rien : n'importe quel compte connecté — la caisse,
+     * l'accueil — pouvait y inscrire un pansement. Une trace que tout le
+     * monde peut écrire ne vaut pas comme trace.
+     */
+    private function autoriserLeSoin(): void
+    {
+        abort_unless(auth()->user()->can('soin.execute'), 403,
+            'Le dossier de soins est tenu par l\'équipe soignante.');
+    }
+
     public function index(Request $request, Visit $visit): View
     {
+        abort_unless(auth()->user()->can('patient.view'), 403,
+            'Réservé au personnel qui suit les patients.');
+
         $onglet = $request->query('onglet', 'pansement');
         if (! array_key_exists($onglet, self::ONGLETS)) {
             $onglet = 'pansement';
@@ -43,8 +65,21 @@ class DossierInfirmierController extends Controller
         $neuros = $visit->evaluationsNeuro()->with('auteur')->orderByDesc('evalue_a')->get();
         $transfusions = $visit->transfusions()->with('auteur')->orderByDesc('jour')->orderByDesc('heure_debut')->get();
 
+        $actes = ActeInfirmier::with(['auteur', 'prescription'])
+            ->where('visit_id', $visit->id)
+            ->orderByDesc('realise_a')
+            ->get();
+
+        // Les ordonnances du séjour, pour rattacher l'acte à l'ordre qui
+        // l'a motivé quand il y en a un.
+        $ordonnances = Prescription::with('lignes.medicament')
+            ->whereIn('consultation_id', $visit->consultations()->pluck('id'))
+            ->orderByDesc('date_prescription')
+            ->get();
+
         return view('infirmier.dossier', compact(
-            'visit', 'onglet', 'pansements', 'gavages', 'neuros', 'transfusions'
+            'visit', 'onglet', 'pansements', 'gavages', 'neuros', 'transfusions',
+            'actes', 'ordonnances'
         ));
     }
 
@@ -53,6 +88,8 @@ class DossierInfirmierController extends Controller
     // ══════════════════════════════════════════════════════════════
     public function storePansement(Request $request, Visit $visit): RedirectResponse
     {
+        $this->autoriserLeSoin();
+
         $donnees = $request->validate([
             'realise_a' => 'required|date',
             'localisation' => 'required|string|max:150',
@@ -89,6 +126,8 @@ class DossierInfirmierController extends Controller
     // ══════════════════════════════════════════════════════════════
     public function storeGavage(Request $request, Visit $visit): RedirectResponse
     {
+        $this->autoriserLeSoin();
+
         $donnees = $request->validate([
             'realise_a' => 'required|date',
             'sonde' => 'required|in:'.implode(',', array_keys(SoinGavage::SONDES)),
@@ -131,6 +170,8 @@ class DossierInfirmierController extends Controller
     // ══════════════════════════════════════════════════════════════
     public function storeNeuro(Request $request, Visit $visit): RedirectResponse
     {
+        $this->autoriserLeSoin();
+
         $donnees = $request->validate([
             'evalue_a' => 'required|date',
             'ouverture_yeux' => 'required|integer|min:1|max:4',
@@ -182,6 +223,8 @@ class DossierInfirmierController extends Controller
     // ══════════════════════════════════════════════════════════════
     public function storeTransfusion(Request $request, Visit $visit): RedirectResponse
     {
+        $this->autoriserLeSoin();
+
         $groupes = implode(',', Transfusion::GROUPES);
 
         $donnees = $request->validate([
@@ -237,6 +280,8 @@ class DossierInfirmierController extends Controller
     /** Clôture d'une poche en cours : on note l'heure de fin et l'incident. */
     public function terminerTransfusion(Request $request, Transfusion $transfusion): RedirectResponse
     {
+        $this->autoriserLeSoin();
+
         $donnees = $request->validate([
             'heure_fin' => 'required|date_format:H:i',
             'incident' => 'required|in:'.implode(',', array_keys(Transfusion::INCIDENTS)),
@@ -293,5 +338,46 @@ class DossierInfirmierController extends Controller
             priorite: $priorite,
             patientId: $visit->patient_id,
         );
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // Actes infirmiers
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Inscrit un acte réalisé.
+     *
+     * L'auteur et l'heure ne se choisissent pas : c'est l'agent connecté et
+     * l'horloge. Une trace qu'on peut antidater ou signer au nom d'un autre
+     * ne vaut pas comme trace — et à la relève, c'est elle qu'on lit pour
+     * savoir si la deuxième injection a été faite.
+     */
+    public function storeActe(Request $request, Visit $visit): RedirectResponse
+    {
+        $this->autoriserLeSoin();
+
+        $donnees = $request->validate([
+            'type' => ['required', Rule::in(array_keys(ActeInfirmier::TYPES))],
+            'precisions' => 'nullable|string|max:1000',
+            'observation' => 'nullable|string|max:1000',
+            'prescription_id' => 'nullable|uuid|exists:prescriptions,id',
+        ], [
+            'type.required' => 'Dites quel acte a été réalisé.',
+        ]);
+
+        $acte = ActeInfirmier::create([
+            'visit_id' => $visit->id,
+            'patient_id' => $visit->patient_id,
+            'user_id' => auth()->id(),
+            'type' => $donnees['type'],
+            'libelle' => ActeInfirmier::TYPES[$donnees['type']]['libelle'],
+            'precisions' => $donnees['precisions'] ?? null,
+            'observation' => $donnees['observation'] ?? null,
+            'prescription_id' => $donnees['prescription_id'] ?? null,
+            'realise_a' => now(),
+        ]);
+
+        return back()->with('success',
+            $acte->libelleType().' inscrit à '.$acte->realise_a->format('H:i').'.');
     }
 }
