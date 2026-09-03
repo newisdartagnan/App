@@ -6,6 +6,7 @@ use App\Models\Consultation;
 use App\Models\Facture;
 use App\Models\Patient;
 use App\Models\Visit;
+use App\Services\DiagnosticService;
 use App\Services\FacturationService;
 use App\Services\VisiteService;
 use Illuminate\Http\RedirectResponse;
@@ -14,6 +15,8 @@ use Illuminate\View\View;
 
 class ConsultationController extends Controller
 {
+    public function __construct(private readonly DiagnosticService $diagnostics) {}
+
     /**
      * File d'attente et historique des consultations.
      *
@@ -191,7 +194,14 @@ class ConsultationController extends Controller
                 ->with('error', "Ce patient est déjà au cabinet avec {$confrere}.");
         }
 
-        return view('consultations.create', ['visit' => $visit, 'patient' => $visit->patient]);
+        return view('consultations.create', [
+            'visit' => $visit,
+            'patient' => $visit->patient,
+            'referentielDiagnostics' => $this->diagnostics->referentiel()->map(fn ($e) => [
+                'valeur' => $this->diagnostics->proposition($e),
+                'aide' => trim($e->categorie.($e->synonymes ? ' — '.$e->synonymes : '')),
+            ]),
+        ]);
     }
 
     /**
@@ -222,6 +232,7 @@ class ConsultationController extends Controller
             'diagnostics' => 'nullable|array',
             'diagnostics.*.libelle' => 'nullable|string|max:255',
             'diagnostics.*.code_cim10' => 'nullable|string|max:20',
+            'diagnostics.*.code_cim11' => 'nullable|string|max:20',
         ]);
 
         $diagnostics = [];
@@ -229,9 +240,19 @@ class ConsultationController extends Controller
             if (blank($diag['libelle'] ?? null)) {
                 continue;
             }
+            // Le médecin n'a qu'un champ : « Paludisme grave (1F45) ». Le
+            // code s'en extrait ici, et la saisie libre reste intacte quand
+            // il n'y en a pas.
+            $pose = $this->diagnostics->decomposer($diag['libelle']);
+
             $diagnostics[] = [
-                'libelle' => trim($diag['libelle']),
-                'code_cim10' => strtoupper(trim($diag['code_cim10'] ?? '')),
+                'libelle' => $pose['libelle'],
+                'code_cim11' => $pose['code_cim11']
+                    ?: (strtoupper(trim($diag['code_cim11'] ?? '')) ?: null),
+                // L'ancien champ reste renseigné quand il est fourni : un
+                // dossier ouvert avant le passage à la CIM-11 ne se réécrit
+                // pas, et les rapports lisent encore les deux.
+                'code_cim10' => strtoupper(trim($diag['code_cim10'] ?? '')) ?: null,
                 'type' => $i === 0 ? 'principal' : 'associe',
             ];
         }

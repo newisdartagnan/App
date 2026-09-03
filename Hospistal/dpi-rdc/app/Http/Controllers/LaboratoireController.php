@@ -8,6 +8,7 @@ use App\Models\Patient;
 use App\Models\TypeExamen;
 use App\Models\Visit;
 use App\Services\AssemblagePdfService;
+use App\Services\DiagnosticService;
 use App\Services\FacturationService;
 use App\Services\LaboratoireService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -51,7 +52,12 @@ class LaboratoireController extends Controller
             ->orderBy('libelle')
             ->get();
 
-        return view('labo.create', compact('visit', 'types', 'domaine'));
+        return view('labo.create', [
+            ...compact('visit', 'types', 'domaine'),
+            // Le laboratoire interprète mieux un résultat quand il sait ce
+            // qu'on cherche : le diagnostic de la consultation vient d'office.
+            'diagnosticRepris' => app(DiagnosticService::class)->pourIndication($visit),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse

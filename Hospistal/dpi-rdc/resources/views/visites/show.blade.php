@@ -199,7 +199,8 @@
             </div>
             <div class="md:col-span-3">
                 <label for="s-obs" class="block text-xs text-gray-500 mb-1">Évolution durant le séjour</label>
-                <input id="s-obs" name="observations_sortie" maxlength="2000" value="{{ old('observations_sortie') }}"
+                <input id="s-obs" name="observations_sortie" maxlength="2000"
+                       value="{{ old('observations_sortie', app(\App\Services\DiagnosticService::class)->pourIndication($visit)) }}"
                        placeholder="Apyrexie obtenue à J3, reprise de l'alimentation…"
                        class="w-full border rounded-lg px-3 py-2 text-sm">
             </div>
