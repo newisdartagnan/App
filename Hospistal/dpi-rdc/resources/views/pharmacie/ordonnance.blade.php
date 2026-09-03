@@ -56,7 +56,7 @@
                     @endif
                 </td>
                 <td>{{ $ligne->posologie() }}</td>
-                <td>{{ $ligne->medicament?->libelleVoie() ?? $ligne->voie_administration }}</td>
+                <td>{{ $ligne->libelleVoie() }}</td>
                 @if(! $externe)
                 <td class="num">
                     {{ $ligne->quantiteADelivrer() + 0 }} {{ $ligne->medicament?->unite($ligne->quantiteADelivrer()) }}
@@ -77,6 +77,15 @@
         </tbody>
     </table>
 </div>
+
+@if($prescription->consignes_patient)
+{{-- Ce que le patient doit faire chez lui : cela ne tient à aucun produit
+     et doit se lire d'un coup d'œil, y compris par un proche. --}}
+<div style="margin-top:10px;border:1.5px solid #b45309;border-radius:6px;padding:8px;">
+    <div style="font-weight:bold;font-size:11px;color:#92400e;">Consignes pour le patient</div>
+    <p style="padding:4px 2px;font-size:12px;">{{ $prescription->consignes_patient }}</p>
+</div>
+@endif
 
 @if($prescription->observations)
 <div class="bloc">

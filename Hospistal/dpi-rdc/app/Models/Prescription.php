@@ -15,7 +15,7 @@ class Prescription extends Model
     // brouillon → en_attente_paiement → en_attente (payée) → dispensee
     protected $fillable = [
         'consultation_id', 'patient_id', 'prescripteur_id', 'officine_id',
-        'date_prescription', 'statut', 'observations', 'sync_status',
+        'date_prescription', 'statut', 'observations', 'consignes_patient', 'sync_status',
     ];
 
     protected function casts(): array
