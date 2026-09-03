@@ -103,6 +103,20 @@ class LignePrescription extends Model
             && (float) $this->quantite_facturee > (float) $this->quantite_totale;
     }
 
+    /**
+     * La voie prescrite, en toutes lettres.
+     *
+     * Celle de la ligne, et non celle de la fiche produit : c'est le
+     * prescripteur qui décide qu'un métronidazole passe en perfusion, et
+     * son choix doit parvenir au patient comme au pharmacien.
+     */
+    public function libelleVoie(): string
+    {
+        return Medicament::VOIES[$this->voie_administration]
+            ?? $this->medicament?->libelleVoie()
+            ?? Medicament::VOIES['autre'];
+    }
+
     /** Conditionnement délivré en toutes lettres : « 2 plaquettes de 10 comprimés ». */
     public function libelleConditionnement(): ?string
     {

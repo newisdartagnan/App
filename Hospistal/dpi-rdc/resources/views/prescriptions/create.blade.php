@@ -48,8 +48,8 @@
 
         @for($i = 0; $i < 5; $i++)
         <div class="border-b py-4">
-            <div class="grid grid-cols-2 md:grid-cols-12 gap-3 items-end">
-                <div class="col-span-2 md:col-span-5">
+            <div class="grid grid-cols-2 md:grid-cols-12 gap-3 items-start">
+                <div class="col-span-2 md:col-span-3">
                     <label for="med-{{ $i }}" class="block text-xs font-medium text-gray-600 mb-1">
                         Médicament de l'officine
                     </label>
@@ -89,9 +89,38 @@
                     <label for="qte-{{ $i }}" class="block text-xs font-medium text-gray-600 mb-1">
                         Quantité <span class="text-gray-400 font-normal">(calculée)</span>
                     </label>
+                    {{--
+                        Le champ affichait « auto » sans jamais montrer le
+                        nombre : le médecin signait une quantité qu'il ne
+                        voyait pas. Elle s'inscrit maintenant dès que la dose,
+                        les prises et les jours sont posés — et reste
+                        corrigeable à la main.
+                    --}}
                     <input id="qte-{{ $i }}" name="lignes[{{ $i }}][quantite_totale]" type="number" step="0.5" min="0.5"
-                           value="{{ old("lignes.$i.quantite_totale") }}" placeholder="auto"
-                           class="w-full min-h-[44px] rounded-lg border border-gray-300 px-2 py-2 text-sm">
+                           value="{{ old("lignes.$i.quantite_totale") }}"
+                           data-quantite-de="{{ $i }}" placeholder="—"
+                           class="w-full min-h-[44px] rounded-lg border border-gray-300 px-2 py-2 text-sm font-semibold">
+                    <p class="text-[11px] text-gray-500 mt-1" data-detail-quantite="{{ $i }}"></p>
+                </div>
+                <div class="md:col-span-2">
+                    <label for="voie-{{ $i }}" class="block text-xs font-medium text-gray-600 mb-1">
+                        Voie
+                    </label>
+                    {{--
+                        Elle suivait le médicament sans qu'on puisse la dire :
+                        or le métronidazole se donne per os ou en perfusion, et
+                        c'est le prescripteur qui tranche, pas la fiche
+                        produit. Le choix par défaut reste celui du produit.
+                    --}}
+                    <select id="voie-{{ $i }}" name="lignes[{{ $i }}][voie_administration]"
+                            class="w-full min-h-[44px] rounded-lg border border-gray-300 px-2 py-2 text-sm">
+                        <option value="">— selon le produit —</option>
+                        @foreach($voies as $cle => $libelle)
+                        <option value="{{ $cle }}" @selected(old("lignes.$i.voie_administration") === $cle)>
+                            {{ ucfirst($libelle) }}
+                        </option>
+                        @endforeach
+                    </select>
                 </div>
             </div>
 
@@ -121,8 +150,32 @@
             règle ailleurs. La facturation interne ne le prend pas en compte.
         </p>
 
+        {{--
+            Deux choses qu'une seule case confondait.
+
+            Les instructions d'un produit tiennent à la molécule et valent
+            pour n'importe qui. Les consignes ci-dessous tiennent à ce
+            patient-là : elles ne se rattachent à aucun médicament et
+            disparaîtraient si on les écrivait dans la case de l'un d'eux.
+        --}}
+        <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+            <label for="consignes_patient" class="block text-sm font-semibold text-amber-900 mb-1">
+                Consignes liées à l'état du patient
+            </label>
+            <p class="text-xs text-amber-800 mb-2">
+                Ce que le patient doit faire ou surveiller chez lui, indépendamment
+                des produits — repos, boissons, signes qui doivent le faire revenir.
+                Ces lignes s'impriment en évidence sur l'ordonnance.
+            </p>
+            <textarea id="consignes_patient" name="consignes_patient" rows="2" maxlength="1000"
+                      placeholder="Boire 3 litres d'eau par jour. Revenir immédiatement si la fièvre dépasse 39 °C ou si les vomissements empêchent de boire."
+                      class="w-full rounded-lg border border-amber-300 px-4 py-2 text-sm">{{ old('consignes_patient') }}</textarea>
+        </div>
+
         <div class="mt-4">
-            <label for="observations" class="block text-sm font-medium text-gray-700 mb-1">Observations</label>
+            <label for="observations" class="block text-sm font-medium text-gray-700 mb-1">
+                Observations <span class="text-gray-400 font-normal text-xs">— note du prescripteur, pour le dossier</span>
+            </label>
             <textarea id="observations" name="observations" rows="2"
                       class="w-full rounded-lg border border-gray-300 px-4 py-2">{{ old('observations') }}</textarea>
         </div>

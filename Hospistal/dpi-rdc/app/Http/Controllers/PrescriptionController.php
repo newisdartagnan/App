@@ -12,6 +12,7 @@ use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PrescriptionController extends Controller
@@ -37,7 +38,10 @@ class PrescriptionController extends Controller
                 return $medicament;
             });
 
-        return view('prescriptions.create', compact('consultation', 'medicaments', 'officine'));
+        return view('prescriptions.create', [
+            ...compact('consultation', 'medicaments', 'officine'),
+            'voies' => Medicament::VOIES,
+        ]);
     }
 
     /**
@@ -57,7 +61,9 @@ class PrescriptionController extends Controller
             'lignes.*.frequence' => 'nullable|integer|min:1|max:12',
             'lignes.*.duree_jours' => 'nullable|integer|min:1|max:365',
             'lignes.*.quantite_totale' => 'nullable|numeric|min:0.5',
+            'lignes.*.voie_administration' => ['nullable', Rule::in(array_keys(Medicament::VOIES))],
             'lignes.*.instructions' => 'nullable|string|max:255',
+            'consignes_patient' => 'nullable|string|max:1000',
         ], [
             'lignes.*.dose.numeric' => 'La dose est un nombre d\'unités par prise (1, 2, 0.5…).',
             'lignes.*.frequence.integer' => 'La fréquence est un nombre de prises par jour.',
@@ -116,6 +122,7 @@ class PrescriptionController extends Controller
                 'date_prescription' => now(),
                 'statut' => 'brouillon',
                 'observations' => $request->input('observations') ?: null,
+                'consignes_patient' => $request->input('consignes_patient') ?: null,
             ]);
 
             foreach ($lignes as $l) {
@@ -170,7 +177,11 @@ class PrescriptionController extends Controller
             'dose' => $dose + 0 .' '.($medicament?->unite($dose) ?? 'unité'.($dose > 1 ? 's' : '')),
             'frequence' => $frequence.'×/jour',
             'duree_jours' => $duree,
-            'voie_administration' => $medicament?->voie_administration ?? 'orale',
+            // Le prescripteur tranche : le métronidazole se donne per os ou
+            // en perfusion, et la fiche produit ne le sait pas. À défaut,
+            // la voie habituelle du produit.
+            'voie_administration' => ($donnees['voie_administration'] ?? null)
+                ?: ($medicament?->voie_administration ?? 'orale'),
             'instructions' => $donnees['instructions'] ?? null,
             'quantite_totale' => $quantite,
             'quantite_facturee' => $delivrance['unites'],
