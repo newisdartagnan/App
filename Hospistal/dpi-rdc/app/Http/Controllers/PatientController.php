@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Establishment;
+use App\Models\NotificationInterne;
 use App\Models\Patient;
 use App\Models\PatientAssurance;
 use App\Models\TypeConsultation;
@@ -283,6 +284,16 @@ class PatientController extends Controller
             ->orderBy('debut')
             ->get();
 
-        return view('patients.show', compact('patient', 'rendezVous'));
+        // Ce qui est arrivé sur ce dossier, quel que soit le confrère qui
+        // l'avait demandé : un résultat annoncé au seul prescripteur dort
+        // dans sa boîte quand il est en congé ou en salle.
+        $annonces = NotificationInterne::with(['destinataire', 'luPar'])
+            ->where('patient_id', $patient->id)
+            ->where('archive', false)
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+
+        return view('patients.show', compact('patient', 'rendezVous', 'annonces'));
     }
 }

@@ -15,8 +15,8 @@ class NotificationInterne extends Model
 
     protected $fillable = [
         'service', 'type', 'reference_type', 'reference_id', 'code_reference',
-        'titre', 'message', 'destinataire_id', 'groupe_destinataire',
-        'priorite', 'lu', 'read_at', 'archive',
+        'patient_id', 'titre', 'message', 'destinataire_id', 'groupe_destinataire',
+        'priorite', 'lu', 'read_at', 'lu_par', 'archive',
     ];
 
     protected function casts(): array
@@ -31,6 +31,23 @@ class NotificationInterne extends Model
     public function destinataire(): BelongsTo
     {
         return $this->belongsTo(User::class, 'destinataire_id');
+    }
+
+    /**
+     * Le dossier auquel l'annonce se rattache.
+     *
+     * C'est lui qui décide qui peut la lire : un résultat critique appartient
+     * au patient, pas au médecin qui l'a demandé et qui a fini sa garde.
+     */
+    public function patient(): BelongsTo
+    {
+        return $this->belongsTo(Patient::class);
+    }
+
+    /** Le confrère qui a pris l'annonce en charge. */
+    public function luPar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'lu_par');
     }
 
     /**
@@ -82,9 +99,19 @@ class NotificationInterne extends Model
 
         $roles = $user->getRoleNames()->all();
 
-        return $query->where(function (Builder $q) use ($user, $roles) {
+        // Un médecin voit tout ce qui touche un dossier de patient, quel
+        // que soit le confrère qui a prescrit : celui-ci peut être en congé,
+        // en salle, ou parti depuis six heures, pendant qu'une hémoglobine à
+        // 4 attend dans une boîte que personne d'autre n'ouvre.
+        $suitLesDossiers = $user->hasAnyRole(['medecin', 'infirmier_chef']);
+
+        return $query->where(function (Builder $q) use ($user, $roles, $suitLesDossiers) {
             $q->where('destinataire_id', $user->id)
                 ->orWhereIn('groupe_destinataire', array_merge($roles, ['tous']));
+
+            if ($suitLesDossiers) {
+                $q->orWhereNotNull('patient_id');
+            }
         });
     }
 

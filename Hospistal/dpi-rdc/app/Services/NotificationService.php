@@ -25,9 +25,11 @@ class NotificationService
         ?string $codeReference = null,
         ?string $destinataireId = null,
         ?string $groupeDestinataire = null,
-        string $priorite = 'normale'
+        string $priorite = 'normale',
+        ?string $patientId = null
     ): NotificationInterne {
         return NotificationInterne::create([
+            'patient_id' => $patientId,
             'service' => $service,
             'type' => $type,
             'titre' => $titre,
@@ -71,15 +73,16 @@ class NotificationService
         return $this->envoyer(
             service: $service,
             type: 'prescription_recue',
-            titre: strtoupper($service) . ' : ' . $examen->numero_bon,
-            message: 'Nouvelle prescription — ' . $examen->patient->nom_complet
-                . " ({$nb} examen(s))"
-                . ($examen->prescripteur ? ' — Dr ' . $examen->prescripteur->nom : ''),
+            titre: strtoupper($service).' : '.$examen->numero_bon,
+            message: 'Nouvelle prescription — '.$examen->patient->nom_complet
+                ." ({$nb} examen(s))"
+                .($examen->prescripteur ? ' — Dr '.$examen->prescripteur->nom : ''),
             referenceType: 'examen',
             referenceId: $examen->id,
             codeReference: $examen->numero_bon,
             groupeDestinataire: $this->groupePourDomaine($examen->domaine),
             priorite: $examen->urgence ? 'urgente' : 'normale',
+            patientId: $examen->patient_id,
         );
     }
 
@@ -98,14 +101,18 @@ class NotificationService
         return $this->envoyer(
             service: $service,
             type: 'resultat_pret',
-            titre: strtoupper($service) . ' : ' . $examen->numero_bon,
+            titre: strtoupper($service).' : '.$examen->numero_bon,
             message: ($examen->domaine === 'imagerie' ? 'Compte-rendu disponible' : 'Résultats disponibles')
-                . ' — ' . $examen->patient->nom_complet,
+                .' — '.$examen->patient->nom_complet,
             referenceType: 'examen',
             referenceId: $examen->id,
             codeReference: $examen->numero_bon,
+            // Le prescripteur reste nommé — il faut savoir qui a demandé —
+            // mais l'annonce se rattache au dossier : c'est là qu'un confrère
+            // qui reprend le patient doit la trouver.
             destinataireId: $examen->prescripteur_id,
             priorite: 'haute',
+            patientId: $examen->patient_id,
         );
     }
 
@@ -119,13 +126,14 @@ class NotificationService
         return $this->envoyer(
             service: 'pharmacie',
             type: 'prescription_recue',
-            titre: 'PHARMACIE : ordonnance ' . strtoupper(substr($prescription->id, 0, 8)),
-            message: 'Nouvelle ordonnance — ' . $prescription->patient->nom_complet
-                . ' (' . $prescription->lignes->count() . ' ligne(s))'
-                . ($prescription->prescripteur ? ' — Dr ' . $prescription->prescripteur->nom : ''),
+            titre: 'PHARMACIE : ordonnance '.strtoupper(substr($prescription->id, 0, 8)),
+            message: 'Nouvelle ordonnance — '.$prescription->patient->nom_complet
+                .' ('.$prescription->lignes->count().' ligne(s))'
+                .($prescription->prescripteur ? ' — Dr '.$prescription->prescripteur->nom : ''),
             referenceType: 'prescription',
             referenceId: $prescription->id,
             groupeDestinataire: 'pharmacien',
+            patientId: $prescription->patient_id,
         );
     }
 
@@ -143,12 +151,13 @@ class NotificationService
         return $this->envoyer(
             service: 'pharmacie',
             type: 'medicament_delivre',
-            titre: 'PHARMACIE : ordonnance ' . strtoupper(substr($prescription->id, 0, 8)),
-            message: 'Médicaments délivrés — ' . $prescription->patient->nom_complet,
+            titre: 'PHARMACIE : ordonnance '.strtoupper(substr($prescription->id, 0, 8)),
+            message: 'Médicaments délivrés — '.$prescription->patient->nom_complet,
             referenceType: 'prescription',
             referenceId: $prescription->id,
             destinataireId: $prescription->prescripteur_id,
             priorite: 'haute',
+            patientId: $prescription->patient_id,
         );
     }
 
