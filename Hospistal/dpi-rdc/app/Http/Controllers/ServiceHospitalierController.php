@@ -8,6 +8,7 @@ use App\Models\Service;
 use App\Models\SigneVital;
 use App\Models\User;
 use App\Models\Visit;
+use App\Services\VisiteService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -68,7 +69,20 @@ class ServiceHospitalierController extends Controller
             ->whereNull('lit_id')
             ->get();
 
-        return view('services.show', compact('service', 'lits', 'visites', 'sansLit'));
+        // Les patients que le médecin vient d'orienter ici : ils ne sont pas
+        // encore hospitalisés, mais le service doit préparer le lit avant
+        // qu'ils n'arrivent à sa porte.
+        $admissionsDemandees = Visit::with(['patient', 'admissionPar'])
+            ->where('admission_service_id', $service->id)
+            ->whereNotNull('admission_demandee_le')
+            ->where('statut', 'en_cours')
+            ->where('type', '!=', 'hospitalisation')
+            ->orderBy('admission_demandee_le')
+            ->get();
+
+        return view('services.show', compact(
+            'service', 'lits', 'visites', 'sansLit', 'admissionsDemandees'
+        ));
     }
 
     /**
@@ -202,5 +216,40 @@ class ServiceHospitalierController extends Controller
         $lit->update(['statut' => $request->statut]);
 
         return back()->with('success', 'Lit '.$lit->numero.' : '.str_replace('_', ' ', $request->statut).'.');
+    }
+
+    /**
+     * Le service attribue un lit à un patient qu'on lui a orienté.
+     *
+     * La décision médicale et la logistique restent séparées : le médecin a
+     * nommé le service, le service choisit la place. C'est ici seulement que
+     * le séjour devient une hospitalisation.
+     */
+    public function admettre(Request $request, Service $service, Visit $visit): RedirectResponse
+    {
+        abort_unless(
+            auth()->user()->hasAnyRole(['super_admin', 'directeur', 'infirmier_chef', 'medecin']),
+            403,
+            'Réservé à l\'encadrement du service.'
+        );
+
+        $donnees = $request->validate([
+            'lit_id' => 'required|uuid|exists:lits,id',
+        ], [
+            'lit_id.required' => 'Choisissez le lit où coucher le patient.',
+        ]);
+
+        if ($visit->admission_service_id !== $service->id) {
+            return back()->with('error', 'Ce patient n\'a pas été orienté vers ce service.');
+        }
+
+        try {
+            app(VisiteService::class)->hospitaliser($visit, $service->id, $donnees['lit_id']);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Ce lit vient d\'être pris — choisissez-en un autre.');
+        }
+
+        return back()->with('success',
+            $visit->patient->nom_complet.' est admis en '.$service->nom.'.');
     }
 }

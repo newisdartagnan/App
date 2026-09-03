@@ -24,11 +24,13 @@ class Visit extends Model
         'observations_sortie', 'recommandations_sortie', 'rendez_vous_controle', 'sortie_par',
         'consultation_debutee_at', 'consultation_par',
         'forfait_id', 'forfait_montant', 'forfait_facture_id',
+        'admission_demandee_le', 'admission_service_id', 'admission_par',
     ];
 
     protected function casts(): array
     {
         return [
+            'admission_demandee_le' => 'datetime',
             'date_entree' => 'datetime',
             'date_sortie' => 'datetime',
             'est_payant' => 'boolean',
@@ -294,5 +296,24 @@ class Visit extends Model
         $fin = $this->date_sortie ?? now();
 
         return max(1, (int) $this->date_entree->diffInDays($fin) + 1);
+    }
+
+    /** Le médecin qui a demandé l'admission, et le service qu'il a nommé. */
+    public function admissionPar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admission_par');
+    }
+
+    public function admissionService(): BelongsTo
+    {
+        return $this->belongsTo(Service::class, 'admission_service_id');
+    }
+
+    /** Le patient attend-il un lit dans un service ? */
+    public function attendUnLit(): bool
+    {
+        return $this->admission_demandee_le !== null
+            && $this->type !== 'hospitalisation'
+            && $this->statut === 'en_cours';
     }
 }
