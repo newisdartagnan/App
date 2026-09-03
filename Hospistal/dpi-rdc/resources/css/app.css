@@ -156,3 +156,213 @@
     /* Une ligne de tableau ne se coupe pas entre deux feuilles. */
     tr, .dpi-bloc-insecable { break-inside: avoid; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Les thèmes.
+
+   « Trop de blanc », disent ceux qui passent la journée devant l'écran.
+   Un fond blanc pur sous un néon d'hôpital fatigue au bout d'une heure,
+   et la garde de nuit travaille dans une salle éteinte avec un écran qui
+   éblouit.
+
+   Tout passe par les variables de couleur : les six cent seize classes
+   déjà écrites dans les écrans n'ont pas à changer, c'est ce qu'elles
+   désignent qui change. Une couleur redéfinie ici se propage partout.
+
+   Deux règles tiennent ces palettes.
+
+   Le contraste d'abord : on lit ici des posologies et des groupes
+   sanguins. Chaque texte reste nettement détaché de son fond, et les
+   couleurs d'alerte — le rouge d'un dépistage positif, l'ambre d'une
+   annonce périmée — gardent leur force dans tous les thèmes. Un thème
+   qui rend une alerte discrète est un thème dangereux.
+
+   L'échelle des gris ensuite : dans les écrans, les petits numéros font
+   les fonds (gray-50, gray-100) et les grands font les textes (gray-700,
+   gray-800). Un thème sombre inverse donc l'échelle plutôt que de
+   l'assombrir uniformément — sinon le texte noir resterait noir sur un
+   fond devenu noir.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Repos : le papier plutôt que la lampe ─────────────────────────
+   Le blanc pur devient un blanc cassé chaud, comme une feuille sous une
+   lampe de bureau. C'est le thème demandé par ceux qui trouvent
+   l'application « trop blanche » sans vouloir travailler dans le noir. */
+:root[data-theme='repos'] {
+    --color-white: oklch(98.6% 0.008 85);
+    --color-gray-50: oklch(96.8% 0.011 85);
+    --color-gray-100: oklch(94.2% 0.014 85);
+    --color-gray-200: oklch(89.5% 0.016 85);
+    --color-gray-300: oklch(82% 0.018 85);
+    --color-gray-400: oklch(66% 0.020 80);
+    --color-gray-500: oklch(54% 0.022 75);
+    --color-gray-600: oklch(45% 0.022 70);
+    --color-gray-700: oklch(37% 0.020 68);
+    --color-gray-800: oklch(29% 0.018 66);
+    --color-gray-900: oklch(21% 0.016 64);
+}
+
+:root[data-theme='repos'] body {
+    background-color: oklch(96.8% 0.011 85);
+}
+
+/* ── Sombre : la garde de nuit ─────────────────────────────────────
+   L'échelle des gris s'inverse — les fonds deviennent sombres, les
+   textes clairs — et les aplats colorés pâles (bleu 50, rouge 50) se
+   foncent pour rester des aplats et non des projecteurs. */
+:root[data-theme='sombre'] {
+    --color-white: oklch(27% 0.019 258);
+    --color-gray-50: oklch(23% 0.020 258);
+    --color-gray-100: oklch(31% 0.021 258);
+    --color-gray-200: oklch(37% 0.022 258);
+    --color-gray-300: oklch(45% 0.022 258);
+    --color-gray-400: oklch(60% 0.020 258);
+    --color-gray-500: oklch(70% 0.018 256);
+    --color-gray-600: oklch(79% 0.015 254);
+    --color-gray-700: oklch(86% 0.012 252);
+    --color-gray-800: oklch(92% 0.009 250);
+    --color-gray-900: oklch(97% 0.006 248);
+
+    /* Les aplats pâles : ils doivent rester des fonds. */
+    --color-blue-50: oklch(30% 0.045 258);
+    --color-blue-100: oklch(35% 0.060 258);
+    --color-green-50: oklch(29% 0.045 155);
+    --color-green-100: oklch(34% 0.060 155);
+    --color-red-50: oklch(30% 0.055 25);
+    --color-red-100: oklch(35% 0.075 25);
+    --color-amber-50: oklch(30% 0.050 75);
+    --color-amber-100: oklch(35% 0.070 75);
+    --color-purple-50: oklch(30% 0.050 300);
+    --color-purple-100: oklch(35% 0.065 300);
+
+    /* Les couleurs pleines s'éclaircissent : sur fond sombre, un bleu 800
+       devient un trou noir, et une alerte doit rester une alerte. */
+    --color-blue-700: oklch(62% 0.150 258);
+    --color-blue-800: oklch(55% 0.140 258);
+    --color-blue-900: oklch(47% 0.125 258);
+    --color-green-700: oklch(63% 0.140 155);
+    --color-green-800: oklch(56% 0.130 155);
+    --color-red-600: oklch(64% 0.185 25);
+    --color-red-700: oklch(58% 0.175 25);
+    --color-red-800: oklch(52% 0.160 25);
+    --color-amber-500: oklch(76% 0.150 75);
+    --color-amber-600: oklch(70% 0.145 70);
+}
+
+:root[data-theme='sombre'] body {
+    background-color: oklch(19% 0.018 258);
+    color: oklch(92% 0.009 250);
+}
+
+/* Les champs de saisie : sans cela, ils restent blancs et éblouissent
+   au milieu d'un écran sombre — c'est précisément ce qu'on fuyait. */
+:root[data-theme='sombre'] input,
+:root[data-theme='sombre'] select,
+:root[data-theme='sombre'] textarea {
+    background-color: oklch(23% 0.020 258);
+    color: oklch(94% 0.008 250);
+}
+
+:root[data-theme='sombre'] input::placeholder,
+:root[data-theme='sombre'] textarea::placeholder {
+    color: oklch(62% 0.018 256);
+}
+
+/* ── Contraste : le plein soleil et la vue basse ───────────────────
+   Noir sur blanc, sans demi-teinte, et des bordures qu'on voit. Pour un
+   poste près d'une fenêtre, ou pour qui distingue mal les nuances. */
+:root[data-theme='contraste'] {
+    --color-white: oklch(100% 0 0);
+    --color-gray-50: oklch(100% 0 0);
+    --color-gray-100: oklch(96% 0 0);
+    --color-gray-200: oklch(85% 0 0);
+    --color-gray-300: oklch(70% 0 0);
+    --color-gray-400: oklch(48% 0 0);
+    --color-gray-500: oklch(36% 0 0);
+    --color-gray-600: oklch(26% 0 0);
+    --color-gray-700: oklch(18% 0 0);
+    --color-gray-800: oklch(10% 0 0);
+    --color-gray-900: oklch(0% 0 0);
+
+    --color-blue-700: oklch(38% 0.200 258);
+    --color-blue-800: oklch(32% 0.185 258);
+    --color-red-600: oklch(42% 0.230 25);
+    --color-green-700: oklch(38% 0.155 155);
+}
+
+:root[data-theme='contraste'] body {
+    background-color: oklch(100% 0 0);
+}
+
+/* Les pastilles d'état — « privé », « assurance », « indigent » — se lisent
+   d'un coup d'œil dans une liste de cent lignes, ou ne servent à rien. En
+   contraste élevé, leurs aplats pâles s'affirment. */
+:root[data-theme='contraste'] {
+    --color-blue-100: oklch(84% 0.090 258);
+    --color-blue-700: oklch(30% 0.180 258);
+    --color-green-100: oklch(85% 0.090 155);
+    --color-green-800: oklch(30% 0.130 155);
+    --color-red-100: oklch(86% 0.090 25);
+    --color-red-700: oklch(35% 0.200 25);
+    --color-amber-100: oklch(88% 0.110 85);
+    --color-amber-800: oklch(35% 0.130 70);
+    --color-purple-100: oklch(85% 0.090 300);
+}
+
+/* Une bordure grise pâle disparaît pour qui voit mal : on les affirme. */
+:root[data-theme='contraste'] .shadow,
+:root[data-theme='contraste'] .shadow-lg {
+    box-shadow: none;
+    border: 2px solid oklch(18% 0 0);
+}
+
+:root[data-theme='contraste'] input,
+:root[data-theme='contraste'] select,
+:root[data-theme='contraste'] textarea {
+    border-width: 2px;
+    border-color: oklch(18% 0 0);
+}
+
+/*
+   L'impression ne suit jamais le thème.
+
+   Un bulletin de sortie imprimé depuis un poste en mode sombre sortirait
+   en blanc sur fond noir — illisible, et une cartouche d'encre par
+   patient. Le papier reste le papier.
+*/
+@media print {
+    :root[data-theme='sombre'],
+    :root[data-theme='repos'],
+    :root[data-theme='contraste'] {
+        --color-white: #fff;
+        --color-gray-50: #f9fafb;
+        --color-gray-100: #f3f4f6;
+        --color-gray-200: #e5e7eb;
+        --color-gray-300: #d1d5db;
+        --color-gray-400: #9ca3af;
+        --color-gray-500: #6b7280;
+        --color-gray-600: #4b5563;
+        --color-gray-700: #374151;
+        --color-gray-800: #1f2937;
+        --color-gray-900: #111827;
+        --color-blue-50: #eff6ff;
+        --color-blue-100: #dbeafe;
+        --color-red-50: #fef2f2;
+        --color-amber-50: #fffbeb;
+        --color-green-50: #f0fdf4;
+    }
+
+    :root[data-theme='sombre'] body,
+    :root[data-theme='repos'] body,
+    :root[data-theme='contraste'] body {
+        background: #fff !important;
+        color: #111827 !important;
+    }
+
+    :root[data-theme='sombre'] input,
+    :root[data-theme='sombre'] select,
+    :root[data-theme='sombre'] textarea {
+        background-color: #fff;
+        color: #111827;
+    }
+}
