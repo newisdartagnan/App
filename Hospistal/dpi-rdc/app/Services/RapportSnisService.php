@@ -58,18 +58,18 @@ class RapportSnisService
      * des diagnostics, et l'écart se voit.
      */
     public const PATHOLOGIES = [
-        'paludisme' => ['libelle' => 'Paludisme', 'mots' => ['paludisme', 'malaria'], 'cim' => ['B50', 'B51', 'B52', 'B53', 'B54']],
-        'ira' => ['libelle' => 'Infections respiratoires aiguës', 'mots' => ['respiratoire', 'pneumonie', 'bronchite', 'rhinopharyngite', 'angine'], 'cim' => ['J00', 'J01', 'J02', 'J03', 'J04', 'J06', 'J12', 'J13', 'J14', 'J15', 'J18', 'J20', 'J21', 'J22']],
-        'diarrhee' => ['libelle' => 'Maladies diarrhéiques', 'mots' => ['diarrh', 'gastro-ent', 'gastroent'], 'cim' => ['A00', 'A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09']],
-        'fievre_typhoide' => ['libelle' => 'Fièvre typhoïde', 'mots' => ['typho'], 'cim' => ['A01']],
-        'tuberculose' => ['libelle' => 'Tuberculose', 'mots' => ['tuberculose'], 'cim' => ['A15', 'A16', 'A17', 'A18', 'A19']],
-        'vih' => ['libelle' => 'VIH / sida', 'mots' => ['vih', 'sida'], 'cim' => ['B20', 'B21', 'B22', 'B23', 'B24']],
-        'malnutrition' => ['libelle' => 'Malnutrition', 'mots' => ['malnutrition', 'kwashiorkor', 'marasme'], 'cim' => ['E40', 'E41', 'E42', 'E43', 'E44', 'E45', 'E46']],
-        'anemie' => ['libelle' => 'Anémie', 'mots' => ['anémie', 'anemie'], 'cim' => ['D50', 'D51', 'D52', 'D53', 'D64']],
-        'hta' => ['libelle' => 'Hypertension artérielle', 'mots' => ['hypertension', 'hta'], 'cim' => ['I10', 'I11', 'I12', 'I13', 'I15']],
-        'diabete' => ['libelle' => 'Diabète', 'mots' => ['diab'], 'cim' => ['E10', 'E11', 'E12', 'E13', 'E14']],
-        'ist' => ['libelle' => 'Infections sexuellement transmissibles', 'mots' => ['ist ', 'syphilis', 'gonococ', 'blennorrag'], 'cim' => ['A50', 'A51', 'A52', 'A53', 'A54', 'A55', 'A56', 'A57', 'A58', 'A59', 'A60', 'A63', 'A64']],
-        'traumatismes' => ['libelle' => 'Traumatismes et accidents', 'mots' => ['fracture', 'plaie', 'traumat', 'brûlure', 'brulure', 'entorse', 'luxation'], 'cim' => ['S', 'T', 'V', 'W', 'X', 'Y']],
+        'paludisme' => ['libelle' => 'Paludisme', 'mots' => ['paludisme', 'malaria'], 'cim' => ['B50', 'B51', 'B52', 'B53', 'B54'], 'cim11' => ['1F4']],
+        'ira' => ['libelle' => 'Infections respiratoires aiguës', 'mots' => ['respiratoire', 'pneumonie', 'bronchite', 'rhinopharyngite', 'angine'], 'cim' => ['J00', 'J01', 'J02', 'J03', 'J04', 'J06', 'J12', 'J13', 'J14', 'J15', 'J18', 'J20', 'J21', 'J22'], 'cim11' => ['CA4', 'CA2', 'CA0']],
+        'diarrhee' => ['libelle' => 'Maladies diarrhéiques', 'mots' => ['diarrh', 'gastro-ent', 'gastroent'], 'cim' => ['A00', 'A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09'], 'cim11' => ['1A4', '1A2', 'ME05']],
+        'fievre_typhoide' => ['libelle' => 'Fièvre typhoïde', 'mots' => ['typho'], 'cim' => ['A01'], 'cim11' => ['1A07']],
+        'tuberculose' => ['libelle' => 'Tuberculose', 'mots' => ['tuberculose'], 'cim' => ['A15', 'A16', 'A17', 'A18', 'A19'], 'cim11' => ['1B1']],
+        'vih' => ['libelle' => 'VIH / sida', 'mots' => ['vih', 'sida'], 'cim' => ['B20', 'B21', 'B22', 'B23', 'B24'], 'cim11' => ['1C6']],
+        'malnutrition' => ['libelle' => 'Malnutrition', 'mots' => ['malnutrition', 'kwashiorkor', 'marasme'], 'cim' => ['E40', 'E41', 'E42', 'E43', 'E44', 'E45', 'E46'], 'cim11' => ['5B5']],
+        'anemie' => ['libelle' => 'Anémie', 'mots' => ['anémie', 'anemie'], 'cim' => ['D50', 'D51', 'D52', 'D53', 'D64'], 'cim11' => ['3A']],
+        'hta' => ['libelle' => 'Hypertension artérielle', 'mots' => ['hypertension', 'hta'], 'cim' => ['I10', 'I11', 'I12', 'I13', 'I15'], 'cim11' => ['BA0']],
+        'diabete' => ['libelle' => 'Diabète', 'mots' => ['diab'], 'cim' => ['E10', 'E11', 'E12', 'E13', 'E14'], 'cim11' => ['5A1']],
+        'ist' => ['libelle' => 'Infections sexuellement transmissibles', 'mots' => ['ist ', 'syphilis', 'gonococ', 'blennorrag'], 'cim' => ['A50', 'A51', 'A52', 'A53', 'A54', 'A55', 'A56', 'A57', 'A58', 'A59', 'A60', 'A63', 'A64'], 'cim11' => ['1A6', 'GA0']],
+        'traumatismes' => ['libelle' => 'Traumatismes et accidents', 'mots' => ['fracture', 'plaie', 'traumat', 'brûlure', 'brulure', 'entorse', 'luxation'], 'cim' => ['S', 'T', 'V', 'W', 'X', 'Y'], 'cim11' => ['N', 'PA8']],
     ];
 
     /** Rubriques du canevas que l'application ne suit pas encore. */
@@ -230,7 +230,11 @@ class RapportSnisService
                 }
 
                 $totalDiagnostics++;
-                $cle = $this->pathologieDe($libelle, $diagnostic['code_cim10'] ?? null) ?? 'autres';
+                // Les dossiers ouverts avant le passage à la CIM-11 portent
+                // encore leur code CIM-10 : le rapport lit les deux, sinon
+                // l'historique se viderait du jour au lendemain.
+                $code = $diagnostic['code_cim11'] ?? $diagnostic['code_cim10'] ?? null;
+                $cle = $this->pathologieDe($libelle, $code) ?? 'autres';
 
                 $lignes[$cle][$petit]++;
                 $lignes[$cle]['total']++;
@@ -262,7 +266,10 @@ class RapportSnisService
                 continue;
             }
 
-            foreach ($pathologie['cim'] as $prefixe) {
+            // Les deux nomenclatures cohabitent : les dossiers ouverts
+            // avant le passage à la CIM-11 gardent leur code CIM-10, et le
+            // rapport doit continuer de les classer.
+            foreach (array_merge($pathologie['cim'], $pathologie['cim11'] ?? []) as $prefixe) {
                 if (str_starts_with($code, $prefixe)) {
                     return $cle;
                 }

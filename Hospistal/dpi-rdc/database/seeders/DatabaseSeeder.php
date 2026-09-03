@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             EstablishmentSeeder::class,
             HospitalReferenceSeeder::class,
             ReferentielMedicalSeeder::class,
+            DiagnosticCim11Seeder::class,
             TypeDieteSeeder::class,
             BlocOperatoireSeeder::class,
             DialyseSeeder::class,

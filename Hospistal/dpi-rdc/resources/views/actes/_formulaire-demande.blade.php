@@ -1,3 +1,9 @@
+@php
+    // Le diagnostic de l'épisode, proposé en indication. Calculé ici parce
+    // que ce formulaire est inclus depuis trois écrans différents.
+    $diagnosticRepris = app(\App\Services\DiagnosticService::class)
+        ->pourIndication($visit ?? null);
+@endphp
 {{--
     Demande d'acte clinique.
 
@@ -100,8 +106,11 @@
             Indication
         </label>
         <input id="d-ind-{{ $suffixe }}" name="indication" maxlength="1000"
-               value="{{ old('indication') }}" placeholder="Motif de la demande"
+               value="{{ old('indication', $diagnosticRepris ?? null) }}" placeholder="Motif de la demande"
                class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm">
+        @if(($diagnosticRepris ?? null) && ! old('indication'))
+        <p class="text-[11px] text-blue-700 mt-1">Repris du diagnostic de la consultation.</p>
+        @endif
     </div>
 
     <div class="md:col-span-4 flex flex-wrap gap-5 items-center pt-1">

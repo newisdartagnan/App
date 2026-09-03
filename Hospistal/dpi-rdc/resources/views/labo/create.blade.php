@@ -60,7 +60,12 @@
 
         <div>
             <label class="block text-sm text-gray-600 mb-1">Observations cliniques</label>
-            <textarea name="observations" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+            {{-- Ce que le laboratoire doit savoir pour interpréter : le
+                 diagnostic de la consultation vient d'office, corrigeable. --}}
+            <textarea name="observations" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm">{{ old('observations', $diagnosticRepris ?? null) }}</textarea>
+            @if($diagnosticRepris ?? null)
+            <p class="text-[11px] text-blue-700 mt-1">Repris du diagnostic de la consultation.</p>
+            @endif
         </div>
 
         <p class="text-xs text-amber-700 bg-amber-50 p-3 rounded-lg">Une facture sera émise au guichet avant réalisation des examens.</p>

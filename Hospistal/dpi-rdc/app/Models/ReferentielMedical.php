@@ -16,11 +16,14 @@ class ReferentielMedical extends Model
 
     protected $table = 'referentiel_medical';
 
-    protected $fillable = ['type', 'code', 'libelle', 'categorie', 'molecule', 'est_actif'];
+    protected $fillable = [
+        'type', 'code', 'code_verifie', 'libelle', 'synonymes',
+        'categorie', 'molecule', 'est_actif',
+    ];
 
     protected function casts(): array
     {
-        return ['est_actif' => 'boolean'];
+        return ['est_actif' => 'boolean', 'code_verifie' => 'boolean'];
     }
 
     public function scopeAntecedents($query)

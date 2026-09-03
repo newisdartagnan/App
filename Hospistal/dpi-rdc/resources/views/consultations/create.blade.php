@@ -85,21 +85,42 @@
 
         <div class="bg-white rounded-xl shadow p-6 space-y-4">
             <h3 class="font-semibold text-gray-700 pb-2 border-b">Diagnostics</h3>
+
+            {{-- Les diagnostics courants en RDC, avec leur code CIM-11.
+                 Le navigateur les propose au fil de la frappe, sans script. --}}
+            <datalist id="cim11-diagnostics">
+                @foreach($referentielDiagnostics as $entree)
+                <option value="{{ $entree['valeur'] }}">{{ $entree['aide'] }}</option>
+                @endforeach
+            </datalist>
+
+            <p class="text-xs text-gray-500">
+                Tapez les premières lettres — « palu », « TB », « HTA » — la liste
+                propose le libellé et son code CIM-11. Ce qui n'y figure pas
+                s'écrit librement : le dossier le garde tel quel.
+            </p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 @for($i = 0; $i < 3; $i++)
                 <div class="border rounded-lg p-3 {{ $i === 0 ? 'border-blue-300 bg-blue-50/40' : 'border-gray-200' }}">
                     <p class="text-xs font-semibold {{ $i === 0 ? 'text-blue-700' : 'text-gray-500' }} mb-2">
                         {{ $i === 0 ? 'Diagnostic principal' : 'Diagnostic associé ' . $i }}
                     </p>
-                    <label for="diag-lib-{{ $i }}" class="sr-only">Libellé</label>
+                    {{--
+                        Un seul champ, avec la liste des diagnostics courants
+                        en suggestion. Le code se lit entre parenthèses et le
+                        serveur le sépare du libellé : deux champs à remplir
+                        pour une seule idée, c'était un de trop.
+
+                        La liste ne ferme rien : ce qui n'y figure pas
+                        s'écrit à la main et se garde tel quel, sans code. Un
+                        catalogue incomplet ne doit jamais empêcher de poser
+                        un diagnostic.
+                    --}}
+                    <label for="diag-lib-{{ $i }}" class="sr-only">Diagnostic</label>
                     <input id="diag-lib-{{ $i }}" name="diagnostics[{{ $i }}][libelle]" type="text"
+                        list="cim11-diagnostics" autocomplete="off"
                         value="{{ old('diagnostics.' . $i . '.libelle') }}"
-                        placeholder="Libellé (ex: paludisme simple)"
-                        class="w-full min-h-[40px] rounded border border-gray-300 px-3 py-1.5 text-sm mb-2">
-                    <label for="diag-cim-{{ $i }}" class="sr-only">Code CIM-10</label>
-                    <input id="diag-cim-{{ $i }}" name="diagnostics[{{ $i }}][code_cim10]" type="text"
-                        value="{{ old('diagnostics.' . $i . '.code_cim10') }}"
-                        placeholder="Code CIM-10 (ex: B50)"
+                        placeholder="Chercher ou écrire (ex : palu, TB, HTA…)"
                         class="w-full min-h-[40px] rounded border border-gray-300 px-3 py-1.5 text-sm">
                 </div>
                 @endfor
