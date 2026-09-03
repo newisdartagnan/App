@@ -197,6 +197,49 @@
     </div>
     @endif
 
+    {{--
+        Ce qui est arrivé sur ce dossier.
+
+        Un résultat de laboratoire n'était annoncé qu'au médecin qui l'avait
+        demandé — lequel finit sa garde, part en congé, consulte ailleurs.
+        Une hémoglobine à 4 n'appartient pas à un médecin : elle appartient
+        au dossier. Elle se lit donc ici, par qui reprend le patient.
+    --}}
+    @if($annonces->isNotEmpty())
+    <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b">
+            <h3 class="font-semibold text-gray-700">
+                🔔 Ce qui est arrivé sur ce dossier
+                <span class="text-xs font-normal text-gray-400">— {{ $annonces->count() }}</span>
+            </h3>
+        </div>
+        <div class="divide-y divide-gray-100">
+            @foreach($annonces as $annonce)
+            <div class="px-6 py-3 flex flex-wrap items-start justify-between gap-3 {{ $annonce->lu ? '' : 'bg-blue-50/50' }}">
+                <div class="min-w-0">
+                    <p class="font-medium text-sm text-gray-800">
+                        {{ $annonce->titre }}
+                        @if(! $annonce->lu)
+                        <span class="ml-1 text-[10px] font-bold uppercase bg-blue-600 text-white rounded px-1.5 py-0.5">nouveau</span>
+                        @endif
+                    </p>
+                    <p class="text-sm text-gray-600">{{ $annonce->message }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">
+                        {{ $annonce->created_at->format('d/m/Y à H:i') }}
+                        @if($annonce->destinataire) · demandé par {{ $annonce->destinataire->nom_complet }} @endif
+                        @if($annonce->lu && $annonce->luPar) · pris en charge par {{ $annonce->luPar->nom_complet }} @endif
+                    </p>
+                </div>
+                @if($annonce->lien())
+                <a href="{{ $annonce->lien() }}"
+                   class="shrink-0 text-sm font-semibold text-blue-700 hover:underline">Ouvrir →</a>
+                @endif
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- Historique des consultations --}}
     <div class="bg-white rounded-xl shadow overflow-hidden">
         <div class="px-6 py-4 border-b">

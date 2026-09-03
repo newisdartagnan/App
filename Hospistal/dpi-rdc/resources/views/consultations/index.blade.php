@@ -23,7 +23,10 @@
                     <label for="filtre-specialite" class="text-xs text-green-800">Spécialité</label>
                     <select id="filtre-specialite" name="specialite"
                             class="border border-green-300 rounded-lg px-2 py-1 text-xs bg-white">
-                        <option value="">Toutes ({{ $fileAttente->count() }})</option>
+                        {{-- « Toutes » compte la file entière, pas ce qui reste
+                             après filtrage : un médecin doit voir combien de
+                             patients attendent au-delà de sa spécialité. --}}
+                        <option value="">Toutes spécialités ({{ $toutesLesAttentes->count() }})</option>
                         @foreach($specialitesEnFile as $s)
                         <option value="{{ $s }}" @selected($specialite === $s)>{{ $s }}</option>
                         @endforeach

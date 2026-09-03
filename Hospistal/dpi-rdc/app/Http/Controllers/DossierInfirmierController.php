@@ -286,9 +286,12 @@ class DossierInfirmierController extends Controller
             referenceType: $referenceType,
             referenceId: $referenceId,
             codeReference: $visit->patient->dossier_number ?? null,
+            // Une alerte de soins concerne le patient, pas seulement le
+            // médecin qui l'a admis : c'est celui qui est là qui doit agir.
             destinataireId: $visit->user_id,
             groupeDestinataire: $visit->user_id ? null : 'medecin',
             priorite: $priorite,
+            patientId: $visit->patient_id,
         );
     }
 }

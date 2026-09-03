@@ -38,7 +38,13 @@ class NotificationController extends Controller
 
     public function marquerLue(Request $request, NotificationInterne $notification): RedirectResponse
     {
-        $notification->update(['lu' => true, 'read_at' => now()]);
+        // Une annonce partagée : dire qui l'a prise en charge évite qu'on
+        // la traite à trois, ou qu'on croie que personne ne l'a vue.
+        $notification->update([
+            'lu' => true,
+            'read_at' => now(),
+            'lu_par' => $request->user()->id,
+        ]);
 
         // Le bouton « Voir » marque comme lu puis ouvre la page concernée
         if ($request->boolean('ouvrir') && $notification->lien()) {
@@ -55,7 +61,7 @@ class NotificationController extends Controller
             ->actives()
             ->nonLues()
             ->when($request->filled('service'), fn ($q) => $q->where('service', $request->service))
-            ->update(['lu' => true, 'read_at' => now()]);
+            ->update(['lu' => true, 'read_at' => now(), 'lu_par' => $request->user()->id]);
 
         return back()->with('success', 'Notifications marquées comme lues.');
     }

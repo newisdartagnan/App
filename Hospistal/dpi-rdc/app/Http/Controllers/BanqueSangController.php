@@ -470,6 +470,7 @@ class BanqueSangController extends Controller
                 codeReference: $demande->numero,
                 destinataireId: $demande->demandeur_id,
                 priorite: $demande->urgence ? 'urgente' : 'haute',
+                patientId: $demande->patient_id,
             );
         }
 

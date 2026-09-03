@@ -59,7 +59,15 @@ class ConsultationController extends Controller
             ->orderBy('date_entree')
             ->get();
 
-        if ($estMedecin) {
+        // Ce que la file contient réellement, avant tout filtre : c'est là
+        // que se lisent les spécialités qu'on peut demander.
+        $toutesLesAttentes = $fileAttente;
+
+        // La spécialité oriente la file, elle ne la ferme pas : un médecin
+        // qui choisit explicitement une autre spécialité — ou « toutes » —
+        // doit pouvoir prendre le patient d'un confrère absent. Sans quoi
+        // un dossier attend qu'un seul homme revienne.
+        if ($estMedecin && $specialite === '') {
             $fileAttente = $fileAttente->filter(function ($v) use ($maSpecialite) {
                 $specialite = $v->typeConsultation?->specialite ?: 'Médecine générale';
 
@@ -75,7 +83,7 @@ class ConsultationController extends Controller
             );
         }
 
-        $specialitesEnFile = $fileAttente
+        $specialitesEnFile = $toutesLesAttentes
             ->map(fn ($v) => $v->typeConsultation?->specialite ?: 'Médecine générale')
             ->unique()->sort()->values();
 
@@ -110,7 +118,7 @@ class ConsultationController extends Controller
 
         return view('consultations.index', compact(
             'visits', 'fileAttente', 'fileParSpecialite', 'enAttentePaiement',
-            'maSpecialite', 'auCabinet', 'specialitesEnFile',
+            'maSpecialite', 'auCabinet', 'specialitesEnFile', 'toutesLesAttentes',
             'recherche', 'statut', 'date', 'specialite'
         ));
     }

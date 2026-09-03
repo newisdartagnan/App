@@ -123,6 +123,7 @@ class TransfertServiceController extends Controller
             codeReference: $visit->patient->dossier_number,
             groupeDestinataire: 'infirmier_chef',
             priorite: 'haute',
+            patientId: $visit->patient_id,
         );
 
         return redirect()
