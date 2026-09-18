@@ -22,7 +22,9 @@
     </div>
 
     {{-- Filtre classique (fonctionne même sans JavaScript) --}}
-    <form method="GET" action="{{ route('patients.index') }}" class="flex gap-3 mb-4">
+    {{-- Trois champs sur une ligne ne tiennent pas sur un téléphone : ils
+         s'enroulent plutôt que de pousser la page vers la droite. --}}
+    <form method="GET" action="{{ route('patients.index') }}" class="flex flex-wrap gap-3 mb-4">
         <label for="filtre-search" class="sr-only">Filtrer la liste</label>
         <input id="filtre-search" name="search" type="search" value="{{ $search }}"
             placeholder="Filtrer la liste ci-dessous…"
