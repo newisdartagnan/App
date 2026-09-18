@@ -85,6 +85,22 @@
                 @endforeach
             </select>
         </div>
+        <div>
+            <label for="mode-entree" class="block text-sm font-medium text-gray-700 mb-1">Provenance</label>
+            <select id="mode-entree" name="mode_entree" class="min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                @foreach(\App\Models\Visit::MODES_ENTREE as $cle => $libelle)
+                <option value="{{ $cle }}" @selected(old('mode_entree', 'spontane') === $cle)>{{ $libelle }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label for="provenance" class="block text-sm font-medium text-gray-700 mb-1">
+                Structure qui réfère <span class="text-xs text-gray-400">(si référé)</span>
+            </label>
+            <input id="provenance" name="provenance" type="text" value="{{ old('provenance') }}"
+                placeholder="Ex: CS Kimbanseke" maxlength="200"
+                class="min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+        </div>
         <div class="flex-1 min-w-[220px]">
             <label for="motif-visite" class="block text-sm font-medium text-gray-700 mb-1">Motif (optionnel)</label>
             <input id="motif-visite" name="motif" type="text" placeholder="Ex: fièvre, contrôle..."
@@ -149,6 +165,12 @@
         <div><span class="font-medium text-gray-600">Prise en charge :</span> {{ $patient->type_prise_en_charge }}</div>
         @if($patient->assurance_nom)
         <div><span class="font-medium text-gray-600">Assurance :</span> {{ $patient->assurance_nom }} — {{ $patient->assurance_numero }}</div>
+        @endif
+        @php $caracteristiques = $patient->caracteristiquesSnis(); @endphp
+        @if($caracteristiques)
+        {{-- Ce que le canevas du SNIS compte à part sur le nouveau cas. --}}
+        <div class="col-span-2"><span class="font-medium text-gray-600">Caractéristiques :</span>
+            {{ implode(' · ', $caracteristiques) }}</div>
         @endif
         @if($patient->contact_urgence_nom)
         <div class="col-span-2"><span class="font-medium text-gray-600">Contact urgence :</span>

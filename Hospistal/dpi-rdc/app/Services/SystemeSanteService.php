@@ -78,7 +78,9 @@ class SystemeSanteService
                 '3. Planification familiale — nouvelles acceptantes par méthode',
                 '4. Supervision et gestion — personnel, primes, équipements',
                 '8. Santé de l\'enfant — consultations préscolaires et vaccination (PEV)',
-                '9. Activités et gestion de la communauté — relais communautaires',
+                // Les cas qu'un relais oriente sont comptés depuis la
+                // provenance ; son activité propre ne l'est pas.
+                '9. Activités et gestion de la communauté — activité propre des relais',
                 '10. Sites de soins communautaires',
                 '11. Prise en charge nutritionnelle (UNTA)',
             ],

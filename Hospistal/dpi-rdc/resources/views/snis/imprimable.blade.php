@@ -41,6 +41,16 @@
                             'dont nouveaux cas' => $rapport['consultations']['nouveaux'],
                             'dont anciens cas' => $rapport['consultations']['anciens'],
                             'dont passages aux urgences' => $rapport['consultations']['urgences'],
+                            'Nouveaux cas — travailleurs du secteur formel' => $rapport['consultations']['nouveaux_travailleurs_formels'],
+                            'Nouveaux cas — mutualistes' => $rapport['consultations']['nouveaux_mutualistes'],
+                            'Nouveaux cas — indigents' => $rapport['consultations']['nouveaux_indigents'],
+                        ])
+                        ->merge($rapport['consultations']['par_provenance']
+                            ->mapWithKeys(fn ($n, $l) => ['Provenance — '.$l => $n]))
+                        ->merge([
+                            'Référés vers un autre établissement' => $rapport['consultations']['referes_sortants'],
+                            'Mis en observation' => $rapport['consultations']['mis_en_observation'],
+                            'Orientés vers l\'hospitalisation' => $rapport['consultations']['orientes_hospitalisation'],
                         ]);
             }
 
@@ -54,12 +64,18 @@
             if (isset($rapport['hospitalisation'])) {
                 $sections[$numeros['hospitalisation'].'. HOSPITALISATION'] = collect([
                     'Admissions' => $rapport['hospitalisation']['admissions'],
+                    'dont référés' => $rapport['hospitalisation']['admissions_referees'],
+                    'dont enfants de moins de 5 ans' => $rapport['hospitalisation']['admissions_moins_5ans'],
                     'Sorties' => $rapport['hospitalisation']['sorties'],
                     'Journées d\'hospitalisation' => $rapport['hospitalisation']['journees'],
                     'Durée moyenne de séjour (jours)' => $rapport['hospitalisation']['duree_moyenne'],
                 ])->merge($rapport['hospitalisation']['par_issue']->mapWithKeys(
                     fn ($n, $issue) => ['Sorties — '.$issue => $n]
-                ));
+                ))->merge([
+                    'Décès avant 48 h' => $rapport['hospitalisation']['deces_moins_48h'],
+                    'Décès après 48 h' => $rapport['hospitalisation']['deces_plus_48h'],
+                    'Décès d\'enfants de moins de 5 ans' => $rapport['hospitalisation']['deces_moins_5ans'],
+                ]);
             }
 
             if (isset($rapport['maternite'])) {
@@ -110,6 +126,7 @@
                 $sections[$numeros['deces'].'. DÉCÈS'] = collect([
                     'Total' => $rapport['deces']['total'],
                     'dont dans les 48 premières heures' => $rapport['deces']['moins_48h'],
+                    'dont après 48 heures' => $rapport['deces']['plus_48h'],
                 ])->merge($rapport['deces']['par_tranche']);
             }
         @endphp

@@ -149,6 +149,38 @@
                         class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
                 </div>
             </div>
+
+            {{-- Le canevas du SNIS ventile les nouveaux cas en travailleurs du
+                 secteur formel, mutualistes et indigents. Les deux premiers se
+                 cumulent avec n'importe quelle prise en charge : un salarié
+                 peut être mutualiste, un mutualiste payer de sa poche. --}}
+            <div class="mt-4 pt-4 border-t">
+                <p class="text-sm font-medium text-gray-700 mb-2">
+                    Caractéristiques
+                    <span class="text-xs font-normal text-gray-400">— comptées séparément dans le rapport mensuel</span>
+                </p>
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                    <label for="travailleur_secteur_formel" class="flex items-center gap-2 text-sm text-gray-700 min-h-[44px]">
+                        <input id="travailleur_secteur_formel" name="travailleur_secteur_formel" type="checkbox" value="1"
+                            @checked(old('travailleur_secteur_formel'))
+                            class="w-5 h-5 rounded border-gray-300">
+                        Travailleur du secteur formel
+                    </label>
+                    <label for="mutualiste" class="flex items-center gap-2 text-sm text-gray-700 min-h-[44px]">
+                        <input id="mutualiste" name="mutualiste" type="checkbox" value="1"
+                            @checked(old('mutualiste'))
+                            class="w-5 h-5 rounded border-gray-300">
+                        Mutualiste
+                    </label>
+                    <div class="flex-1 min-w-[200px]">
+                        <label for="mutuelle_nom" class="block text-xs font-medium text-gray-600 mb-1">
+                            Nom de la mutuelle <span class="text-gray-400">(si mutualiste)</span>
+                        </label>
+                        <input id="mutuelle_nom" name="mutuelle_nom" type="text" value="{{ old('mutuelle_nom') }}"
+                            maxlength="150" class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="bg-white rounded-xl shadow p-6">

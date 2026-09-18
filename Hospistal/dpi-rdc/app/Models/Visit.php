@@ -176,8 +176,9 @@ class Visit extends Model
     public const MODES_SORTIE = [
         'gueri' => 'Guéri',
         'ameliore' => 'Amélioré',
-        'stationnaire' => 'État stationnaire',
+        'stationnaire' => 'Statu quo (état stationnaire)',
         'agrave' => 'État aggravé',
+        'evade' => 'Évadé / abandon de traitement',
         'transfert' => 'Transféré vers un autre établissement',
         'sortie_contre_avis' => 'Sortie contre avis médical',
         'deces' => 'Décès',
@@ -187,6 +188,52 @@ class Visit extends Model
     public function libelleModeSortie(): string
     {
         return self::MODES_SORTIE[$this->mode_sortie] ?? 'Non précisé';
+    }
+
+    /**
+     * D'où vient le patient.
+     *
+     * La colonne existait depuis l'origine mais n'était jamais renseignée :
+     * toute visite valait « venu de lui-même ». Le canevas du centre de
+     * santé compte pourtant à part les contre-référés et ceux qu'un relais
+     * communautaire a orientés, et celui de l'hôpital les admis « dont
+     * référés ». Sans la poser à l'accueil, la ligne se remplit de mémoire
+     * à la fin du mois.
+     */
+    public const MODES_ENTREE = [
+        'spontane' => 'Venu de lui-même',
+        'reference' => 'Référé par une structure de santé',
+        'contre_reference' => 'Contre-référé (retour de l\'échelon supérieur)',
+        'reco' => 'Orienté par un relais communautaire (RECO)',
+        'transfert' => 'Transféré d\'un autre établissement',
+        'urgence' => 'Amené en urgence',
+    ];
+
+    /** Les provenances que le canevas compte comme une référence reçue. */
+    public const ENTREES_REFEREES = ['reference', 'contre_reference', 'transfert'];
+
+    public function libelleModeEntree(): string
+    {
+        return self::MODES_ENTREE[$this->mode_entree] ?? 'Venu de lui-même';
+    }
+
+    /** Le patient nous a-t-il été adressé par quelqu'un ? */
+    public function estRefere(): bool
+    {
+        return in_array($this->mode_entree, self::ENTREES_REFEREES, true);
+    }
+
+    /**
+     * Le décès est-il survenu dans les 48 premières heures ?
+     *
+     * Le canevas sépare les deux : un décès précoce interroge l'accueil et
+     * l'orientation, un décès tardif la prise en charge.
+     */
+    public function decedeAvant48h(): bool
+    {
+        return $this->mode_sortie === 'deces'
+            && $this->date_sortie !== null
+            && $this->date_entree->diffInHours($this->date_sortie) < 48;
     }
 
     public function triagePar(): BelongsTo

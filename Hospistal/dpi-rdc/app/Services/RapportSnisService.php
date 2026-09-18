@@ -185,6 +185,8 @@ class RapportSnisService
             ];
         }
 
+        $nouvelles = [];
+
         foreach ($visites as $visite) {
             $cle = $this->trancheDe($visite->patient, $visite->date_entree);
             $sexe = $visite->patient?->sexe === 'F' ? 'f' : 'm';
@@ -195,7 +197,13 @@ class RapportSnisService
 
             $lignes[$cle][($nouveau ? 'nouveaux_' : 'anciens_').$sexe]++;
             $lignes[$cle]['total']++;
+
+            if ($nouveau) {
+                $nouvelles[] = $visite;
+            }
         }
+
+        $nouvelles = collect($nouvelles);
 
         return [
             'lignes' => $lignes,
@@ -203,6 +211,47 @@ class RapportSnisService
             'nouveaux' => collect($lignes)->sum(fn ($l) => $l['nouveaux_m'] + $l['nouveaux_f']),
             'anciens' => collect($lignes)->sum(fn ($l) => $l['anciens_m'] + $l['anciens_f']),
             'urgences' => $visites->where('type', 'urgence')->count(),
+            // Caractéristiques du nouveau cas : elles se cumulent, un
+            // salarié peut être mutualiste. Les additionner serait faux.
+            'nouveaux_travailleurs_formels' => $nouvelles
+                ->filter(fn (Visit $v) => (bool) $v->patient?->travailleur_secteur_formel)->count(),
+            'nouveaux_mutualistes' => $nouvelles
+                ->filter(fn (Visit $v) => (bool) $v->patient?->mutualiste)->count(),
+            'nouveaux_indigents' => $nouvelles
+                ->filter(fn (Visit $v) => (bool) $v->patient?->estIndigent())->count(),
+            'par_provenance' => collect(Visit::MODES_ENTREE)
+                ->mapWithKeys(fn ($libelle, $cle) => [
+                    $libelle => $visites->where('mode_entree', $cle)->count(),
+                ])
+                ->filter(),
+            'referes_recus' => $visites->filter->estRefere()->count(),
+            'contre_references' => $visites->where('mode_entree', 'contre_reference')->count(),
+            'orientes_par_reco' => $visites->where('mode_entree', 'reco')->count(),
+        ] + $this->suitesDeConsultation($debut, $fin, $etablissementId);
+    }
+
+    /**
+     * Ce que le patient devient en sortant du cabinet.
+     *
+     * Le canevas du centre de santé compte les consultations référées vers
+     * l'hôpital et celles mises en observation : ce sont les décisions du
+     * médecin en fin de consultation, déjà enregistrées comme orientations.
+     *
+     * @return array<string, int>
+     */
+    private function suitesDeConsultation(Carbon $debut, Carbon $fin, ?string $etablissementId): array
+    {
+        $orientations = Consultation::query()
+            ->whereBetween('date_consultation', [$debut, $fin])
+            ->when($etablissementId, fn ($q) => $q->whereHas(
+                'visit', fn ($v) => $v->where('establishment_id', $etablissementId)
+            ))
+            ->pluck('orientation');
+
+        return [
+            'referes_sortants' => $orientations->where(fn ($o) => $o === 'reference')->count(),
+            'mis_en_observation' => $orientations->where(fn ($o) => $o === 'surveillance')->count(),
+            'orientes_hospitalisation' => $orientations->where(fn ($o) => $o === 'hospitalisation')->count(),
         ];
     }
 
@@ -344,8 +393,20 @@ class RapportSnisService
                 return max(1, (int) $entree->startOfDay()->diffInDays($sortie->startOfDay()));
             });
 
+        $petits = fn (Visit $v) => in_array(
+            $this->trancheDe($v->patient, $v->date_sortie ?? $v->date_entree),
+            ['moins_1an', 'moins_5ans'],
+            true
+        );
+
+        $deces = $sorties->where('mode_sortie', 'deces');
+
         return [
             'admissions' => $admissions->count(),
+            // Le canevas veut le détail des admis : combien nous ont été
+            // adressés, combien sont des enfants de moins de cinq ans.
+            'admissions_referees' => $admissions->filter->estRefere()->count(),
+            'admissions_moins_5ans' => $admissions->filter($petits)->count(),
             'sorties' => $sorties->count(),
             'journees' => $journees,
             'duree_moyenne' => $sorties->count() > 0
@@ -354,6 +415,11 @@ class RapportSnisService
             'par_issue' => collect(Visit::MODES_SORTIE)
                 ->mapWithKeys(fn ($libelle, $cle) => [$libelle => $sorties->where('mode_sortie', $cle)->count()])
                 ->filter(),
+            // Un décès précoce interroge l'accueil et l'orientation, un décès
+            // tardif la prise en charge : le canevas les sépare.
+            'deces_moins_48h' => $deces->filter->decedeAvant48h()->count(),
+            'deces_plus_48h' => $deces->count() - $deces->filter->decedeAvant48h()->count(),
+            'deces_moins_5ans' => $deces->filter($petits)->count(),
             'par_service' => $admissions->groupBy(fn ($v) => $v->service?->nom ?? 'Service non précisé')
                 ->map->count()->sortDesc(),
         ];
@@ -512,11 +578,13 @@ class RapportSnisService
             $parTranche[$tranche]++;
         }
 
+        $precoces = $visites->filter->decedeAvant48h()->count();
+
         return [
             'total' => $visites->count(),
             'par_tranche' => collect($parTranche)->filter(),
-            'moins_48h' => $visites->filter(fn (Visit $v) => $v->date_sortie
-                && $v->date_entree->diffInHours($v->date_sortie) < 48)->count(),
+            'moins_48h' => $precoces,
+            'plus_48h' => $visites->count() - $precoces,
         ];
     }
 
@@ -557,6 +625,34 @@ class RapportSnisService
             $lignes->push(['TOTAL', '', '', '', '', $rapport['consultations']['total']]);
             $lignes->push(['dont passages aux urgences', $rapport['consultations']['urgences']]);
             $lignes->push([]);
+
+            $lignes->push(['Caractéristiques des nouveaux cas']);
+            foreach ([
+                'Travailleurs du secteur formel' => 'nouveaux_travailleurs_formels',
+                'Mutualistes' => 'nouveaux_mutualistes',
+                'Indigents' => 'nouveaux_indigents',
+            ] as $libelle => $cle) {
+                $lignes->push([$libelle, $rapport['consultations'][$cle]]);
+            }
+            $lignes->push([]);
+
+            $lignes->push(['Provenance des consultants']);
+            foreach ($rapport['consultations']['par_provenance'] as $libelle => $nombre) {
+                $lignes->push([$libelle, $nombre]);
+            }
+            $lignes->push([]);
+
+            $lignes->push(['Suites données à la consultation']);
+            foreach ([
+                'Référés vers un autre établissement' => 'referes_sortants',
+                'Mis en observation' => 'mis_en_observation',
+                'Orientés vers l\'hospitalisation' => 'orientes_hospitalisation',
+                'dont contre-référés reçus' => 'contre_references',
+                'dont orientés par un relais communautaire (RECO)' => 'orientes_par_reco',
+            ] as $libelle => $cle) {
+                $lignes->push([$libelle, $rapport['consultations'][$cle]]);
+            }
+            $lignes->push([]);
         }
 
         if (isset($rapport['morbidite'])) {
@@ -572,12 +668,17 @@ class RapportSnisService
         if (isset($rapport['hospitalisation'])) {
             $lignes->push([$titre('hospitalisation', 'HOSPITALISATION')]);
             $lignes->push(['Admissions', $rapport['hospitalisation']['admissions']]);
+            $lignes->push(['dont référés', $rapport['hospitalisation']['admissions_referees']]);
+            $lignes->push(['dont enfants de moins de 5 ans', $rapport['hospitalisation']['admissions_moins_5ans']]);
             $lignes->push(['Sorties', $rapport['hospitalisation']['sorties']]);
             $lignes->push(['Journées d\'hospitalisation', $rapport['hospitalisation']['journees']]);
             $lignes->push(['Durée moyenne de séjour (jours)', $rapport['hospitalisation']['duree_moyenne']]);
             foreach ($rapport['hospitalisation']['par_issue'] as $issue => $nombre) {
                 $lignes->push(['Sorties — '.$issue, $nombre]);
             }
+            $lignes->push(['Décès avant 48 h', $rapport['hospitalisation']['deces_moins_48h']]);
+            $lignes->push(['Décès après 48 h', $rapport['hospitalisation']['deces_plus_48h']]);
+            $lignes->push(['Décès d\'enfants de moins de 5 ans', $rapport['hospitalisation']['deces_moins_5ans']]);
             $lignes->push([]);
         }
 
@@ -638,6 +739,7 @@ class RapportSnisService
             $lignes->push([$titre('deces', 'DÉCÈS')]);
             $lignes->push(['Total', $rapport['deces']['total']]);
             $lignes->push(['dont survenus dans les 48 premières heures', $rapport['deces']['moins_48h']]);
+            $lignes->push(['dont survenus après 48 heures', $rapport['deces']['plus_48h']]);
             foreach ($rapport['deces']['par_tranche'] as $tranche => $nombre) {
                 $lignes->push([$tranche, $nombre]);
             }

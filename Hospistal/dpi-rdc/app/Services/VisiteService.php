@@ -19,9 +19,13 @@ class VisiteService
         Patient $patient,
         string $type,
         ?string $motif = null,
-        ?string $typeConsultationId = null
+        ?string $typeConsultationId = null,
+        ?string $modeEntree = null,
+        ?string $provenance = null,
     ): Visit {
-        return DB::transaction(function () use ($patient, $type, $motif, $typeConsultationId) {
+        return DB::transaction(function () use (
+            $patient, $type, $motif, $typeConsultationId, $modeEntree, $provenance
+        ) {
             // Contrôle de résultat gratuit : même type de consultation
             // dans les 7 derniers jours → pas de nouvelle facture.
             $gratuite = $typeConsultationId
@@ -43,6 +47,12 @@ class VisiteService
                 'est_payant' => ! $gratuite,
                 'date_entree' => now(),
                 'motif_consultation' => $motif,
+                // D'où vient le patient : le canevas du SNIS compte à part
+                // les référés, les contre-référés et ceux qu'un relais
+                // communautaire a orientés. Posé à l'accueil, il n'a plus à
+                // se retrouver de mémoire à la fin du mois.
+                'mode_entree' => isset(Visit::MODES_ENTREE[$modeEntree]) ? $modeEntree : 'spontane',
+                'provenance' => $provenance,
             ]);
 
             if (! $gratuite) {
