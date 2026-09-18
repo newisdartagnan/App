@@ -24,10 +24,13 @@ use Illuminate\Support\Collection;
  * dans la base, à la ligne près.
  *
  * On compte ce qui est enregistré et rien d'autre. Une rubrique que
- * l'application ne suit pas — planification familiale, vaccination — n'est
+ * l'application ne suit pas — planification familiale, supervision — n'est
  * pas inventée : elle est déclarée non suivie, à remplir depuis le registre
  * papier. Un rapport qui ment est pire qu'un rapport incomplet, parce que
  * personne ne sait plus lesquels de ses chiffres croire.
+ *
+ * Le canevas n'est pas le même selon l'échelon : c'est
+ * {@see SystemeSanteService} qui dit lequel, et le rapport s'y tient.
  */
 class RapportSnisService
 {
@@ -72,16 +75,14 @@ class RapportSnisService
         'traumatismes' => ['libelle' => 'Traumatismes et accidents', 'mots' => ['fracture', 'plaie', 'traumat', 'brûlure', 'brulure', 'entorse', 'luxation'], 'cim' => ['S', 'T', 'V', 'W', 'X', 'Y'], 'cim11' => ['N', 'PA8']],
     ];
 
-    /** Rubriques du canevas que l'application ne suit pas encore. */
-    public const NON_SUIVI = [
-        'Planification familiale (nouvelles acceptantes, méthodes)',
-        'Vaccination — Programme élargi de vaccination',
-        'Consultations préscolaires et suivi de croissance',
-        'Activités communautaires et sensibilisation',
-    ];
+    public function __construct(private readonly SystemeSanteService $systemes) {}
 
     /**
-     * Le rapport complet d'un mois.
+     * Le rapport du mois, taillé au canevas de l'établissement.
+     *
+     * Un centre de santé n'a pas de banque du sang et n'hospitalise pas : lui
+     * présenter ces rubriques vides serait lui faire croire qu'il a oublié de
+     * les remplir. On ne calcule donc que ce que son canevas attend.
      *
      * @return array<string, mixed>
      */
@@ -90,7 +91,20 @@ class RapportSnisService
         $debut = Carbon::create($annee, $mois, 1)->startOfMonth();
         $fin = $debut->copy()->endOfMonth();
 
-        return [
+        $systeme = $this->systemes->definition();
+
+        $calculs = [
+            'consultations' => fn () => $this->consultations($debut, $fin, $etablissementId),
+            'morbidite' => fn () => $this->morbidite($debut, $fin, $etablissementId),
+            'hospitalisation' => fn () => $this->hospitalisation($debut, $fin, $etablissementId),
+            'maternite' => fn () => $this->maternite($debut, $fin, $etablissementId),
+            'laboratoire' => fn () => $this->laboratoire($debut, $fin, $etablissementId),
+            'sang' => fn () => $this->sang($debut, $fin, $etablissementId),
+            'pharmacie' => fn () => $this->pharmacie($etablissementId),
+            'deces' => fn () => $this->deces($debut, $fin, $etablissementId),
+        ];
+
+        $rapport = [
             'periode' => [
                 'annee' => $annee,
                 'mois' => $mois,
@@ -98,16 +112,38 @@ class RapportSnisService
                 'debut' => $debut,
                 'fin' => $fin,
             ],
-            'consultations' => $this->consultations($debut, $fin, $etablissementId),
-            'morbidite' => $this->morbidite($debut, $fin, $etablissementId),
-            'hospitalisation' => $this->hospitalisation($debut, $fin, $etablissementId),
-            'maternite' => $this->maternite($debut, $fin, $etablissementId),
-            'laboratoire' => $this->laboratoire($debut, $fin, $etablissementId),
-            'sang' => $this->sang($debut, $fin, $etablissementId),
-            'pharmacie' => $this->pharmacie($etablissementId),
-            'deces' => $this->deces($debut, $fin, $etablissementId),
-            'non_suivi' => self::NON_SUIVI,
+            'systeme' => $systeme,
+            'rubriques' => $systeme['rubriques'],
+            'non_suivi' => $systeme['non_suivi'],
         ];
+
+        // L'ordre des rubriques est celui du canevas, pas celui du système :
+        // la numérotation des sections doit rester stable d'un mois sur l'autre.
+        foreach ($calculs as $rubrique => $calcul) {
+            if (in_array($rubrique, $systeme['rubriques'], true)) {
+                $rapport[$rubrique] = $calcul();
+            }
+        }
+
+        return $rapport;
+    }
+
+    /**
+     * Les rubriques produites, dans l'ordre, avec leur numéro de section.
+     *
+     * @return array<string, int>
+     */
+    public function numeros(array $rapport): array
+    {
+        $numeros = [];
+
+        foreach (array_keys(SystemeSanteService::RUBRIQUES) as $rubrique) {
+            if (isset($rapport[$rubrique])) {
+                $numeros[$rubrique] = count($numeros) + 1;
+            }
+        }
+
+        return $numeros;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -498,93 +534,115 @@ class RapportSnisService
     public function versCsv(array $rapport, string $etablissement): string
     {
         $lignes = new Collection;
+        $numeros = $this->numeros($rapport);
+
+        // Le numéro suit la place réelle de la rubrique dans ce canevas-ci :
+        // un centre de santé n'a pas de section « banque du sang » à sauter.
+        $titre = fn (string $rubrique, string $libelle) => $numeros[$rubrique].'. '.$libelle;
 
         $lignes->push(['RAPPORT MENSUEL SNIS']);
         $lignes->push(['Établissement', $etablissement]);
+        $lignes->push(['Canevas', $rapport['systeme']['nom'].' ('.$rapport['systeme']['sigle'].')']);
         $lignes->push(['Période', $rapport['periode']['libelle']]);
         $lignes->push(['Édité le', now()->format('d/m/Y H:i')]);
         $lignes->push([]);
 
-        $lignes->push(['1. CONSULTATIONS CURATIVES']);
-        $lignes->push(['Tranche d\'âge', 'Nouveaux cas H', 'Nouveaux cas F', 'Anciens cas H', 'Anciens cas F', 'Total']);
-        foreach ($rapport['consultations']['lignes'] as $ligne) {
-            $lignes->push([$ligne['libelle'], $ligne['nouveaux_m'], $ligne['nouveaux_f'],
-                $ligne['anciens_m'], $ligne['anciens_f'], $ligne['total']]);
+        if (isset($rapport['consultations'])) {
+            $lignes->push([$titre('consultations', 'CONSULTATIONS CURATIVES')]);
+            $lignes->push(['Tranche d\'âge', 'Nouveaux cas H', 'Nouveaux cas F', 'Anciens cas H', 'Anciens cas F', 'Total']);
+            foreach ($rapport['consultations']['lignes'] as $ligne) {
+                $lignes->push([$ligne['libelle'], $ligne['nouveaux_m'], $ligne['nouveaux_f'],
+                    $ligne['anciens_m'], $ligne['anciens_f'], $ligne['total']]);
+            }
+            $lignes->push(['TOTAL', '', '', '', '', $rapport['consultations']['total']]);
+            $lignes->push(['dont passages aux urgences', $rapport['consultations']['urgences']]);
+            $lignes->push([]);
         }
-        $lignes->push(['TOTAL', '', '', '', '', $rapport['consultations']['total']]);
-        $lignes->push(['dont passages aux urgences', $rapport['consultations']['urgences']]);
-        $lignes->push([]);
 
-        $lignes->push(['2. MORBIDITÉ']);
-        $lignes->push(['Pathologie', 'Moins de 5 ans', '5 ans et plus', 'Total']);
-        foreach ($rapport['morbidite']['toutes_lignes'] as $ligne) {
-            $lignes->push([$ligne['libelle'], $ligne['moins_5ans'], $ligne['plus_5ans'], $ligne['total']]);
+        if (isset($rapport['morbidite'])) {
+            $lignes->push([$titre('morbidite', 'MORBIDITÉ')]);
+            $lignes->push(['Pathologie', 'Moins de 5 ans', '5 ans et plus', 'Total']);
+            foreach ($rapport['morbidite']['toutes_lignes'] as $ligne) {
+                $lignes->push([$ligne['libelle'], $ligne['moins_5ans'], $ligne['plus_5ans'], $ligne['total']]);
+            }
+            $lignes->push(['TOTAL DIAGNOSTICS', '', '', $rapport['morbidite']['total_diagnostics']]);
+            $lignes->push([]);
         }
-        $lignes->push(['TOTAL DIAGNOSTICS', '', '', $rapport['morbidite']['total_diagnostics']]);
-        $lignes->push([]);
 
-        $lignes->push(['3. HOSPITALISATION']);
-        $lignes->push(['Admissions', $rapport['hospitalisation']['admissions']]);
-        $lignes->push(['Sorties', $rapport['hospitalisation']['sorties']]);
-        $lignes->push(['Journées d\'hospitalisation', $rapport['hospitalisation']['journees']]);
-        $lignes->push(['Durée moyenne de séjour (jours)', $rapport['hospitalisation']['duree_moyenne']]);
-        foreach ($rapport['hospitalisation']['par_issue'] as $issue => $nombre) {
-            $lignes->push(['Sorties — '.$issue, $nombre]);
+        if (isset($rapport['hospitalisation'])) {
+            $lignes->push([$titre('hospitalisation', 'HOSPITALISATION')]);
+            $lignes->push(['Admissions', $rapport['hospitalisation']['admissions']]);
+            $lignes->push(['Sorties', $rapport['hospitalisation']['sorties']]);
+            $lignes->push(['Journées d\'hospitalisation', $rapport['hospitalisation']['journees']]);
+            $lignes->push(['Durée moyenne de séjour (jours)', $rapport['hospitalisation']['duree_moyenne']]);
+            foreach ($rapport['hospitalisation']['par_issue'] as $issue => $nombre) {
+                $lignes->push(['Sorties — '.$issue, $nombre]);
+            }
+            $lignes->push([]);
         }
-        $lignes->push([]);
 
-        $lignes->push(['4. SANTÉ DE LA MÈRE ET DU NOUVEAU-NÉ']);
-        foreach ($rapport['maternite']['cpn_par_rang'] as $rang => $nombre) {
-            $lignes->push([$rang, $nombre]);
+        if (isset($rapport['maternite'])) {
+            $lignes->push([$titre('maternite', 'SANTÉ DE LA MÈRE ET DU NOUVEAU-NÉ')]);
+            foreach ($rapport['maternite']['cpn_par_rang'] as $rang => $nombre) {
+                $lignes->push([$rang, $nombre]);
+            }
+            foreach ([
+                'Vaccin antitétanique administré' => 'vat_administres',
+                'SP (traitement préventif du paludisme)' => 'sp_administres',
+                'Fer et acide folique' => 'fer_folates',
+                'Moustiquaires imprégnées remises' => 'moustiquaires',
+                'Accouchements' => 'accouchements',
+                'dont césariennes' => 'cesariennes',
+                'dont hémorragies de la délivrance' => 'hemorragies',
+                'Naissances vivantes' => 'naissances_vivantes',
+                'Mort-nés' => 'mort_nes',
+                'Décès néonatals' => 'deces_neonatals',
+                'Nouveau-nés de petit poids (< 2500 g)' => 'petits_poids',
+                'Décès maternels' => 'deces_maternels',
+            ] as $libelle => $cle) {
+                $lignes->push([$libelle, $rapport['maternite'][$cle]]);
+            }
+            $lignes->push([]);
         }
-        foreach ([
-            'Vaccin antitétanique administré' => 'vat_administres',
-            'SP (traitement préventif du paludisme)' => 'sp_administres',
-            'Fer et acide folique' => 'fer_folates',
-            'Moustiquaires imprégnées remises' => 'moustiquaires',
-            'Accouchements' => 'accouchements',
-            'dont césariennes' => 'cesariennes',
-            'dont hémorragies de la délivrance' => 'hemorragies',
-            'Naissances vivantes' => 'naissances_vivantes',
-            'Mort-nés' => 'mort_nes',
-            'Décès néonatals' => 'deces_neonatals',
-            'Nouveau-nés de petit poids (< 2500 g)' => 'petits_poids',
-            'Décès maternels' => 'deces_maternels',
-        ] as $libelle => $cle) {
-            $lignes->push([$libelle, $rapport['maternite'][$cle]]);
+
+        if (isset($rapport['laboratoire'])) {
+            $lignes->push([$titre('laboratoire', 'LABORATOIRE ET IMAGERIE')]);
+            $lignes->push(['Demandes de laboratoire', $rapport['laboratoire']['demandes_labo']]);
+            $lignes->push(['Demandes d\'imagerie', $rapport['laboratoire']['demandes_imagerie']]);
+            $lignes->push(['Bilans validés', $rapport['laboratoire']['validees']]);
+            foreach ($rapport['laboratoire']['par_examen'] as $examen => $nombre) {
+                $lignes->push([$examen, $nombre]);
+            }
+            $lignes->push([]);
         }
-        $lignes->push([]);
 
-        $lignes->push(['5. LABORATOIRE ET IMAGERIE']);
-        $lignes->push(['Demandes de laboratoire', $rapport['laboratoire']['demandes_labo']]);
-        $lignes->push(['Demandes d\'imagerie', $rapport['laboratoire']['demandes_imagerie']]);
-        $lignes->push(['Bilans validés', $rapport['laboratoire']['validees']]);
-        foreach ($rapport['laboratoire']['par_examen'] as $examen => $nombre) {
-            $lignes->push([$examen, $nombre]);
+        if (isset($rapport['sang'])) {
+            $lignes->push([$titre('sang', 'TRANSFUSION SANGUINE')]);
+            $lignes->push(['Poches collectées', $rapport['sang']['poches_collectees']]);
+            $lignes->push(['Poches détruites au dépistage', $rapport['sang']['poches_detruites']]);
+            $lignes->push(['Poches périmées', $rapport['sang']['poches_perimees']]);
+            $lignes->push(['Transfusions réalisées', $rapport['sang']['transfusions']]);
+            $lignes->push(['Incidents transfusionnels', $rapport['sang']['incidents']]);
+            $lignes->push([]);
         }
-        $lignes->push([]);
 
-        $lignes->push(['6. TRANSFUSION SANGUINE']);
-        $lignes->push(['Poches collectées', $rapport['sang']['poches_collectees']]);
-        $lignes->push(['Poches détruites au dépistage', $rapport['sang']['poches_detruites']]);
-        $lignes->push(['Poches périmées', $rapport['sang']['poches_perimees']]);
-        $lignes->push(['Transfusions réalisées', $rapport['sang']['transfusions']]);
-        $lignes->push(['Incidents transfusionnels', $rapport['sang']['incidents']]);
-        $lignes->push([]);
-
-        $lignes->push(['7. PHARMACIE']);
-        $lignes->push(['Références au catalogue', $rapport['pharmacie']['references']]);
-        $lignes->push(['Produits en rupture', $rapport['pharmacie']['ruptures']]);
-        $lignes->push(['Produits sous seuil d\'alerte', $rapport['pharmacie']['sous_alerte']]);
-        $lignes->push([]);
-
-        $lignes->push(['8. DÉCÈS']);
-        $lignes->push(['Total', $rapport['deces']['total']]);
-        $lignes->push(['dont survenus dans les 48 premières heures', $rapport['deces']['moins_48h']]);
-        foreach ($rapport['deces']['par_tranche'] as $tranche => $nombre) {
-            $lignes->push([$tranche, $nombre]);
+        if (isset($rapport['pharmacie'])) {
+            $lignes->push([$titre('pharmacie', 'MÉDICAMENTS ET INTRANTS')]);
+            $lignes->push(['Références au catalogue', $rapport['pharmacie']['references']]);
+            $lignes->push(['Produits en rupture', $rapport['pharmacie']['ruptures']]);
+            $lignes->push(['Produits sous seuil d\'alerte', $rapport['pharmacie']['sous_alerte']]);
+            $lignes->push([]);
         }
-        $lignes->push([]);
+
+        if (isset($rapport['deces'])) {
+            $lignes->push([$titre('deces', 'DÉCÈS')]);
+            $lignes->push(['Total', $rapport['deces']['total']]);
+            $lignes->push(['dont survenus dans les 48 premières heures', $rapport['deces']['moins_48h']]);
+            foreach ($rapport['deces']['par_tranche'] as $tranche => $nombre) {
+                $lignes->push([$tranche, $nombre]);
+            }
+            $lignes->push([]);
+        }
 
         $lignes->push(['RUBRIQUES NON SUIVIES PAR L\'APPLICATION — à reprendre du registre papier']);
         foreach ($rapport['non_suivi'] as $rubrique) {

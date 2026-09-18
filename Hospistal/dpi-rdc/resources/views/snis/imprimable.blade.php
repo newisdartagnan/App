@@ -19,67 +19,99 @@
             <p class="text-xs uppercase tracking-wide text-gray-600">République Démocratique du Congo</p>
             <p class="text-xs text-gray-600">Ministère de la Santé Publique — Système National d'Information Sanitaire</p>
             <p class="text-lg font-bold text-blue-900 uppercase mt-2">{{ $etablissement }}</p>
+            <p class="text-xs text-gray-600">
+                Canevas {{ $rapport['systeme']['sigle'] }} — {{ $rapport['systeme']['nom'] }}
+            </p>
             <p class="text-base font-bold mt-1">
                 RAPPORT MENSUEL — {{ mb_strtoupper($rapport['periode']['libelle']) }}
             </p>
         </div>
 
         @php
-            $sections = [
-                '1. CONSULTATIONS CURATIVES' => collect($rapport['consultations']['lignes'])
-                    ->mapWithKeys(fn ($l) => [$l['libelle'] => $l['total']])
-                    ->merge([
-                        'TOTAL des passages' => $rapport['consultations']['total'],
-                        'dont nouveaux cas' => $rapport['consultations']['nouveaux'],
-                        'dont anciens cas' => $rapport['consultations']['anciens'],
-                        'dont passages aux urgences' => $rapport['consultations']['urgences'],
-                    ]),
-                '2. MORBIDITÉ' => collect($rapport['morbidite']['toutes_lignes'])
-                    ->mapWithKeys(fn ($l) => [$l['libelle'] => $l['total']])
-                    ->merge(['TOTAL des diagnostics' => $rapport['morbidite']['total_diagnostics']]),
-                '3. HOSPITALISATION' => collect([
+            // Seules les rubriques du canevas retenu sont calculées : la
+            // numérotation suit leur place réelle, sans trou.
+            $sections = [];
+
+            if (isset($rapport['consultations'])) {
+                $sections[$numeros['consultations'].'. CONSULTATIONS CURATIVES'] =
+                    collect($rapport['consultations']['lignes'])
+                        ->mapWithKeys(fn ($l) => [$l['libelle'] => $l['total']])
+                        ->merge([
+                            'TOTAL des passages' => $rapport['consultations']['total'],
+                            'dont nouveaux cas' => $rapport['consultations']['nouveaux'],
+                            'dont anciens cas' => $rapport['consultations']['anciens'],
+                            'dont passages aux urgences' => $rapport['consultations']['urgences'],
+                        ]);
+            }
+
+            if (isset($rapport['morbidite'])) {
+                $sections[$numeros['morbidite'].'. MORBIDITÉ'] =
+                    collect($rapport['morbidite']['toutes_lignes'])
+                        ->mapWithKeys(fn ($l) => [$l['libelle'] => $l['total']])
+                        ->merge(['TOTAL des diagnostics' => $rapport['morbidite']['total_diagnostics']]);
+            }
+
+            if (isset($rapport['hospitalisation'])) {
+                $sections[$numeros['hospitalisation'].'. HOSPITALISATION'] = collect([
                     'Admissions' => $rapport['hospitalisation']['admissions'],
                     'Sorties' => $rapport['hospitalisation']['sorties'],
                     'Journées d\'hospitalisation' => $rapport['hospitalisation']['journees'],
                     'Durée moyenne de séjour (jours)' => $rapport['hospitalisation']['duree_moyenne'],
                 ])->merge($rapport['hospitalisation']['par_issue']->mapWithKeys(
                     fn ($n, $issue) => ['Sorties — '.$issue => $n]
-                )),
-                '4. SANTÉ DE LA MÈRE ET DU NOUVEAU-NÉ' => $rapport['maternite']['cpn_par_rang']->merge([
-                    'Vaccin antitétanique administré' => $rapport['maternite']['vat_administres'],
-                    'SP (paludisme)' => $rapport['maternite']['sp_administres'],
-                    'Fer et acide folique' => $rapport['maternite']['fer_folates'],
-                    'Moustiquaires remises' => $rapport['maternite']['moustiquaires'],
-                    'Accouchements' => $rapport['maternite']['accouchements'],
-                    'dont césariennes' => $rapport['maternite']['cesariennes'],
-                    'dont hémorragies de la délivrance' => $rapport['maternite']['hemorragies'],
-                    'Naissances vivantes' => $rapport['maternite']['naissances_vivantes'],
-                    'Mort-nés' => $rapport['maternite']['mort_nes'],
-                    'Décès néonatals' => $rapport['maternite']['deces_neonatals'],
-                    'Petit poids de naissance (< 2500 g)' => $rapport['maternite']['petits_poids'],
-                    'Décès maternels' => $rapport['maternite']['deces_maternels'],
-                ]),
-                '5. LABORATOIRE ET IMAGERIE' => collect([
+                ));
+            }
+
+            if (isset($rapport['maternite'])) {
+                $sections[$numeros['maternite'].'. SANTÉ DE LA MÈRE ET DU NOUVEAU-NÉ'] =
+                    $rapport['maternite']['cpn_par_rang']->merge([
+                        'Vaccin antitétanique administré' => $rapport['maternite']['vat_administres'],
+                        'SP (paludisme)' => $rapport['maternite']['sp_administres'],
+                        'Fer et acide folique' => $rapport['maternite']['fer_folates'],
+                        'Moustiquaires remises' => $rapport['maternite']['moustiquaires'],
+                        'Accouchements' => $rapport['maternite']['accouchements'],
+                        'dont césariennes' => $rapport['maternite']['cesariennes'],
+                        'dont hémorragies de la délivrance' => $rapport['maternite']['hemorragies'],
+                        'Naissances vivantes' => $rapport['maternite']['naissances_vivantes'],
+                        'Mort-nés' => $rapport['maternite']['mort_nes'],
+                        'Décès néonatals' => $rapport['maternite']['deces_neonatals'],
+                        'Petit poids de naissance (< 2500 g)' => $rapport['maternite']['petits_poids'],
+                        'Décès maternels' => $rapport['maternite']['deces_maternels'],
+                    ]);
+            }
+
+            if (isset($rapport['laboratoire'])) {
+                $sections[$numeros['laboratoire'].'. LABORATOIRE ET IMAGERIE'] = collect([
                     'Demandes de laboratoire' => $rapport['laboratoire']['demandes_labo'],
                     'Demandes d\'imagerie' => $rapport['laboratoire']['demandes_imagerie'],
                     'Bilans validés' => $rapport['laboratoire']['validees'],
-                ]),
-                '6. TRANSFUSION SANGUINE' => collect([
+                ]);
+            }
+
+            if (isset($rapport['sang'])) {
+                $sections[$numeros['sang'].'. BANQUE DU SANG'] = collect([
                     'Poches collectées' => $rapport['sang']['poches_collectees'],
                     'Poches détruites au dépistage' => $rapport['sang']['poches_detruites'],
                     'Poches périmées' => $rapport['sang']['poches_perimees'],
                     'Transfusions réalisées' => $rapport['sang']['transfusions'],
                     'Incidents transfusionnels' => $rapport['sang']['incidents'],
-                ]),
-                '7. PHARMACIE' => collect([
+                ]);
+            }
+
+            if (isset($rapport['pharmacie'])) {
+                $sections[$numeros['pharmacie'].'. MÉDICAMENTS ET INTRANTS'] = collect([
                     'Références au catalogue' => $rapport['pharmacie']['references'],
                     'Produits en rupture' => $rapport['pharmacie']['ruptures'],
                     'Produits sous seuil d\'alerte' => $rapport['pharmacie']['sous_alerte'],
-                ]),
-                '8. DÉCÈS' => collect(['Total' => $rapport['deces']['total'],
-                    'dont dans les 48 premières heures' => $rapport['deces']['moins_48h']])
-                    ->merge($rapport['deces']['par_tranche']),
-            ];
+                ]);
+            }
+
+            if (isset($rapport['deces'])) {
+                $sections[$numeros['deces'].'. DÉCÈS'] = collect([
+                    'Total' => $rapport['deces']['total'],
+                    'dont dans les 48 premières heures' => $rapport['deces']['moins_48h'],
+                ])->merge($rapport['deces']['par_tranche']);
+            }
         @endphp
 
         @foreach($sections as $titre => $valeurs)
@@ -100,7 +132,7 @@
 
         <div class="mb-4">
             <p class="font-bold text-amber-900 border-b border-gray-300 pb-1 mb-1">
-                RUBRIQUES À COMPLÉTER DEPUIS LE REGISTRE PAPIER
+                SECTIONS DU CANEVAS {{ $rapport['systeme']['sigle'] }} À COMPLÉTER DEPUIS LE REGISTRE PAPIER
             </p>
             <p class="text-xs text-gray-600 mb-1">
                 L'application ne suit pas encore ces activités et ne les invente pas.

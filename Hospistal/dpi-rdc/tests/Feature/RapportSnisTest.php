@@ -385,10 +385,12 @@ class RapportSnisTest extends TestCase
     {
         $rapport = $this->rapport();
 
-        // Un rapport qui invente est pire qu'un rapport incomplet.
+        // Un rapport qui invente est pire qu'un rapport incomplet. Les
+        // sections manquantes sont nommées comme sur le canevas papier,
+        // numéro compris, pour qu'on les y retrouve.
         $this->assertNotEmpty($rapport['non_suivi']);
         $this->assertContains(
-            'Vaccination — Programme élargi de vaccination',
+            '3. Planification familiale — nouvelles acceptantes par méthode',
             $rapport['non_suivi']
         );
     }
