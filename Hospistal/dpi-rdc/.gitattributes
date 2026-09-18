@@ -9,3 +9,13 @@
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
+
+# Les assets compilés sont versionnés — un hôpital se déploie sans npm et
+# souvent sans réseau. Mais ils sont aussi réécrits à chaque build, si bien
+# qu'une fusion textuelle de `manifest.json` y sème des marqueurs de
+# conflit : le JSON devient illisible et Laravel répond « Unable to locate
+# file in Vite manifest » sur toutes les pages, sans rien qui explique
+# pourquoi. Traités en binaire, ils sont pris ou laissés en bloc, jamais
+# mélangés ligne à ligne.
+/public/build/** binary
+/public/build/** linguist-generated

@@ -29,16 +29,18 @@
             </div>
 
             @if($peutChoisirLeSysteme)
-            <form method="POST" action="{{ route('snis.systeme') }}" class="flex flex-wrap items-end gap-2">
+            <form method="POST" action="{{ route('snis.systeme') }}" class="flex flex-wrap items-end gap-2 w-full sm:w-auto">
                 @csrf
                 <input type="hidden" name="annee" value="{{ $annee }}">
                 <input type="hidden" name="mois" value="{{ $mois }}">
-                <div>
+                {{-- Le libellé le plus long fait déborder la page d'un cheveu
+                     sur un téléphone : le champ suit la largeur disponible. --}}
+                <div class="min-w-0 w-full sm:w-auto">
                     <label for="systeme" class="block text-xs font-semibold text-gray-600 mb-1">
                         Système de santé
                     </label>
                     <select id="systeme" name="systeme"
-                            class="border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[44px]">
+                            class="w-full max-w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[44px]">
                         @foreach($systemes as $cle => $definition)
                         <option value="{{ $cle }}" @selected($cle === $systemeRetenu)>
                             {{ $definition['sigle'] }} — {{ $definition['nom'] }}

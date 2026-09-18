@@ -19,7 +19,8 @@
     <a href="{{ route('parcours.attente') }}"
        class="ml-3 text-sm text-blue-700 hover:underline">⏳ L'attente à l'hôpital →</a>
     @endif
-        <form method="GET" class="flex gap-2 items-center">
+        {{-- Deux dates et un bouton : ils s'enroulent sur un téléphone. --}}
+        <form method="GET" class="flex flex-wrap gap-2 items-center">
             <input type="hidden" name="onglet" value="{{ $onglet }}">
             <label for="debut" class="text-sm text-gray-600">Du</label>
             <input id="debut" type="date" name="debut" value="{{ $debut }}" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">

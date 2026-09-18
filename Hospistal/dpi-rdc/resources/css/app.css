@@ -41,7 +41,10 @@
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.6rem 0.85rem;
+    /* Serré de quelques pixels : à 0,85 rem les quatorze onglets faisaient
+       sept pixels de trop sur un portable de 1280 px, ce qui poussait la
+       cloche à la ligne. La hauteur du repère au doigt ne bouge pas. */
+    padding: 0.6rem 0.72rem;
     color: #fff;
     white-space: nowrap;
     border: 0;
@@ -107,10 +110,39 @@
     font-weight: 700;
 }
 
-/* Sous les petits écrans la barre défile plutôt que de s'empiler. */
+/* La barre s'enroule au lieu de déborder.
+
+   Elle défilait latéralement sous 1024 px, et le volet déroulant passait
+   alors en position fixe pour échapper au conteneur de défilement. Mais
+   « top: 100% » sur un élément fixe se mesure sur la fenêtre et non sur le
+   bouton : les quatre menus s'ouvraient à cent pour cent de la hauteur de
+   l'écran, c'est-à-dire entièrement hors champ. Sur un téléphone ou une
+   tablette, Consultations, Hospitalisation, Plateau technique et Caisse
+   étaient donc inatteignables — et rien ne le disait, le menu s'ouvrait
+   bel et bien, en dessous du bord.
+
+   La barre s'enroule maintenant sur plusieurs lignes : plus de conteneur
+   de défilement, donc plus besoin de position fixe, et le volet retrouve
+   un ancrage qui se mesure sur la page. Au passage, la barre ne pousse
+   plus la page vers la droite sur un portable de 1280 px. */
+.dpi-nav-inner { flex-wrap: wrap; }
+
 @media (max-width: 1024px) {
-    .dpi-nav-inner { overflow-x: auto; }
-    .nav-volet { position: fixed; left: auto; }
+    /* Le groupe cesse d'être le repère du volet : celui-ci s'ancre sur la
+       barre entière et s'ouvre sous elle, sur toute sa largeur. Un menu de
+       quinze rem accroché à un bouton du bord droit sortirait de l'écran. */
+    .nav-groupe { position: static; }
+
+    .nav-volet {
+        left: 1rem;
+        right: 1rem;
+        min-width: 0;
+    }
+
+    /* La cloche se rangeait à droite : une fois la barre enroulée, elle
+       s'octroyait une ligne entière pour elle seule. Elle reprend sa place
+       dans le rang. */
+    .nav-cloche { margin-left: 0; }
 }
 
 /* Rubrique courante dans le volet déroulant : le laboratoire et l'imagerie
