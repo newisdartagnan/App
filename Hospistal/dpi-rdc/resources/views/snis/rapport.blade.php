@@ -6,12 +6,58 @@
     <div class="flex flex-wrap items-center gap-3 mb-1">
         <a href="{{ route('statistiques.index') }}" class="text-blue-700 hover:underline text-sm">← Statistiques</a>
         <h2 class="text-2xl font-bold text-gray-800">📋 Rapport mensuel SNIS</h2>
+        <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold">
+            Canevas {{ $rapport['systeme']['sigle'] }}
+        </span>
     </div>
     <p class="text-sm text-gray-500 mb-5">
         {{ $etablissement }} — {{ ucfirst($rapport['periode']['libelle']) }}.
         Tous ces chiffres sont comptés dans la base, à la ligne près. Vérifiez-les
         avant de les remonter : c'est vous qui signez.
     </p>
+
+    {{-- Le canevas suivi par l'établissement --}}
+    <div class="bg-white rounded-xl shadow p-4 mb-5">
+        <div class="flex flex-wrap items-start gap-4">
+            <div class="flex-1 min-w-[16rem]">
+                <p class="font-semibold text-gray-800">
+                    {{ $rapport['systeme']['nom'] }}
+                    <span class="text-gray-400 font-normal">({{ $rapport['systeme']['sigle'] }})</span>
+                </p>
+                <p class="text-xs text-gray-500">{{ $rapport['systeme']['echelon'] }}</p>
+                <p class="text-sm text-gray-600 mt-1">{{ $rapport['systeme']['pourquoi'] }}</p>
+            </div>
+
+            @if($peutChoisirLeSysteme)
+            <form method="POST" action="{{ route('snis.systeme') }}" class="flex flex-wrap items-end gap-2">
+                @csrf
+                <input type="hidden" name="annee" value="{{ $annee }}">
+                <input type="hidden" name="mois" value="{{ $mois }}">
+                <div>
+                    <label for="systeme" class="block text-xs font-semibold text-gray-600 mb-1">
+                        Système de santé
+                    </label>
+                    <select id="systeme" name="systeme"
+                            class="border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[44px]">
+                        @foreach($systemes as $cle => $definition)
+                        <option value="{{ $cle }}" @selected($cle === $systemeRetenu)>
+                            {{ $definition['sigle'] }} — {{ $definition['nom'] }}
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+                <button class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold min-h-[44px]">
+                    Appliquer le canevas
+                </button>
+            </form>
+            @else
+            <p class="text-xs text-gray-400 max-w-xs">
+                Le canevas se règle à l'installation, par la direction.
+                Il décide de ce que ce rapport remonte à la zone de santé.
+            </p>
+            @endif
+        </div>
+    </div>
 
     <form method="GET" class="bg-white rounded-xl shadow p-4 mb-5 flex flex-wrap gap-3 items-end">
         {{-- Aucun script : deux champs et un bouton, plus des liens directs
@@ -49,10 +95,11 @@
         </div>
     </form>
 
-    {{-- 1. Consultations --}}
+    {{-- Consultations --}}
+    @isset($rapport['consultations'])
     <div class="bg-white rounded-xl shadow overflow-hidden mb-5">
         <div class="px-5 py-3 border-b font-semibold text-gray-700">
-            1. Consultations curatives
+            {{ $numeros['consultations'] }}. Consultations curatives
             <span class="text-gray-400 font-normal text-sm">
                 — {{ $rapport['consultations']['total'] }} passages,
                 dont {{ $rapport['consultations']['nouveaux'] }} nouveaux cas
@@ -91,40 +138,46 @@
             </table>
         </div>
     </div>
+    @endisset
 
-    {{-- 2. Morbidité --}}
+    {{-- Morbidité --}}
+    @isset($rapport['morbidite'])
     <div class="bg-white rounded-xl shadow overflow-hidden mb-5">
         <div class="px-5 py-3 border-b font-semibold text-gray-700">
-            2. Morbidité
+            {{ $numeros['morbidite'] }}. Morbidité
             <span class="text-gray-400 font-normal text-sm">
                 — {{ $rapport['morbidite']['total_diagnostics'] }} diagnostics posés
                 sur {{ $rapport['morbidite']['consultations'] }} consultations
             </span>
         </div>
-        <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-gray-600">
-                <tr>
-                    <th class="px-4 py-2 text-left">Pathologie</th>
-                    <th class="px-4 py-2 text-right">Moins de 5 ans</th>
-                    <th class="px-4 py-2 text-right">5 ans et plus</th>
-                    <th class="px-4 py-2 text-right font-bold">Total</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-                @forelse($rapport['morbidite']['lignes'] as $cle => $ligne)
-                <tr class="{{ $cle === 'autres' ? 'text-gray-500 italic' : '' }}">
-                    <td class="px-4 py-2">{{ $ligne['libelle'] }}</td>
-                    <td class="px-4 py-2 text-right">{{ $ligne['moins_5ans'] }}</td>
-                    <td class="px-4 py-2 text-right">{{ $ligne['plus_5ans'] }}</td>
-                    <td class="px-4 py-2 text-right font-semibold">{{ $ligne['total'] }}</td>
-                </tr>
-                @empty
-                <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">
-                    Aucun diagnostic posé sur ce mois.
-                </td></tr>
-                @endforelse
-            </tbody>
-        </table>
+        {{-- Quatre colonnes ne tiennent pas sur un téléphone : le tableau
+             défile dans sa carte plutôt que de pousser toute la page. --}}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Pathologie</th>
+                        <th class="px-4 py-2 text-right">Moins de 5 ans</th>
+                        <th class="px-4 py-2 text-right">5 ans et plus</th>
+                        <th class="px-4 py-2 text-right font-bold">Total</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse($rapport['morbidite']['lignes'] as $cle => $ligne)
+                    <tr class="{{ $cle === 'autres' ? 'text-gray-500 italic' : '' }}">
+                        <td class="px-4 py-2">{{ $ligne['libelle'] }}</td>
+                        <td class="px-4 py-2 text-right">{{ $ligne['moins_5ans'] }}</td>
+                        <td class="px-4 py-2 text-right">{{ $ligne['plus_5ans'] }}</td>
+                        <td class="px-4 py-2 text-right font-semibold">{{ $ligne['total'] }}</td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">
+                        Aucun diagnostic posé sur ce mois.
+                    </td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
         @if(($rapport['morbidite']['lignes']['autres']['total'] ?? 0) > 0)
         <p class="px-5 py-2 text-xs text-gray-500 border-t">
             Les « autres pathologies » sont les diagnostics que le canevas ne
@@ -133,11 +186,17 @@
         </p>
         @endif
     </div>
+    @endisset
 
-    {{-- 3 et 4 côte à côte --}}
-    <div class="grid lg:grid-cols-2 gap-5 mb-5">
+    {{-- Les rubriques restantes, chacune dans sa carte : le canevas décide
+         lesquelles existent, la grille s'y adapte. --}}
+    <div class="grid lg:grid-cols-2 gap-5 mb-5 items-start">
+
+        @isset($rapport['hospitalisation'])
         <div class="bg-white rounded-xl shadow overflow-hidden">
-            <div class="px-5 py-3 border-b font-semibold text-gray-700">3. Hospitalisation</div>
+            <div class="px-5 py-3 border-b font-semibold text-gray-700">
+                {{ $numeros['hospitalisation'] }}. Hospitalisation
+            </div>
             <table class="w-full text-sm">
                 <tbody class="divide-y divide-gray-100">
                     @foreach([
@@ -160,9 +219,13 @@
                 </tbody>
             </table>
         </div>
+        @endisset
 
+        @isset($rapport['maternite'])
         <div class="bg-white rounded-xl shadow overflow-hidden">
-            <div class="px-5 py-3 border-b font-semibold text-gray-700">4. Santé de la mère et du nouveau-né</div>
+            <div class="px-5 py-3 border-b font-semibold text-gray-700">
+                {{ $numeros['maternite'] }}. Santé de la mère et du nouveau-né
+            </div>
             <table class="w-full text-sm">
                 <tbody class="divide-y divide-gray-100">
                     @foreach($rapport['maternite']['cpn_par_rang'] as $rang => $nombre)
@@ -190,12 +253,13 @@
                 </tbody>
             </table>
         </div>
-    </div>
+        @endisset
 
-    {{-- 5, 6, 7, 8 --}}
-    <div class="grid lg:grid-cols-2 gap-5 mb-5">
+        @isset($rapport['laboratoire'])
         <div class="bg-white rounded-xl shadow overflow-hidden">
-            <div class="px-5 py-3 border-b font-semibold text-gray-700">5. Laboratoire et imagerie</div>
+            <div class="px-5 py-3 border-b font-semibold text-gray-700">
+                {{ $numeros['laboratoire'] }}. Laboratoire et imagerie
+            </div>
             <table class="w-full text-sm">
                 <tbody class="divide-y divide-gray-100">
                     <tr><td class="px-4 py-2">Demandes de laboratoire</td><td class="px-4 py-2 text-right font-semibold">{{ $rapport['laboratoire']['demandes_labo'] }}</td></tr>
@@ -207,68 +271,81 @@
                 </tbody>
             </table>
         </div>
+        @endisset
 
-        <div>
-            <div class="bg-white rounded-xl shadow overflow-hidden mb-5">
-                <div class="px-5 py-3 border-b font-semibold text-gray-700">6. Transfusion sanguine</div>
-                <table class="w-full text-sm">
-                    <tbody class="divide-y divide-gray-100">
-                        @foreach([
-                            'Poches collectées' => 'poches_collectees',
-                            'Poches détruites au dépistage' => 'poches_detruites',
-                            'Poches périmées' => 'poches_perimees',
-                            'Transfusions réalisées' => 'transfusions',
-                            'Incidents transfusionnels' => 'incidents',
-                        ] as $libelle => $cle)
-                        <tr class="{{ $cle === 'incidents' && $rapport['sang'][$cle] > 0 ? 'bg-red-50' : '' }}">
-                            <td class="px-4 py-2">{{ $libelle }}</td>
-                            <td class="px-4 py-2 text-right font-semibold">{{ $rapport['sang'][$cle] }}</td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+        @isset($rapport['sang'])
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="px-5 py-3 border-b font-semibold text-gray-700">
+                {{ $numeros['sang'] }}. Banque du sang
             </div>
-
-            <div class="bg-white rounded-xl shadow overflow-hidden mb-5">
-                <div class="px-5 py-3 border-b font-semibold text-gray-700">7. Pharmacie</div>
-                <table class="w-full text-sm">
-                    <tbody class="divide-y divide-gray-100">
-                        <tr><td class="px-4 py-2">Références au catalogue</td><td class="px-4 py-2 text-right font-semibold">{{ $rapport['pharmacie']['references'] }}</td></tr>
-                        <tr class="{{ $rapport['pharmacie']['ruptures'] > 0 ? 'bg-red-50' : '' }}">
-                            <td class="px-4 py-2">Produits en rupture</td>
-                            <td class="px-4 py-2 text-right font-semibold">{{ $rapport['pharmacie']['ruptures'] }}</td>
-                        </tr>
-                        <tr><td class="px-4 py-2">Sous seuil d'alerte</td><td class="px-4 py-2 text-right font-semibold">{{ $rapport['pharmacie']['sous_alerte'] }}</td></tr>
-                    </tbody>
-                </table>
-                @if($rapport['pharmacie']['produits_en_rupture']->isNotEmpty())
-                <p class="px-5 py-2 text-xs text-red-800 border-t bg-red-50/40">
-                    <strong>En rupture :</strong> {{ $rapport['pharmacie']['produits_en_rupture']->implode(' · ') }}
-                </p>
-                @endif
-            </div>
-
-            <div class="bg-white rounded-xl shadow overflow-hidden">
-                <div class="px-5 py-3 border-b font-semibold text-gray-700">8. Décès</div>
-                <table class="w-full text-sm">
-                    <tbody class="divide-y divide-gray-100">
-                        <tr class="{{ $rapport['deces']['total'] > 0 ? 'bg-red-50' : '' }}">
-                            <td class="px-4 py-2 font-medium">Total</td>
-                            <td class="px-4 py-2 text-right font-bold">{{ $rapport['deces']['total'] }}</td>
-                        </tr>
-                        <tr><td class="px-4 py-2 text-xs pl-8">dont dans les 48 premières heures</td><td class="px-4 py-2 text-right">{{ $rapport['deces']['moins_48h'] }}</td></tr>
-                        @foreach($rapport['deces']['par_tranche'] as $tranche => $nombre)
-                        <tr class="text-gray-600"><td class="px-4 py-2 pl-8 text-xs">{{ $tranche }}</td><td class="px-4 py-2 text-right">{{ $nombre }}</td></tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+            <table class="w-full text-sm">
+                <tbody class="divide-y divide-gray-100">
+                    @foreach([
+                        'Poches collectées' => 'poches_collectees',
+                        'Poches détruites au dépistage' => 'poches_detruites',
+                        'Poches périmées' => 'poches_perimees',
+                        'Transfusions réalisées' => 'transfusions',
+                        'Incidents transfusionnels' => 'incidents',
+                    ] as $libelle => $cle)
+                    <tr class="{{ $cle === 'incidents' && $rapport['sang'][$cle] > 0 ? 'bg-red-50' : '' }}">
+                        <td class="px-4 py-2">{{ $libelle }}</td>
+                        <td class="px-4 py-2 text-right font-semibold">{{ $rapport['sang'][$cle] }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
+        @endisset
+
+        @isset($rapport['pharmacie'])
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="px-5 py-3 border-b font-semibold text-gray-700">
+                {{ $numeros['pharmacie'] }}. Médicaments et intrants
+            </div>
+            <table class="w-full text-sm">
+                <tbody class="divide-y divide-gray-100">
+                    <tr><td class="px-4 py-2">Références au catalogue</td><td class="px-4 py-2 text-right font-semibold">{{ $rapport['pharmacie']['references'] }}</td></tr>
+                    <tr class="{{ $rapport['pharmacie']['ruptures'] > 0 ? 'bg-red-50' : '' }}">
+                        <td class="px-4 py-2">Produits en rupture</td>
+                        <td class="px-4 py-2 text-right font-semibold">{{ $rapport['pharmacie']['ruptures'] }}</td>
+                    </tr>
+                    <tr><td class="px-4 py-2">Sous seuil d'alerte</td><td class="px-4 py-2 text-right font-semibold">{{ $rapport['pharmacie']['sous_alerte'] }}</td></tr>
+                </tbody>
+            </table>
+            @if($rapport['pharmacie']['produits_en_rupture']->isNotEmpty())
+            <p class="px-5 py-2 text-xs text-red-800 border-t bg-red-50/40">
+                <strong>En rupture :</strong> {{ $rapport['pharmacie']['produits_en_rupture']->implode(' · ') }}
+            </p>
+            @endif
+        </div>
+        @endisset
+
+        @isset($rapport['deces'])
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="px-5 py-3 border-b font-semibold text-gray-700">
+                {{ $numeros['deces'] }}. Décès
+            </div>
+            <table class="w-full text-sm">
+                <tbody class="divide-y divide-gray-100">
+                    <tr class="{{ $rapport['deces']['total'] > 0 ? 'bg-red-50' : '' }}">
+                        <td class="px-4 py-2 font-medium">Total</td>
+                        <td class="px-4 py-2 text-right font-bold">{{ $rapport['deces']['total'] }}</td>
+                    </tr>
+                    <tr><td class="px-4 py-2 text-xs pl-8">dont dans les 48 premières heures</td><td class="px-4 py-2 text-right">{{ $rapport['deces']['moins_48h'] }}</td></tr>
+                    @foreach($rapport['deces']['par_tranche'] as $tranche => $nombre)
+                    <tr class="text-gray-600"><td class="px-4 py-2 pl-8 text-xs">{{ $tranche }}</td><td class="px-4 py-2 text-right">{{ $nombre }}</td></tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endisset
     </div>
 
     {{-- Ce que l'application ne sait pas compter --}}
     <div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4">
-        <p class="font-semibold text-amber-900 mb-1">Rubriques à reprendre du registre papier</p>
+        <p class="font-semibold text-amber-900 mb-1">
+            Sections du canevas {{ $rapport['systeme']['sigle'] }} à reprendre du registre papier
+        </p>
         <p class="text-sm text-amber-900 mb-2">
             L'application ne suit pas encore ces activités : elle ne les invente pas.
             Complétez-les à la main avant de remonter le rapport.

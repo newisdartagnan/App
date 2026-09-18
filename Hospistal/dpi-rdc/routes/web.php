@@ -321,6 +321,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/snis', [RapportSnisController::class, 'index'])->name('snis.index');
     Route::get('/snis/csv', [RapportSnisController::class, 'csv'])->name('snis.csv');
     Route::get('/snis/imprimer', [RapportSnisController::class, 'imprimer'])->name('snis.imprimer');
+    // Le canevas suivi par l'établissement : CS, HGR, HST ou BCZ.
+    Route::post('/snis/systeme', [RapportSnisController::class, 'definirSysteme'])->name('snis.systeme');
 
     // Agenda des rendez-vous
     Route::get('/agenda', [AgendaController::class, 'index'])->name('agenda.index');
