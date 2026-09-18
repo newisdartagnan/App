@@ -7,6 +7,7 @@ use App\Models\NotificationInterne;
 use App\Models\Patient;
 use App\Models\PatientAssurance;
 use App\Models\TypeConsultation;
+use App\Models\Visit;
 use App\Services\DisponibiliteService;
 use App\Services\DossierNumberService;
 use App\Services\FacturationService;
@@ -121,6 +122,10 @@ class PatientController extends Controller
             'type' => 'required|in:consultation_externe,urgence',
             'type_consultation_id' => 'required_if:type,consultation_externe|nullable|uuid|exists:types_consultation,id',
             'motif' => 'nullable|string|max:500',
+            'mode_entree' => 'nullable|string|in:'.implode(',', array_keys(Visit::MODES_ENTREE)),
+            // La structure qui adresse le patient : le canevas veut savoir
+            // laquelle, pas seulement qu'il a été adressé.
+            'provenance' => 'nullable|string|max:200',
         ], [
             'type_consultation_id.required_if' => 'Choisissez le type de consultation (générale ou spécialisée).',
         ]);
@@ -149,6 +154,8 @@ class PatientController extends Controller
             $request->type,
             $request->motif,
             $request->type === 'urgence' ? null : $request->type_consultation_id,
+            $request->mode_entree,
+            $request->provenance,
         );
 
         if ($avertissement) {
@@ -186,6 +193,12 @@ class PatientController extends Controller
             'territoire' => 'nullable|string|max:100',
             'adresse' => 'nullable|string|max:500',
             'profession' => 'nullable|string|max:100',
+            // Le canevas ventile les nouveaux cas en travailleurs du secteur
+            // formel, mutualistes et indigents : les deux premiers se
+            // cumulent, ce ne sont donc pas des prises en charge.
+            'travailleur_secteur_formel' => 'nullable|boolean',
+            'mutualiste' => 'nullable|boolean',
+            'mutuelle_nom' => 'nullable|string|max:150',
             'situation_matrimoniale' => 'nullable|in:celibataire,marie,divorce,veuf,inconnu',
             'niveau_instruction' => 'nullable|in:aucun,primaire,secondaire,superieur,inconnu',
             'contact_urgence_nom' => 'nullable|string|max:200',
@@ -256,6 +269,9 @@ class PatientController extends Controller
             'province' => $data['province'] ?? null,
             'territoire' => $data['territoire'] ?? null,
             'profession' => $data['profession'] ?? null,
+            'travailleur_secteur_formel' => $request->boolean('travailleur_secteur_formel'),
+            'mutualiste' => $request->boolean('mutualiste'),
+            'mutuelle_nom' => $request->boolean('mutualiste') ? ($data['mutuelle_nom'] ?? null) : null,
             'situation_matrimoniale' => $data['situation_matrimoniale'] ?? 'inconnu',
             'niveau_instruction' => $data['niveau_instruction'] ?? 'inconnu',
             'contact_urgence_nom' => $data['contact_urgence_nom'] ?? null,

@@ -137,6 +137,72 @@
                 </tbody>
             </table>
         </div>
+
+        {{-- Ce que le canevas demande en plus du simple comptage : qui est
+             le nouveau cas, d'où il vient, et ce qu'il devient. --}}
+        <div class="grid md:grid-cols-3 gap-px bg-gray-100 border-t">
+            <div class="bg-white px-5 py-3">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    Caractéristiques des nouveaux cas
+                </p>
+                <table class="w-full text-sm">
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach([
+                            'Travailleurs du secteur formel' => 'nouveaux_travailleurs_formels',
+                            'Mutualistes' => 'nouveaux_mutualistes',
+                            'Indigents' => 'nouveaux_indigents',
+                        ] as $libelle => $cle)
+                        <tr>
+                            <td class="py-1.5 pr-2">{{ $libelle }}</td>
+                            <td class="py-1.5 text-right font-semibold">{{ $rapport['consultations'][$cle] }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                <p class="text-xs text-gray-400 mt-2">
+                    Elles se cumulent : un salarié peut être mutualiste. Ces
+                    lignes ne s'additionnent pas.
+                </p>
+            </div>
+
+            <div class="bg-white px-5 py-3">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Provenance</p>
+                <table class="w-full text-sm">
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse($rapport['consultations']['par_provenance'] as $libelle => $nombre)
+                        <tr>
+                            <td class="py-1.5 pr-2">{{ $libelle }}</td>
+                            <td class="py-1.5 text-right font-semibold">{{ $nombre }}</td>
+                        </tr>
+                        @empty
+                        <tr><td class="py-1.5 text-gray-400">Aucun passage ce mois-ci.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-white px-5 py-3">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    Suites données à la consultation
+                </p>
+                <table class="w-full text-sm">
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach([
+                            'Référés vers un autre établissement' => 'referes_sortants',
+                            'Mis en observation' => 'mis_en_observation',
+                            'Orientés vers l\'hospitalisation' => 'orientes_hospitalisation',
+                            'Contre-référés reçus' => 'contre_references',
+                            'Orientés par un RECO' => 'orientes_par_reco',
+                        ] as $libelle => $cle)
+                        <tr>
+                            <td class="py-1.5 pr-2">{{ $libelle }}</td>
+                            <td class="py-1.5 text-right font-semibold">{{ $rapport['consultations'][$cle] }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
     @endisset
 
@@ -199,8 +265,20 @@
             </div>
             <table class="w-full text-sm">
                 <tbody class="divide-y divide-gray-100">
+                    <tr>
+                        <td class="px-4 py-2">Admissions</td>
+                        <td class="px-4 py-2 text-right font-semibold">{{ $rapport['hospitalisation']['admissions'] }}</td>
+                    </tr>
                     @foreach([
-                        'Admissions' => $rapport['hospitalisation']['admissions'],
+                        'dont référés' => 'admissions_referees',
+                        'dont enfants de moins de 5 ans' => 'admissions_moins_5ans',
+                    ] as $libelle => $cle)
+                    <tr class="text-gray-600">
+                        <td class="px-4 py-2 pl-8 text-xs">{{ $libelle }}</td>
+                        <td class="px-4 py-2 text-right">{{ $rapport['hospitalisation'][$cle] }}</td>
+                    </tr>
+                    @endforeach
+                    @foreach([
                         'Sorties' => $rapport['hospitalisation']['sorties'],
                         'Journées d\'hospitalisation' => $rapport['hospitalisation']['journees'],
                         'Durée moyenne de séjour (jours)' => $rapport['hospitalisation']['duree_moyenne'],
@@ -214,6 +292,16 @@
                     <tr class="text-gray-600">
                         <td class="px-4 py-2 pl-8 text-xs">Sorties — {{ $issue }}</td>
                         <td class="px-4 py-2 text-right">{{ $nombre }}</td>
+                    </tr>
+                    @endforeach
+                    @foreach([
+                        'Décès avant 48 h' => 'deces_moins_48h',
+                        'Décès après 48 h' => 'deces_plus_48h',
+                        'Décès d\'enfants de moins de 5 ans' => 'deces_moins_5ans',
+                    ] as $libelle => $cle)
+                    <tr class="{{ $rapport['hospitalisation'][$cle] > 0 ? 'bg-red-50' : 'text-gray-600' }}">
+                        <td class="px-4 py-2 pl-8 text-xs">{{ $libelle }}</td>
+                        <td class="px-4 py-2 text-right">{{ $rapport['hospitalisation'][$cle] }}</td>
                     </tr>
                     @endforeach
                 </tbody>
@@ -332,6 +420,7 @@
                         <td class="px-4 py-2 text-right font-bold">{{ $rapport['deces']['total'] }}</td>
                     </tr>
                     <tr><td class="px-4 py-2 text-xs pl-8">dont dans les 48 premières heures</td><td class="px-4 py-2 text-right">{{ $rapport['deces']['moins_48h'] }}</td></tr>
+                    <tr><td class="px-4 py-2 text-xs pl-8">dont après 48 heures</td><td class="px-4 py-2 text-right">{{ $rapport['deces']['plus_48h'] }}</td></tr>
                     @foreach($rapport['deces']['par_tranche'] as $tranche => $nombre)
                     <tr class="text-gray-600"><td class="px-4 py-2 pl-8 text-xs">{{ $tranche }}</td><td class="px-4 py-2 text-right">{{ $nombre }}</td></tr>
                     @endforeach

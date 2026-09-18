@@ -27,6 +27,14 @@
         <div><span class="text-gray-500">Type visite</span><p class="font-semibold">{{ str_replace('_',' ', $visit->type) }}</p></div>
         <div><span class="text-gray-500">Entrée</span><p class="font-semibold">{{ $visit->date_entree->format('d/m/Y H:i') }}</p></div>
         <div><span class="text-gray-500">Statut</span><p class="font-semibold">{{ ucfirst($visit->statut) }}</p></div>
+        {{-- D'où vient le patient : le rapport mensuel compte à part les
+             référés, les contre-référés et les orientés par un RECO. --}}
+        <div class="col-span-2">
+            <span class="text-gray-500">Provenance</span>
+            <p class="font-semibold">
+                {{ $visit->libelleModeEntree() }}@if(filled($visit->provenance)) <span class="font-normal text-gray-600">— {{ $visit->provenance }}</span>@endif
+            </p>
+        </div>
     </div>
 
     {{-- Actions rapides --}}

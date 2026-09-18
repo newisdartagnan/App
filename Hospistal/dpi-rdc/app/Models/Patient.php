@@ -18,7 +18,8 @@ class Patient extends Model
         'nom', 'postnom', 'prenom', 'nom_soundex', 'prenom_soundex',
         'date_naissance', 'lieu_naissance', 'sexe', 'nationalite',
         'telephone', 'telephone_index', 'adresse', 'province', 'territoire',
-        'profession', 'situation_matrimoniale', 'niveau_instruction',
+        'profession', 'travailleur_secteur_formel', 'mutualiste', 'mutuelle_nom',
+        'situation_matrimoniale', 'niveau_instruction',
         'contact_urgence_nom', 'contact_urgence_telephone', 'contact_urgence_lien',
         'type_prise_en_charge', 'assurance_nom', 'assurance_numero', 'groupe_sanguin',
         'duplicate_of', 'duplicate_confidence', 'merge_status',
@@ -30,6 +31,8 @@ class Patient extends Model
         return [
             'date_naissance' => 'date',
             'duplicate_confidence' => 'decimal:2',
+            'travailleur_secteur_formel' => 'boolean',
+            'mutualiste' => 'boolean',
             'telephone' => 'encrypted',
             'adresse' => 'encrypted',
             'contact_urgence_telephone' => 'encrypted',
@@ -161,6 +164,31 @@ class Patient extends Model
     public function estAssure(): bool
     {
         return $this->type_prise_en_charge === 'assurance';
+    }
+
+    public function estIndigent(): bool
+    {
+        return $this->type_prise_en_charge === 'indigent';
+    }
+
+    /**
+     * Les caractéristiques que le canevas relève sur le nouveau cas.
+     *
+     * Elles se cumulent : un salarié peut être mutualiste, un mutualiste
+     * peut être déclaré indigent. C'est pourquoi ce ne sont pas des valeurs
+     * de la prise en charge mais des marques à part.
+     *
+     * @return array<int, string>
+     */
+    public function caracteristiquesSnis(): array
+    {
+        return array_values(array_filter([
+            $this->travailleur_secteur_formel ? 'Travailleur du secteur formel' : null,
+            $this->mutualiste
+                ? 'Mutualiste'.(filled($this->mutuelle_nom) ? ' — '.$this->mutuelle_nom : '')
+                : null,
+            $this->estIndigent() ? 'Indigent' : null,
+        ]));
     }
 
     public function getNomCompletAttribute(): string
