@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Accouchement;
+use App\Models\ActePlanificationFamiliale;
 use App\Models\Consultation;
 use App\Models\ConsultationPrenatale;
 use App\Models\ExamenLaboratoire;
@@ -11,6 +12,7 @@ use App\Models\Patient;
 use App\Models\PocheSang;
 use App\Models\StockMedicament;
 use App\Models\Transfusion;
+use App\Models\Vaccination;
 use App\Models\Visit;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -24,8 +26,8 @@ use Illuminate\Support\Collection;
  * dans la base, à la ligne près.
  *
  * On compte ce qui est enregistré et rien d'autre. Une rubrique que
- * l'application ne suit pas — planification familiale, supervision — n'est
- * pas inventée : elle est déclarée non suivie, à remplir depuis le registre
+ * l'application ne suit pas — supervision, bloc opératoire — n'est pas
+ * inventée : elle est déclarée non suivie, à remplir depuis le registre
  * papier. Un rapport qui ment est pire qu'un rapport incomplet, parce que
  * personne ne sait plus lesquels de ses chiffres croire.
  *
@@ -78,6 +80,7 @@ class RapportSnisService
     public function __construct(
         private readonly SystemeSanteService $systemes,
         private readonly NutritionService $nutrition,
+        private readonly PreventionService $prevention,
     ) {}
 
     /**
@@ -101,6 +104,8 @@ class RapportSnisService
             'morbidite' => fn () => $this->morbidite($debut, $fin, $etablissementId),
             'hospitalisation' => fn () => $this->hospitalisation($debut, $fin, $etablissementId),
             'maternite' => fn () => $this->maternite($debut, $fin, $etablissementId),
+            'planification_familiale' => fn () => $this->prevention->rapportPf($debut, $fin, $etablissementId),
+            'vaccination' => fn () => $this->prevention->rapportPev($debut, $fin, $etablissementId),
             'laboratoire' => fn () => $this->laboratoire($debut, $fin, $etablissementId),
             'sang' => fn () => $this->sang($debut, $fin, $etablissementId),
             // Les unités dépendent de l'échelon : l'ambulatoire et la
@@ -732,6 +737,84 @@ class RapportSnisService
             $lignes->push(['Poches périmées', $rapport['sang']['poches_perimees']]);
             $lignes->push(['Transfusions réalisées', $rapport['sang']['transfusions']]);
             $lignes->push(['Incidents transfusionnels', $rapport['sang']['incidents']]);
+            $lignes->push([]);
+        }
+
+        if (isset($rapport['planification_familiale'])) {
+            $pf = $rapport['planification_familiale'];
+            $lignes->push([$titre('planification_familiale', 'PLANIFICATION FAMILIALE')]);
+
+            // L'en-tête du canevas : les quatre tranches d'âge répétées sous
+            // chacun des deux canaux, ESS puis DBC.
+            $entete = [''];
+
+            foreach (ActePlanificationFamiliale::CANAUX as $canal => $libelleCanal) {
+                foreach (ActePlanificationFamiliale::TRANCHES as $tranche) {
+                    $entete[] = strtoupper($canal).' '.$tranche['libelle'];
+                }
+            }
+
+            $entete[] = 'Total';
+            $lignes->push($entete);
+
+            foreach ($pf['lignes'] as $ligne) {
+                $cases = [$ligne['libelle']];
+
+                foreach ($ligne['ventilation']['canaux'] as $tranches) {
+                    foreach ($tranches as $nombre) {
+                        $cases[] = $nombre;
+                    }
+                }
+
+                $cases[] = $ligne['ventilation']['total'];
+                $lignes->push($cases);
+            }
+
+            $lignes->push(['TOTAL DES ACCEPTANTES', '', '', '', '', '', '', '', '', $pf['total']]);
+            $lignes->push(['dont nouvelles acceptantes', $pf['nouvelles']]);
+            $lignes->push(['dont renouvellements', $pf['renouvellements']]);
+            $lignes->push([]);
+
+            $lignes->push(['PF du post-partum', 'ESS', 'DBC']);
+            $lignes->push(['Accouchées ayant bénéficié d\'une méthode moderne avant la sortie de la maternité',
+                $pf['post_partum']['avec_methode']['ess'], $pf['post_partum']['avec_methode']['dbc']]);
+            $lignes->push(['Accouchées conseillées sur la PF en post-partum',
+                $pf['post_partum']['conseillees']['ess'], $pf['post_partum']['conseillees']['dbc']]);
+            $lignes->push([]);
+        }
+
+        if (isset($rapport['vaccination'])) {
+            $pev = $rapport['vaccination'];
+            $lignes->push([$titre('vaccination', 'VACCINATION — PROGRAMME ÉLARGI')]);
+            $lignes->push(array_merge(['Antigène'], array_values(Vaccination::STRATEGIES), ['Total']));
+
+            foreach ($pev['lignes'] as $ligne) {
+                $lignes->push(array_merge(
+                    [$ligne['libelle']],
+                    array_values($ligne['strategies']),
+                    [$ligne['total']],
+                ));
+            }
+
+            $lignes->push(['TOTAL DES DOSES', '', '', '', $pev['total']]);
+            $lignes->push([]);
+
+            $lignes->push(['Filles vaccinées au HPV', ...array_values(Vaccination::STRATEGIES), 'Total']);
+
+            foreach ($pev['hpv']['lignes'] as $ligne) {
+                $lignes->push(array_merge(
+                    [$ligne['libelle']],
+                    array_values($ligne['strategies']),
+                    [$ligne['total']],
+                ));
+            }
+
+            $lignes->push([]);
+            $lignes->push(['Enfants complètement vaccinés (ECV)', $pev['enfants_completement_vaccines']]);
+            // La définition de l'ECV est une règle de l'application et non du
+            // formulaire : elle voyage avec le chiffre pour qu'on puisse la
+            // contester.
+            $lignes->push(['Schéma retenu pour l\'ECV', implode(' · ', $pev['schema_complet'])]);
             $lignes->push([]);
         }
 

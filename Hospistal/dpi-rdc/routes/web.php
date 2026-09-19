@@ -31,6 +31,7 @@ use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PharmacieController;
 use App\Http\Controllers\PlanAdministrationController;
 use App\Http\Controllers\PrescriptionController;
+use App\Http\Controllers\PreventionController;
 use App\Http\Controllers\RapportSnisController;
 use App\Http\Controllers\RechercheController;
 use App\Http\Controllers\ServiceHospitalierController;
@@ -325,6 +326,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/patients/{patient}/nutrition/mesure', [NutritionController::class, 'storeMesure'])->name('nutrition.mesure');
     Route::post('/patients/{patient}/nutrition/admission', [NutritionController::class, 'storeAdmission'])->name('nutrition.admission');
     Route::post('/nutrition/{suivi}/decharger', [NutritionController::class, 'decharger'])->name('nutrition.decharger');
+
+    // Les registres préventifs : planification familiale et PEV. Ils
+    // vivaient entièrement sur papier.
+    Route::get('/planification-familiale', [PreventionController::class, 'pf'])->name('prevention.pf');
+    Route::get('/vaccination', [PreventionController::class, 'pev'])->name('prevention.pev');
+    Route::get('/patients/{patient}/prevention', [PreventionController::class, 'patient'])->name('prevention.patient');
+    Route::post('/patients/{patient}/planification-familiale', [PreventionController::class, 'storePf'])->name('prevention.pf.store');
+    Route::post('/patients/{patient}/vaccination', [PreventionController::class, 'storeVaccination'])->name('prevention.vaccination.store');
 
     // Rapport mensuel remonté à la zone de santé : il se remplissait à la main.
     Route::get('/snis', [RapportSnisController::class, 'index'])->name('snis.index');

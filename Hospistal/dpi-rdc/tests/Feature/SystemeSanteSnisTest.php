@@ -61,9 +61,13 @@ class SystemeSanteSnisTest extends TestCase
 
         $rapport = $this->rapport();
 
-        foreach (array_keys(SystemeSanteService::RUBRIQUES) as $rubrique) {
+        // Toutes celles de son canevas — le Programme élargi de vaccination
+        // n'en fait pas partie : c'est une section du centre de santé.
+        foreach (SystemeSanteService::SYSTEMES['hgr']['rubriques'] as $rubrique) {
             $this->assertArrayHasKey($rubrique, $rapport);
         }
+
+        $this->assertArrayNotHasKey('vaccination', $rapport);
     }
 
     public function test_un_centre_de_sante_ne_remonte_ni_hospitalisation_ni_banque_du_sang(): void
@@ -104,6 +108,8 @@ class SystemeSanteSnisTest extends TestCase
         $this->assertArrayHasKey('sang', $rapport);
         // Il ne remonte pas la planification familiale, qui est une activité
         // de zone : elle ne figure donc pas dans ses sections à compléter.
+        // La planification familiale est désormais produite : elle ne
+        // figure plus parmi les sections à reprendre du registre.
         $this->assertNotContains(
             '3. Planification familiale — nouvelles acceptantes par méthode',
             $rapport['non_suivi']
@@ -122,25 +128,30 @@ class SystemeSanteSnisTest extends TestCase
         $numeros = app(RapportSnisService::class)->numeros($rapport);
 
         // Le centre de santé saute l'hospitalisation et la banque du sang :
-        // ses sept sections restantes vont de 1 à 7, sans numéro manquant.
+        // ses neuf sections restantes vont de 1 à 9, sans numéro manquant.
         $this->assertSame([
             'consultations' => 1,
             'morbidite' => 2,
             'maternite' => 3,
-            'laboratoire' => 4,
-            'nutrition' => 5,
-            'pharmacie' => 6,
-            'deces' => 7,
+            'planification_familiale' => 4,
+            'vaccination' => 5,
+            'laboratoire' => 6,
+            'nutrition' => 7,
+            'pharmacie' => 8,
+            'deces' => 9,
         ], $numeros);
     }
 
-    public function test_lhopital_general_numerote_ses_neuf_sections(): void
+    public function test_lhopital_general_numerote_ses_dix_sections(): void
     {
         $numeros = app(RapportSnisService::class)->numeros($this->rapport());
 
-        $this->assertSame(9, $numeros['deces']);
-        $this->assertSame(6, $numeros['sang']);
-        $this->assertSame(7, $numeros['nutrition']);
+        $this->assertSame(10, $numeros['deces']);
+        $this->assertSame(5, $numeros['planification_familiale']);
+        $this->assertSame(7, $numeros['sang']);
+        $this->assertSame(8, $numeros['nutrition']);
+        // Le PEV est une section du centre de santé : l'hôpital ne l'a pas.
+        $this->assertArrayNotHasKey('vaccination', $numeros);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -154,7 +165,7 @@ class SystemeSanteSnisTest extends TestCase
 
         $this->assertContains('10. Sites de soins communautaires', $cs);
         $this->assertContains(
-            '8. Santé de l\'enfant — consultations préscolaires et vaccination (PEV)',
+            '8.1 Consultation préscolaire (CPS) — vitamine A, déparasitage, ANJE, MII',
             $cs
         );
 
@@ -217,8 +228,8 @@ class SystemeSanteSnisTest extends TestCase
 
         $this->assertStringContainsString('Centre de santé', $contenu);
         $this->assertStringContainsString('1. CONSULTATIONS CURATIVES', $contenu);
-        // Sept sections, pas neuf : les décès ferment la marche.
-        $this->assertStringContainsString('7. DÉCÈS', $contenu);
+        // Neuf sections, pas dix : les décès ferment la marche.
+        $this->assertStringContainsString('9. DÉCÈS', $contenu);
         $this->assertStringNotContainsString('HOSPITALISATION', $contenu);
         $this->assertStringNotContainsString('TRANSFUSION SANGUINE', $contenu);
     }

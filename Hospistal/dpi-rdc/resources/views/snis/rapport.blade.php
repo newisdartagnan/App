@@ -387,6 +387,133 @@
         </div>
         @endisset
 
+        @isset($rapport['planification_familiale'])
+        @php $pf = $rapport['planification_familiale']; @endphp
+        <div class="bg-white rounded-xl shadow overflow-hidden lg:col-span-2">
+            <div class="px-5 py-3 border-b font-semibold text-gray-700">
+                {{ $numeros['planification_familiale'] }}. Planification familiale
+                <span class="text-gray-400 font-normal text-sm">
+                    — {{ $pf['total'] }} acceptante(s),
+                    dont {{ $pf['nouvelles'] }} nouvelle(s)
+                    et {{ $pf['renouvellements'] }} renouvellement(s)
+                </span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-600">
+                        <tr>
+                            <th class="px-4 py-2 text-left">Méthode</th>
+                            @foreach(\App\Models\ActePlanificationFamiliale::CANAUX as $canal => $libelleCanal)
+                            @foreach(\App\Models\ActePlanificationFamiliale::TRANCHES as $tranche)
+                            <th class="px-2 py-2 text-right whitespace-nowrap text-xs">
+                                {{ strtoupper($canal) }} {{ $tranche['libelle'] }}
+                            </th>
+                            @endforeach
+                            @endforeach
+                            <th class="px-4 py-2 text-right font-bold">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($pf['lignes'] as $ligne)
+                        <tr class="{{ $ligne['ventilation']['total'] === 0 ? 'text-gray-400' : '' }}">
+                            <td class="px-4 py-2">{{ $ligne['libelle'] }}</td>
+                            @foreach($ligne['ventilation']['canaux'] as $tranches)
+                            @foreach($tranches as $nombre)
+                            <td class="px-2 py-2 text-right">{{ $nombre }}</td>
+                            @endforeach
+                            @endforeach
+                            <td class="px-4 py-2 text-right font-semibold">{{ $ligne['ventilation']['total'] }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="border-t">
+                <p class="px-5 pt-3 pb-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Planification familiale du post-partum
+                </p>
+                <table class="w-full text-sm">
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach([
+                            'Accouchées ayant bénéficié d\'une méthode moderne avant la sortie de la maternité' => 'avec_methode',
+                            'Accouchées conseillées sur la PF en post-partum' => 'conseillees',
+                        ] as $libelle => $cle)
+                        <tr>
+                            <td class="px-4 py-2">{{ $libelle }}</td>
+                            <td class="px-4 py-2 text-right text-xs text-gray-500">ESS</td>
+                            <td class="px-2 py-2 text-right font-semibold">{{ $pf['post_partum'][$cle]['ess'] }}</td>
+                            <td class="px-4 py-2 text-right text-xs text-gray-500">DBC</td>
+                            <td class="px-4 py-2 text-right font-semibold">{{ $pf['post_partum'][$cle]['dbc'] }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endisset
+
+        @isset($rapport['vaccination'])
+        @php $pev = $rapport['vaccination']; @endphp
+        <div class="bg-white rounded-xl shadow overflow-hidden lg:col-span-2">
+            <div class="px-5 py-3 border-b font-semibold text-gray-700">
+                {{ $numeros['vaccination'] }}. Vaccination — Programme élargi
+                <span class="text-gray-400 font-normal text-sm">
+                    — {{ $pev['total'] }} dose(s) administrée(s)
+                </span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-600">
+                        <tr>
+                            <th class="px-4 py-2 text-left">Antigène</th>
+                            @foreach(\App\Models\Vaccination::STRATEGIES as $libelle)
+                            <th class="px-4 py-2 text-right">{{ \Illuminate\Support\Str::before($libelle, ' —') }}</th>
+                            @endforeach
+                            <th class="px-4 py-2 text-right font-bold">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($pev['lignes'] as $ligne)
+                        <tr class="{{ $ligne['total'] === 0 ? 'text-gray-400' : '' }}">
+                            <td class="px-4 py-2">{{ $ligne['libelle'] }}</td>
+                            @foreach($ligne['strategies'] as $nombre)
+                            <td class="px-4 py-2 text-right">{{ $nombre }}</td>
+                            @endforeach
+                            <td class="px-4 py-2 text-right font-semibold">{{ $ligne['total'] }}</td>
+                        </tr>
+                        @endforeach
+                        <tr class="bg-gray-50">
+                            <td class="px-4 py-2 font-semibold" colspan="4">Filles vaccinées au HPV</td>
+                            <td class="px-4 py-2 text-right font-bold">{{ $pev['hpv']['total'] }}</td>
+                        </tr>
+                        @foreach($pev['hpv']['lignes'] as $ligne)
+                        <tr class="{{ $ligne['total'] === 0 ? 'text-gray-400' : '' }}">
+                            <td class="px-4 py-2 pl-8 text-xs">{{ $ligne['libelle'] }}</td>
+                            @foreach($ligne['strategies'] as $nombre)
+                            <td class="px-4 py-2 text-right">{{ $nombre }}</td>
+                            @endforeach
+                            <td class="px-4 py-2 text-right font-semibold">{{ $ligne['total'] }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="px-5 py-3 border-t">
+                <p class="text-sm">
+                    <strong>Enfants complètement vaccinés dans le mois :</strong>
+                    {{ $pev['enfants_completement_vaccines'] }}
+                </p>
+                {{-- Le canevas demande le nombre d'ECV sans dire ce qu'il met
+                     dedans : la définition retenue voyage donc avec le chiffre. --}}
+                <p class="text-xs text-gray-500 mt-1">
+                    Schéma retenu : {{ implode(' · ', $pev['schema_complet']) }}.
+                    L'enfant est compté au mois où il reçoit sa dernière dose
+                    manquante, pas à chaque mois où il reste complet.
+                </p>
+            </div>
+        </div>
+        @endisset
+
         @isset($rapport['nutrition'])
         <div class="bg-white rounded-xl shadow overflow-hidden lg:col-span-2">
             <div class="px-5 py-3 border-b font-semibold text-gray-700">

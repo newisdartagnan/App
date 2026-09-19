@@ -40,6 +40,11 @@
                   text-gray-700 text-sm font-semibold rounded-lg px-4 min-h-[44px]">
             🥣 Nutrition — mesurer, admettre
         </a>
+        <a href="{{ route('prevention.patient', $patient) }}"
+           class="inline-flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50
+                  text-gray-700 text-sm font-semibold rounded-lg px-4 min-h-[44px]">
+            🛡️ Prévention — carnet de vaccination, PF
+        </a>
         @isset($suiviNutrition)
         <span class="px-2 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-semibold">
             Suivi {{ $suiviNutrition->sigle() }} en cours depuis le

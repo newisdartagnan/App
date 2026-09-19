@@ -36,6 +36,7 @@
     // Le registre nutritionnel est un suivi de soins : il n'est offert
     // qu'à ceux qui pèsent, mesurent et déchargent.
     $navNutrition = request()->routeIs('nutrition.*');
+    $navPrevention = request()->routeIs('prevention.*');
     $peutSoigner = auth()->user()?->can('soin.execute');
 
     $navCaisse = request()->routeIs('caisse.*') || request()->routeIs('conventions.*')
@@ -51,12 +52,18 @@
     $groupes = [
         [
             'libelle' => 'Consultations',
-            'actif' => $navConsultation,
-            'liens' => [
+            'actif' => $navConsultation || $navPrevention,
+            'liens' => array_values(array_filter([
                 ['File d\'attente & consultations', route('consultations.index'), request()->routeIs('consultations.*')],
                 ['Agenda des rendez-vous', route('agenda.index'), request()->routeIs('agenda.*')],
                 ['Disponibilité des médecins', route('disponibilites.index'), request()->routeIs('disponibilites.*')],
-            ],
+                $peutSoigner
+                    ? ['Planification familiale', route('prevention.pf'), request()->routeIs('prevention.pf')]
+                    : null,
+                $peutSoigner
+                    ? ['Vaccination (PEV)', route('prevention.pev'), request()->routeIs('prevention.pev')]
+                    : null,
+            ])),
         ],
         [
             'libelle' => 'Hospitalisation',
