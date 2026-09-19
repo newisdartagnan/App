@@ -29,6 +29,26 @@
     @if(session('success'))<div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 mb-4">{{ session('success') }}</div>@endif
     @if(session('info'))<div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 mb-4">{{ session('info') }}</div>@endif
 
+    {{-- Le suivi nutritionnel court en dehors des visites : un enfant admis
+         à l'UNTA revient chaque semaine pendant deux mois. Son dossier doit
+         donc s'ouvrir depuis la fiche, pas seulement depuis une visite. --}}
+    @can('soin.execute')
+    @php $suiviNutrition = app(\App\Services\NutritionService::class)->suiviEnCours($patient); @endphp
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+        <a href="{{ route('nutrition.patient', $patient) }}"
+           class="inline-flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50
+                  text-gray-700 text-sm font-semibold rounded-lg px-4 min-h-[44px]">
+            🥣 Nutrition — mesurer, admettre
+        </a>
+        @isset($suiviNutrition)
+        <span class="px-2 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-semibold">
+            Suivi {{ $suiviNutrition->sigle() }} en cours depuis le
+            {{ $suiviNutrition->date_admission->format('d/m/Y') }}
+        </span>
+        @endisset
+    </div>
+    @endcan
+
     {{-- Workflow : le patient passe d'abord à la caisse, puis voit le médecin --}}
     @php $visiteActive = app(\App\Services\VisiteService::class)->visiteActive($patient); @endphp
     @if($visiteActive)

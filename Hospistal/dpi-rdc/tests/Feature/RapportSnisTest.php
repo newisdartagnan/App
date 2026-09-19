@@ -444,7 +444,8 @@ class RapportSnisTest extends TestCase
         $this->assertStringContainsString('Paludisme;', $contenu);
         $this->assertStringContainsString('RAPPORT MENSUEL SNIS', $contenu);
         $this->assertStringContainsString('1. CONSULTATIONS CURATIVES', $contenu);
-        $this->assertStringContainsString('8. DÉCÈS', $contenu);
+        // Neuf sections depuis que la nutrition est produite, plus huit.
+        $this->assertStringContainsString('9. DÉCÈS', $contenu);
     }
 
     public function test_le_fichier_porte_letablissement_et_le_mois(): void

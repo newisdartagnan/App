@@ -114,6 +114,39 @@
                 ]);
             }
 
+            if (isset($rapport['nutrition'])) {
+                $nutrition = collect();
+
+                foreach ($rapport['nutrition']['unites'] as $section) {
+                    $sigle = $section['definition']['sigle'];
+
+                    $nutrition->put($sigle.' — admissions début du mois (report)', $section['report']['total']);
+
+                    foreach ($section['entrees']['lignes'] as $ligne) {
+                        $nutrition->put($sigle.' — '.$ligne['libelle'], $ligne['ventilation']['total']);
+                    }
+
+                    foreach ($section['issues']['lignes'] as $ligne) {
+                        $nutrition->put($sigle.' — issue : '.$ligne['libelle'], $ligne['ventilation']['total']);
+                    }
+
+                    if ($section['issues']['taux_guerison'] !== null) {
+                        $nutrition->put($sigle.' — taux de guérison (%)', $section['issues']['taux_guerison']);
+                    }
+                }
+
+                foreach ($rapport['nutrition']['groupes_specifiques'] as $ligne) {
+                    $nutrition->put($ligne['libelle'].' — nouveaux', $ligne['nouveaux']);
+                    $nutrition->put($ligne['libelle'].' — anciens', $ligne['anciens']);
+                }
+
+                $nutrition->put('Dépistage — mesures prises dans le mois', $rapport['nutrition']['mesures']['total']);
+                $nutrition->put('dont malnutrition sévère', $rapport['nutrition']['mesures']['severes']);
+                $nutrition->put('dont malnutrition modérée', $rapport['nutrition']['mesures']['moderes']);
+
+                $sections[$numeros['nutrition'].'. PRISE EN CHARGE NUTRITIONNELLE'] = $nutrition;
+            }
+
             if (isset($rapport['pharmacie'])) {
                 $sections[$numeros['pharmacie'].'. MÉDICAMENTS ET INTRANTS'] = collect([
                     'Références au catalogue' => $rapport['pharmacie']['references'],

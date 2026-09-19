@@ -75,7 +75,10 @@ class RapportSnisService
         'traumatismes' => ['libelle' => 'Traumatismes et accidents', 'mots' => ['fracture', 'plaie', 'traumat', 'brûlure', 'brulure', 'entorse', 'luxation'], 'cim' => ['S', 'T', 'V', 'W', 'X', 'Y'], 'cim11' => ['N', 'PA8']],
     ];
 
-    public function __construct(private readonly SystemeSanteService $systemes) {}
+    public function __construct(
+        private readonly SystemeSanteService $systemes,
+        private readonly NutritionService $nutrition,
+    ) {}
 
     /**
      * Le rapport du mois, taillé au canevas de l'établissement.
@@ -100,6 +103,11 @@ class RapportSnisService
             'maternite' => fn () => $this->maternite($debut, $fin, $etablissementId),
             'laboratoire' => fn () => $this->laboratoire($debut, $fin, $etablissementId),
             'sang' => fn () => $this->sang($debut, $fin, $etablissementId),
+            // Les unités dépendent de l'échelon : l'ambulatoire et la
+            // supplémentation au centre de santé, l'intensive à l'hôpital.
+            'nutrition' => fn () => $this->nutrition->rapportMensuel(
+                $debut, $fin, $etablissementId, $systeme['unites_nutritionnelles'] ?? []
+            ),
             'pharmacie' => fn () => $this->pharmacie($etablissementId),
             'deces' => fn () => $this->deces($debut, $fin, $etablissementId),
         ];
@@ -724,6 +732,56 @@ class RapportSnisService
             $lignes->push(['Poches périmées', $rapport['sang']['poches_perimees']]);
             $lignes->push(['Transfusions réalisées', $rapport['sang']['transfusions']]);
             $lignes->push(['Incidents transfusionnels', $rapport['sang']['incidents']]);
+            $lignes->push([]);
+        }
+
+        if (isset($rapport['nutrition'])) {
+            $lignes->push([$titre('nutrition', 'PRISE EN CHARGE NUTRITIONNELLE')]);
+
+            foreach ($rapport['nutrition']['unites'] as $section) {
+                $entete = ['', 'F 6-23 m', 'M 6-23 m', 'F 24-59 m', 'M 24-59 m', 'F 5 ans +', 'M 5 ans +', 'Total'];
+
+                // Une ligne du canevas : le libellé, puis six cases de
+                // ventilation et le total, dans l'ordre du formulaire.
+                $ventiler = function (array $v) {
+                    $cases = [];
+
+                    foreach ($v['tranches'] as $tranche) {
+                        $cases[] = $tranche['f'];
+                        $cases[] = $tranche['m'];
+                    }
+
+                    return array_merge($cases, [$v['total']]);
+                };
+
+                $lignes->push([$section['definition']['sigle'].' — '.$section['definition']['nom']]);
+                $lignes->push($entete);
+                $lignes->push(array_merge(['Admissions début du mois (report)'], $ventiler($section['report'])));
+
+                foreach ($section['entrees']['lignes'] as $ligne) {
+                    $lignes->push(array_merge([$ligne['libelle']], $ventiler($ligne['ventilation'])));
+                }
+
+                $lignes->push(['Issues']);
+
+                foreach ($section['issues']['lignes'] as $ligne) {
+                    $lignes->push(array_merge([$ligne['libelle']], $ventiler($ligne['ventilation'])));
+                }
+
+                if ($section['issues']['taux_guerison'] !== null) {
+                    $lignes->push(['Taux de guérison (%)', $section['issues']['taux_guerison']]);
+                }
+
+                $lignes->push([]);
+            }
+
+            foreach ($rapport['nutrition']['groupes_specifiques'] as $ligne) {
+                $lignes->push([$ligne['libelle'], 'Nouveaux', $ligne['nouveaux'], 'Anciens', $ligne['anciens']]);
+            }
+
+            $lignes->push(['Dépistage — mesures prises dans le mois', $rapport['nutrition']['mesures']['total']]);
+            $lignes->push(['dont malnutrition sévère', $rapport['nutrition']['mesures']['severes']]);
+            $lignes->push(['dont malnutrition modérée', $rapport['nutrition']['mesures']['moderes']]);
             $lignes->push([]);
         }
 

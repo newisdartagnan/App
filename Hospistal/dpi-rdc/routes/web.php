@@ -23,6 +23,7 @@ use App\Http\Controllers\ForfaitController;
 use App\Http\Controllers\LaboratoireController;
 use App\Http\Controllers\MaterniteController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NutritionController;
 use App\Http\Controllers\OfficineController;
 use App\Http\Controllers\ParametreController;
 use App\Http\Controllers\ParcoursController;
@@ -316,6 +317,14 @@ Route::middleware(['auth'])->group(function () {
 
     // Statistiques de pilotage
     Route::get('/statistiques', [StatistiqueController::class, 'index'])->name('statistiques.index');
+
+    // Le registre nutritionnel : UNTA, UNTI et UNS. Il tenait sur des fiches
+    // cartonnées et se recomptait à la main le 30 du mois.
+    Route::get('/nutrition', [NutritionController::class, 'index'])->name('nutrition.index');
+    Route::get('/patients/{patient}/nutrition', [NutritionController::class, 'patient'])->name('nutrition.patient');
+    Route::post('/patients/{patient}/nutrition/mesure', [NutritionController::class, 'storeMesure'])->name('nutrition.mesure');
+    Route::post('/patients/{patient}/nutrition/admission', [NutritionController::class, 'storeAdmission'])->name('nutrition.admission');
+    Route::post('/nutrition/{suivi}/decharger', [NutritionController::class, 'decharger'])->name('nutrition.decharger');
 
     // Rapport mensuel remonté à la zone de santé : il se remplissait à la main.
     Route::get('/snis', [RapportSnisController::class, 'index'])->name('snis.index');
