@@ -390,7 +390,7 @@ class RapportSnisTest extends TestCase
         // numéro compris, pour qu'on les y retrouve.
         $this->assertNotEmpty($rapport['non_suivi']);
         $this->assertContains(
-            '3. Planification familiale — nouvelles acceptantes par méthode',
+            '11. Activité du bloc opératoire — interventions par type',
             $rapport['non_suivi']
         );
     }
@@ -444,8 +444,9 @@ class RapportSnisTest extends TestCase
         $this->assertStringContainsString('Paludisme;', $contenu);
         $this->assertStringContainsString('RAPPORT MENSUEL SNIS', $contenu);
         $this->assertStringContainsString('1. CONSULTATIONS CURATIVES', $contenu);
-        // Neuf sections depuis que la nutrition est produite, plus huit.
-        $this->assertStringContainsString('9. DÉCÈS', $contenu);
+        // Dix sections depuis que la nutrition et la planification
+        // familiale sont produites.
+        $this->assertStringContainsString('10. DÉCÈS', $contenu);
     }
 
     public function test_le_fichier_porte_letablissement_et_le_mois(): void

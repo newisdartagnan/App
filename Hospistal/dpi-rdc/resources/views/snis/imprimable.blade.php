@@ -114,6 +114,47 @@
                 ]);
             }
 
+            if (isset($rapport['planification_familiale'])) {
+                $pf = $rapport['planification_familiale'];
+                $lignesPf = collect();
+
+                foreach ($pf['lignes'] as $ligne) {
+                    $lignesPf->put($ligne['libelle'], $ligne['ventilation']['total']);
+                }
+
+                $lignesPf->put('TOTAL DES ACCEPTANTES', $pf['total']);
+                $lignesPf->put('dont nouvelles acceptantes', $pf['nouvelles']);
+                $lignesPf->put('dont renouvellements', $pf['renouvellements']);
+                $lignesPf->put('Post-partum — méthode moderne avant la sortie de la maternité (ESS)',
+                    $pf['post_partum']['avec_methode']['ess']);
+                $lignesPf->put('Post-partum — méthode moderne avant la sortie de la maternité (DBC)',
+                    $pf['post_partum']['avec_methode']['dbc']);
+                $lignesPf->put('Post-partum — accouchées conseillées (ESS)',
+                    $pf['post_partum']['conseillees']['ess']);
+                $lignesPf->put('Post-partum — accouchées conseillées (DBC)',
+                    $pf['post_partum']['conseillees']['dbc']);
+
+                $sections[$numeros['planification_familiale'].'. PLANIFICATION FAMILIALE'] = $lignesPf;
+            }
+
+            if (isset($rapport['vaccination'])) {
+                $pev = $rapport['vaccination'];
+                $lignesPev = collect();
+
+                foreach ($pev['lignes'] as $ligne) {
+                    $lignesPev->put($ligne['libelle'], $ligne['total']);
+                }
+
+                foreach ($pev['hpv']['lignes'] as $ligne) {
+                    $lignesPev->put('HPV — '.$ligne['libelle'], $ligne['total']);
+                }
+
+                $lignesPev->put('TOTAL DES DOSES', $pev['total']);
+                $lignesPev->put('Enfants complètement vaccinés (ECV)', $pev['enfants_completement_vaccines']);
+
+                $sections[$numeros['vaccination'].'. VACCINATION — PROGRAMME ÉLARGI'] = $lignesPev;
+            }
+
             if (isset($rapport['nutrition'])) {
                 $nutrition = collect();
 

@@ -49,6 +49,10 @@ class SystemeSanteService
         'morbidite' => 'Morbidité — diagnostics posés',
         'hospitalisation' => 'Hospitalisation — admissions, issues, séjours',
         'maternite' => 'Santé de la mère et du nouveau-né',
+        // Sur le formulaire, la planification familiale est la section 3,
+        // juste après la santé de la mère : on garde cet enchaînement.
+        'planification_familiale' => 'Planification familiale',
+        'vaccination' => 'Vaccination — Programme élargi de vaccination',
         'laboratoire' => 'Laboratoire et imagerie',
         'sang' => 'Banque du sang',
         'nutrition' => 'Prise en charge nutritionnelle',
@@ -80,14 +84,18 @@ class SystemeSanteService
             'sigle' => 'CS',
             'echelon' => 'Premier échelon — soins de santé primaires',
             'pourquoi' => 'Consultations, maternité, santé de l\'enfant et nutrition. Ni hospitalisation, ni bloc, ni banque du sang.',
-            'rubriques' => ['consultations', 'morbidite', 'maternite', 'laboratoire', 'nutrition', 'pharmacie', 'deces'],
+            'rubriques' => ['consultations', 'morbidite', 'maternite', 'planification_familiale', 'vaccination', 'laboratoire', 'nutrition', 'pharmacie', 'deces'],
             // Le centre de santé ne fait pas d'intensive : un enfant
             // compliqué part à l'hôpital.
             'unites_nutritionnelles' => ['unta', 'uns'],
             'non_suivi' => [
-                '3. Planification familiale — nouvelles acceptantes par méthode',
                 '4. Supervision et gestion — personnel, primes, équipements',
-                '8. Santé de l\'enfant — consultations préscolaires et vaccination (PEV)',
+                // La vaccination est produite ; la consultation préscolaire
+                // elle-même — vitamine A, déparasitage, ANJE, moustiquaires —
+                // reste à reprendre du registre.
+                '8.1 Consultation préscolaire (CPS) — vitamine A, déparasitage, ANJE, MII',
+                '8.1.2 Chimioprophylaxie pérenne au paludisme (CPP)',
+                '8.3 Stratégies de vaccination — séances prévues et réalisées',
                 // Les cas qu'un relais oriente sont comptés depuis la
                 // provenance ; son activité propre ne l'est pas.
                 '9. Activités et gestion de la communauté — activité propre des relais',
@@ -99,12 +107,11 @@ class SystemeSanteService
             'sigle' => 'HGR',
             'echelon' => 'Deuxième échelon — hôpital de la zone de santé',
             'pourquoi' => 'Le canevas complet de l\'hôpital : consultations, hospitalisation, bloc, laboratoire et banque du sang. C\'est celui de cette installation.',
-            'rubriques' => ['consultations', 'morbidite', 'hospitalisation', 'maternite', 'laboratoire', 'sang', 'nutrition', 'pharmacie', 'deces'],
+            'rubriques' => ['consultations', 'morbidite', 'hospitalisation', 'maternite', 'planification_familiale', 'laboratoire', 'sang', 'nutrition', 'pharmacie', 'deces'],
             // L'hôpital tient l'intensive ; l'ambulatoire et la
             // supplémentation appartiennent au centre de santé.
             'unites_nutritionnelles' => ['unti'],
             'non_suivi' => [
-                '3. Planification familiale — nouvelles acceptantes par méthode',
                 '4. Supervision et gestion — personnel, primes, équipements',
                 '6. Notification des cas et urgences — maladies à déclaration obligatoire',
                 '11. Activité du bloc opératoire — interventions par type',
@@ -114,8 +121,8 @@ class SystemeSanteService
             'nom' => 'Hôpital secondaire ou tertiaire',
             'sigle' => 'HST',
             'echelon' => 'Troisième échelon — hôpital provincial ou national',
-            'pourquoi' => 'Même socle que l\'hôpital général de référence, sans les activités de zone : il ne remonte pas la planification familiale.',
-            'rubriques' => ['consultations', 'morbidite', 'hospitalisation', 'maternite', 'laboratoire', 'sang', 'nutrition', 'pharmacie', 'deces'],
+            'pourquoi' => 'Même socle que l\'hôpital général de référence, avec les spécialités du troisième échelon.',
+            'rubriques' => ['consultations', 'morbidite', 'hospitalisation', 'maternite', 'planification_familiale', 'laboratoire', 'sang', 'nutrition', 'pharmacie', 'deces'],
             // L'hôpital tient l'intensive ; l'ambulatoire et la
             // supplémentation appartiennent au centre de santé.
             'unites_nutritionnelles' => ['unti'],
