@@ -51,6 +51,7 @@ class SystemeSanteService
         'maternite' => 'Santé de la mère et du nouveau-né',
         'laboratoire' => 'Laboratoire et imagerie',
         'sang' => 'Banque du sang',
+        'nutrition' => 'Prise en charge nutritionnelle',
         'pharmacie' => 'Médicaments et intrants',
         'deces' => 'Décès enregistrés',
     ];
@@ -62,9 +63,15 @@ class SystemeSanteService
      * elles le sont sur le formulaire : celui qui remonte le rapport les
      * retrouve telles quelles dans son registre papier.
      *
+     * `unites_nutritionnelles` dit lesquelles des trois unités l'échelon
+     * fait tourner : le centre de santé suit l'ambulatoire et la
+     * supplémentation, l'hôpital l'intensive. Aucun ne fait les trois, et le
+     * rapport ne doit montrer que celles qui le concernent.
+     *
      * @var array<string, array{
      *     nom: string, sigle: string, echelon: string, pourquoi: string,
-     *     rubriques: array<int, string>, non_suivi: array<int, string>
+     *     rubriques: array<int, string>, unites_nutritionnelles: array<int, string>,
+     *     non_suivi: array<int, string>
      * }>
      */
     public const SYSTEMES = [
@@ -73,7 +80,10 @@ class SystemeSanteService
             'sigle' => 'CS',
             'echelon' => 'Premier échelon — soins de santé primaires',
             'pourquoi' => 'Consultations, maternité, santé de l\'enfant et nutrition. Ni hospitalisation, ni bloc, ni banque du sang.',
-            'rubriques' => ['consultations', 'morbidite', 'maternite', 'laboratoire', 'pharmacie', 'deces'],
+            'rubriques' => ['consultations', 'morbidite', 'maternite', 'laboratoire', 'nutrition', 'pharmacie', 'deces'],
+            // Le centre de santé ne fait pas d'intensive : un enfant
+            // compliqué part à l'hôpital.
+            'unites_nutritionnelles' => ['unta', 'uns'],
             'non_suivi' => [
                 '3. Planification familiale — nouvelles acceptantes par méthode',
                 '4. Supervision et gestion — personnel, primes, équipements',
@@ -82,7 +92,6 @@ class SystemeSanteService
                 // provenance ; son activité propre ne l'est pas.
                 '9. Activités et gestion de la communauté — activité propre des relais',
                 '10. Sites de soins communautaires',
-                '11. Prise en charge nutritionnelle (UNTA)',
             ],
         ],
         'hgr' => [
@@ -90,12 +99,14 @@ class SystemeSanteService
             'sigle' => 'HGR',
             'echelon' => 'Deuxième échelon — hôpital de la zone de santé',
             'pourquoi' => 'Le canevas complet de l\'hôpital : consultations, hospitalisation, bloc, laboratoire et banque du sang. C\'est celui de cette installation.',
-            'rubriques' => ['consultations', 'morbidite', 'hospitalisation', 'maternite', 'laboratoire', 'sang', 'pharmacie', 'deces'],
+            'rubriques' => ['consultations', 'morbidite', 'hospitalisation', 'maternite', 'laboratoire', 'sang', 'nutrition', 'pharmacie', 'deces'],
+            // L'hôpital tient l'intensive ; l'ambulatoire et la
+            // supplémentation appartiennent au centre de santé.
+            'unites_nutritionnelles' => ['unti'],
             'non_suivi' => [
                 '3. Planification familiale — nouvelles acceptantes par méthode',
                 '4. Supervision et gestion — personnel, primes, équipements',
                 '6. Notification des cas et urgences — maladies à déclaration obligatoire',
-                '7. Prise en charge de la malnutrition (UNTI) — entrées et issues',
                 '11. Activité du bloc opératoire — interventions par type',
             ],
         ],
@@ -104,11 +115,13 @@ class SystemeSanteService
             'sigle' => 'HST',
             'echelon' => 'Troisième échelon — hôpital provincial ou national',
             'pourquoi' => 'Même socle que l\'hôpital général de référence, sans les activités de zone : il ne remonte pas la planification familiale.',
-            'rubriques' => ['consultations', 'morbidite', 'hospitalisation', 'maternite', 'laboratoire', 'sang', 'pharmacie', 'deces'],
+            'rubriques' => ['consultations', 'morbidite', 'hospitalisation', 'maternite', 'laboratoire', 'sang', 'nutrition', 'pharmacie', 'deces'],
+            // L'hôpital tient l'intensive ; l'ambulatoire et la
+            // supplémentation appartiennent au centre de santé.
+            'unites_nutritionnelles' => ['unti'],
             'non_suivi' => [
                 '4. Supervision et gestion — personnel, primes, équipements',
                 '6. Notification des cas et urgences — maladies à déclaration obligatoire',
-                '7. Prise en charge de la malnutrition (UNTI) — entrées et issues',
                 '11. Activité du bloc opératoire — interventions par type',
             ],
         ],
@@ -120,6 +133,7 @@ class SystemeSanteService
             // Des huit rubriques de soins, seule la gestion des intrants
             // concerne le bureau : le reste appartient aux structures.
             'rubriques' => ['pharmacie'],
+            'unites_nutritionnelles' => [],
             'non_suivi' => [
                 '1. Coordination et encadrement des structures de la zone',
                 '2. Gestion des ressources humaines et matérielles',
@@ -160,6 +174,12 @@ class SystemeSanteService
     public function rubriques(): array
     {
         return $this->definition()['rubriques'];
+    }
+
+    /** Les unités nutritionnelles que cet échelon fait tourner. */
+    public function unitesNutritionnelles(): array
+    {
+        return $this->definition()['unites_nutritionnelles'] ?? [];
     }
 
     /** Cette rubrique est-elle attendue du système retenu ? */

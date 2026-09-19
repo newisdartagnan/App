@@ -14,7 +14,7 @@
         || request()->routeIs('prescriptions.*')
         || request()->routeIs('disponibilites.*');
 
-    $navHospitalisation = ! $navConsultation && (
+    $navHospitalisation = ! request()->routeIs('nutrition.*') && ! $navConsultation && (
         request()->routeIs('visites.index')
         || request()->routeIs('visites.show')
         || request()->routeIs('visites.hospitaliser')
@@ -32,6 +32,11 @@
         || request()->routeIs('dialyse.*') || request()->routeIs('examens-specialises.*')
         || request()->routeIs('banque-sang.*')
         || request()->routeIs('equipements.*');
+
+    // Le registre nutritionnel est un suivi de soins : il n'est offert
+    // qu'à ceux qui pèsent, mesurent et déchargent.
+    $navNutrition = request()->routeIs('nutrition.*');
+    $peutSoigner = auth()->user()?->can('soin.execute');
 
     $navCaisse = request()->routeIs('caisse.*') || request()->routeIs('conventions.*')
         || request()->routeIs('acomptes.*') || request()->routeIs('forfaits.*');
@@ -55,12 +60,15 @@
         ],
         [
             'libelle' => 'Hospitalisation',
-            'actif' => $navHospitalisation,
-            'liens' => [
+            'actif' => $navHospitalisation || $navNutrition,
+            'liens' => array_values(array_filter([
                 ['Admissions & lits', route('visites.index', ['type' => 'hospitalisation']), request()->routeIs('visites.*')],
                 ['Services d\'hospitalisation', route('services.index'), request()->routeIs('services.*')],
                 ['Diète et ménage', route('diete.index'), request()->routeIs('diete.*')],
-            ],
+                $peutSoigner
+                    ? ['Registre nutritionnel (UNTA / UNTI / UNS)', route('nutrition.index'), $navNutrition]
+                    : null,
+            ])),
         ],
         [
             'libelle' => 'Plateau technique',

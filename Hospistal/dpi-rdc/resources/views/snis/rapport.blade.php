@@ -387,6 +387,110 @@
         </div>
         @endisset
 
+        @isset($rapport['nutrition'])
+        <div class="bg-white rounded-xl shadow overflow-hidden lg:col-span-2">
+            <div class="px-5 py-3 border-b font-semibold text-gray-700">
+                {{ $numeros['nutrition'] }}. Prise en charge nutritionnelle
+                @php $m = $rapport['nutrition']['mesures']; @endphp
+                <span class="text-gray-400 font-normal text-sm">
+                    — {{ $m['total'] }} {{ $m['total'] > 1 ? 'mesures prises' : 'mesure prise' }},
+                    dont {{ $m['severes'] }} {{ $m['severes'] > 1 ? 'sévères' : 'sévère' }}
+                    et {{ $m['moderes'] }} {{ $m['moderes'] > 1 ? 'modérées' : 'modérée' }}
+                </span>
+            </div>
+
+            @forelse($rapport['nutrition']['unites'] as $section)
+            @php
+                $cases = fn ($v) => collect($v['tranches'])->flatMap(fn ($t) => [$t['f'], $t['m']])->all();
+            @endphp
+            <div class="border-b last:border-b-0">
+                <p class="px-5 pt-4 pb-1 text-sm font-semibold text-gray-700">
+                    {{ $section['definition']['sigle'] }}
+                    <span class="font-normal text-gray-400">— {{ $section['definition']['nom'] }}</span>
+                </p>
+                <p class="px-5 pb-2 text-xs text-gray-500">{{ $section['definition']['pourquoi'] }}</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 text-gray-600">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Entrées</th>
+                                @foreach(\App\Models\PriseEnChargeNutritionnelle::TRANCHES as $tranche)
+                                <th class="px-3 py-2 text-right whitespace-nowrap">F {{ $tranche['libelle'] }}</th>
+                                <th class="px-3 py-2 text-right whitespace-nowrap">M {{ $tranche['libelle'] }}</th>
+                                @endforeach
+                                <th class="px-4 py-2 text-right font-bold">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr class="text-gray-600">
+                                <td class="px-4 py-2 text-xs">Admissions début du mois (report)</td>
+                                @foreach($cases($section['report']) as $n)
+                                <td class="px-3 py-2 text-right">{{ $n }}</td>
+                                @endforeach
+                                <td class="px-4 py-2 text-right font-semibold">{{ $section['report']['total'] }}</td>
+                            </tr>
+                            @foreach($section['entrees']['lignes'] as $ligne)
+                            <tr>
+                                <td class="px-4 py-2">{{ $ligne['libelle'] }}</td>
+                                @foreach($cases($ligne['ventilation']) as $n)
+                                <td class="px-3 py-2 text-right">{{ $n }}</td>
+                                @endforeach
+                                <td class="px-4 py-2 text-right font-semibold">{{ $ligne['ventilation']['total'] }}</td>
+                            </tr>
+                            @endforeach
+                            <tr class="bg-gray-50">
+                                <td class="px-4 py-2 font-semibold" colspan="7">Issues</td>
+                                <td class="px-4 py-2 text-right font-bold">{{ $section['issues']['total'] }}</td>
+                            </tr>
+                            @foreach($section['issues']['lignes'] as $cle => $ligne)
+                            <tr class="{{ $cle === 'deces' && $ligne['ventilation']['total'] > 0 ? 'bg-red-50' : '' }}">
+                                <td class="px-4 py-2">{{ $ligne['libelle'] }}</td>
+                                @foreach($cases($ligne['ventilation']) as $n)
+                                <td class="px-3 py-2 text-right">{{ $n }}</td>
+                                @endforeach
+                                <td class="px-4 py-2 text-right font-semibold">{{ $ligne['ventilation']['total'] }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @if($section['issues']['taux_guerison'] !== null)
+                <p class="px-5 py-2 text-xs text-gray-600 border-t">
+                    Taux de guérison du mois :
+                    <strong>{{ $section['issues']['taux_guerison'] }} %</strong>
+                    sur {{ $section['issues']['total'] }} sortie(s).
+                </p>
+                @endif
+            </div>
+            @empty
+            <p class="px-5 py-6 text-sm text-gray-400">
+                Ce canevas ne suit aucune unité nutritionnelle.
+            </p>
+            @endforelse
+
+            @if($rapport['nutrition']['groupes_specifiques'])
+            <div class="border-t">
+                <p class="px-5 pt-4 pb-1 text-sm font-semibold text-gray-700">
+                    Groupes spécifiques suivis à l'UNS
+                </p>
+                <table class="w-full text-sm">
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($rapport['nutrition']['groupes_specifiques'] as $ligne)
+                        <tr>
+                            <td class="px-4 py-2">{{ $ligne['libelle'] }}</td>
+                            <td class="px-4 py-2 text-right text-xs text-gray-500">Nouveaux</td>
+                            <td class="px-2 py-2 text-right font-semibold">{{ $ligne['nouveaux'] }}</td>
+                            <td class="px-4 py-2 text-right text-xs text-gray-500">Anciens</td>
+                            <td class="px-4 py-2 text-right font-semibold">{{ $ligne['anciens'] }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @endif
+        </div>
+        @endisset
+
         @isset($rapport['pharmacie'])
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-5 py-3 border-b font-semibold text-gray-700">

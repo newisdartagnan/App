@@ -122,23 +122,25 @@ class SystemeSanteSnisTest extends TestCase
         $numeros = app(RapportSnisService::class)->numeros($rapport);
 
         // Le centre de santé saute l'hospitalisation et la banque du sang :
-        // ses six sections restantes vont de 1 à 6, sans numéro manquant.
+        // ses sept sections restantes vont de 1 à 7, sans numéro manquant.
         $this->assertSame([
             'consultations' => 1,
             'morbidite' => 2,
             'maternite' => 3,
             'laboratoire' => 4,
-            'pharmacie' => 5,
-            'deces' => 6,
+            'nutrition' => 5,
+            'pharmacie' => 6,
+            'deces' => 7,
         ], $numeros);
     }
 
-    public function test_lhopital_general_numerote_ses_huit_sections(): void
+    public function test_lhopital_general_numerote_ses_neuf_sections(): void
     {
         $numeros = app(RapportSnisService::class)->numeros($this->rapport());
 
-        $this->assertSame(8, $numeros['deces']);
+        $this->assertSame(9, $numeros['deces']);
         $this->assertSame(6, $numeros['sang']);
+        $this->assertSame(7, $numeros['nutrition']);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -151,15 +153,19 @@ class SystemeSanteSnisTest extends TestCase
         $cs = $this->rapport()['non_suivi'];
 
         $this->assertContains('10. Sites de soins communautaires', $cs);
-        $this->assertContains('11. Prise en charge nutritionnelle (UNTA)', $cs);
+        $this->assertContains(
+            '8. Santé de l\'enfant — consultations préscolaires et vaccination (PEV)',
+            $cs
+        );
 
         $this->choisir('hgr');
         $hgr = $this->rapport()['non_suivi'];
 
-        // L'hôpital n'a ni sites communautaires ni UNTA : il a l'UNTI.
+        // L'hôpital n'a ni sites communautaires ni consultation préscolaire :
+        // il a la notification des cas et le bloc.
         $this->assertNotContains('10. Sites de soins communautaires', $hgr);
         $this->assertContains(
-            '7. Prise en charge de la malnutrition (UNTI) — entrées et issues',
+            '6. Notification des cas et urgences — maladies à déclaration obligatoire',
             $hgr
         );
     }
@@ -211,8 +217,8 @@ class SystemeSanteSnisTest extends TestCase
 
         $this->assertStringContainsString('Centre de santé', $contenu);
         $this->assertStringContainsString('1. CONSULTATIONS CURATIVES', $contenu);
-        // Six sections, pas huit : les décès ferment la marche.
-        $this->assertStringContainsString('6. DÉCÈS', $contenu);
+        // Sept sections, pas neuf : les décès ferment la marche.
+        $this->assertStringContainsString('7. DÉCÈS', $contenu);
         $this->assertStringNotContainsString('HOSPITALISATION', $contenu);
         $this->assertStringNotContainsString('TRANSFUSION SANGUINE', $contenu);
     }
