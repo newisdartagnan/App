@@ -1,0 +1,7 @@
+entrees/*
+!entrees/.gitkeep
+sorties/*
+!sorties/.gitkeep
+__pycache__/
+*.pyc
+~$*.xlsx
