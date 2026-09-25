@@ -321,6 +321,8 @@ def feuille_notez_bien(wb, R, positions, onglet):
     # Nouveautés à valider (seulement si nécessaire)
     nouveautes = [("UF de visite sans correspondance (spécialité = libellé UF)", k, n) for k, n in sorted(R.uf_inconnues.items())]
     nouveautes += [("Catégorie d’acte Evolucare nouvelle (découpée sur le tiret)", k, n) for k, n in sorted(R.categories_inconnues.items())]
+    from .classeur_brut import AVERTISSEMENTS
+    nouveautes += [("Export lu malgré un défaut de fichier", avis, None) for avis in AVERTISSEMENTS]
     if R.visites_hors_periode:
         nouveautes.append(("Visites hors période exclues", "Date hors période ou absente", len(R.visites_hors_periode)))
     if R.actes_hors_periode:
