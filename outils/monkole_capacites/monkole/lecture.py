@@ -3,8 +3,7 @@ import datetime as dt
 import os
 import re
 
-import openpyxl
-
+from .classeur_brut import lignes_classeur
 from .texte import cle
 
 # Nom logique -> (motif du nom de fichier, colonnes obligatoires)
@@ -62,22 +61,24 @@ def periode_depuis_nom(chemin):
 
 
 def lire_export(chemin, colonnes):
-    """Renvoie (lignes, n) ; chaque ligne est un dict nom_colonne -> valeur + '_ligne' (n° de ligne Excel)."""
-    wb = openpyxl.load_workbook(chemin, read_only=True, data_only=True)
-    ws = wb.worksheets[0]
-    it = ws.iter_rows(values_only=True)
-    entete = next(it)
+    """Renvoie la liste des lignes ; chaque ligne est un dict nom_colonne -> valeur + '_ligne' (n° de ligne Excel)."""
+    lignes_brutes = lignes_classeur(chemin)
+    it = iter(lignes_brutes)
+    try:
+        _, entete = next(it)
+    except StopIteration:
+        raise ErreurExport(f"{os.path.basename(chemin)} est vide.")
+    entete = list(entete)
     index = {}
     cles = [cle(h) if h is not None else "" for h in entete]
     for col in colonnes:
         k = cle(col)
         if k not in cles:
-            wb.close()
             raise ErreurExport(f"Colonne « {col} » absente de {os.path.basename(chemin)}.")
         index[col] = cles.index(k)
     extras = {h: i for i, h in enumerate(entete) if h is not None and h not in index}
     lignes = []
-    for n, row in enumerate(it, start=2):
+    for n, row in it:
         if row is None or all(v is None for v in row):
             continue
         d = {"_ligne": n}
@@ -86,7 +87,6 @@ def lire_export(chemin, colonnes):
         for col, i in extras.items():
             d.setdefault(col, row[i] if i < len(row) else None)
         lignes.append(d)
-    wb.close()
     return lignes
 
 

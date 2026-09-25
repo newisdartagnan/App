@@ -18,7 +18,7 @@ except ImportError:
     print("Le module openpyxl manque. Installez-le avec :  py -m pip install openpyxl")
     sys.exit(1)
 
-from monkole import calculs, classeur, lecture, referentiel_excel  # noqa: E402
+from monkole import calculs, classeur, classeur_brut, lecture, referentiel_excel  # noqa: E402
 from monkole.resume import ecrire_resume  # noqa: E402
 from monkole.texte import MOIS  # noqa: E402
 
@@ -66,6 +66,8 @@ def main(argv):
         return 2
     for k, c in chemins.items():
         print(f"   {lecture.LIBELLES[k]:<28} {len(donnees[k]):>7} lignes   {os.path.basename(c)}")
+    for avis in classeur_brut.AVERTISSEMENTS:
+        print(f"   NOTE : {avis}")
     debut, fin = periode(chemins, donnees)
     print(f"Période : du {debut:%d/%m/%Y} au {fin:%d/%m/%Y}")
     R = calculs.calculer(donnees, ref, debut, fin)
