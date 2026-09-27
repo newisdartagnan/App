@@ -1,4 +1,15 @@
-# Monkole — Activités et capacités (programme hors connexion)
+# Monkole — Activités et capacités, et Diagnostics (programmes hors connexion)
+
+Deux programmes dans le même dossier, qui partagent `entrees` et `sorties` :
+
+| À lancer | Exports à déposer dans `entrees` | Classeur produit dans `sorties` |
+|---|---|---|
+| `LANCER_MONKOLE.bat` | les six exports Visites / Actes / Hospi (GPS et Evolucare) | Activités et capacités |
+| `LANCER_DIAGNOSTICS.bat` | `Diagnostic_GPS_…` et `Diagnostic_Evolucare_…` | Diagnostics et composition des familles |
+
+Les huit exports peuvent rester ensemble dans `entrees` : chaque programme ne lit que les siens.
+
+## Partie 1 — Activités et capacités
 
 Ce programme reproduit, à partir des six exports GPS et Evolucare, le classeur
 **« Activités et capacités »** dans la présentation de la *version retenue*
@@ -71,6 +82,54 @@ Différences voulues et limitées :
 - les chiffres sont enregistrés comme valeurs (lisibles aussi sur téléphone) ; les contrôles de cohérence sont
   dans « Notez bien ».
 
+## Partie 2 — Diagnostics et composition des familles
+
+`LANCER_DIAGNOSTICS.bat` reproduit le classeur **« Diagnostics et composition des familles »** de la version retenue
+(`Monkole_Diagnostics_Composition_Familles_01-15_Septembre_2026`) : Dashboard avec le disque des 16 familles et les
+12 diagnostics les plus fréquents, Composition des familles (chaque famille à 100 %, global et par site), CSMKL2,
+CSMKL2 diagnostics, CHME, CHME diagnostics, Dictionnaire, Notez bien.
+
+Règles conservées : un diagnostic compte une fois par dossier et logiciel sur la période ; les hypothèses seules
+restent à part ; récurrent = au moins deux dossiers ; pas de patients uniques entre logiciels ; lignes sans diagnostic
+exploitable, sigles à clarifier et textes GPS de 50 caractères signalés.
+
+### Le dictionnaire : `Dictionnaire_Diagnostics.xlsx`
+
+Il contient les 1 557 formulations déjà classées dans la version retenue (texte d'origine → diagnostic regroupé →
+famille, avec le statut : sans marqueur de doute, hypothèse, contexte, à clarifier…).
+
+- **Feuille Formulations** : une ligne par formulation et par diagnostic regroupé (une phrase composite occupe
+  plusieurs lignes avec le même ID). La colonne *Versions exactes* contient les textes d'origine.
+- **Feuille Groupes** : code, libellé, famille et nature de chaque diagnostic regroupé.
+
+### Nouvelles formulations (à chaque nouvelle période)
+
+Les médecins écrivent librement : chaque période apporte des textes jamais vus. Le programme :
+
+1. reconnaît les textes connus, y compris avec d'autres majuscules, accents ou espaces ;
+2. **classe automatiquement** un texte nouveau seulement s'il se décompose entièrement en morceaux déjà connus
+   (ex. « HTA / DT2 ») — ces lignes sont comptées et signalées « à valider » ;
+3. met **à classer** tous les autres : ils restent hors du disque (famille « À clarifier ») et sont listés dans la feuille
+   *À classer* et dans `sorties/Diagnostics_a_classer_<période>.xlsx`, avec une **suggestion pré-remplie** quand une
+   expression connue est retrouvée dans le texte (suggestion non comptée tant qu'elle n'est pas validée).
+
+Pour les intégrer : ouvrir `Diagnostics_a_classer_…xlsx`, vérifier / compléter *Code groupe* et *Statut*, copier les
+lignes à la fin de la feuille *Formulations* du dictionnaire, enregistrer, relancer `LANCER_DIAGNOSTICS.bat`.
+Aide possible de Claude gratuit : `PROMPT_CLAUDE_DIAGNOSTICS.md` (on n'y colle que des textes de diagnostic, sans
+numéro de dossier).
+
+Test réalisé : en retirant du dictionnaire les 118 formulations ajoutées par Astra le 15/09, le programme en classe 4
+automatiquement (toutes exactes), en met 113 à classer (43 avec suggestion, 57 codes suggérés dont 3 erronés) ; une fois
+les lignes complétées et copiées, il retrouve exactement les 2 440 diagnostics, 334 différents et 443 hypothèses seules.
+
+### Vérification sur la période du 1er au 15 septembre 2026
+
+Comparaison cellule par cellule avec la version retenue : Composition familles, CSMKL2 diagnostics, CHME diagnostics,
+Dictionnaire et Groupes globaux **identiques** ; Dashboard, CSMKL2 et CHME identiques sauf une phrase de bas de page
+(« ces exports remplacent les précédents »). « Notez bien » garde la même structure, mais les textes propres à la mise à jour
+d'Astra (comparaison avec l'export 01-14) sont remplacés par les indicateurs de la période (formulations nouvelles, à classer…).
+Le disque n'a plus de légende : les couleurs des familles figurent dans le tableau placé juste en dessous.
+
 ## Avec Claude gratuit (facultatif)
 
 Les exports n'ont pas besoin d'être envoyés à Claude. Pour faire rédiger un commentaire pour le directeur,
@@ -80,4 +139,5 @@ dans une conversation Claude.
 ## Confidentialité
 
 Les exports et les classeurs produits contiennent des numéros de dossiers : ils restent dans `entrees` et
-`sorties`, qui ne sont pas versionnés (`.gitignore`). Seul le programme est conservé dans le dépôt.
+`sorties`, qui ne sont pas versionnés (`.gitignore`). Seuls le programme, le référentiel et le dictionnaire des
+formulations (textes de diagnostics sans numéro de dossier ni identité) sont conservés dans le dépôt.
