@@ -1,14 +1,15 @@
 """Classeur « Diagnostics et composition des familles » (présentation de la version retenue)."""
 from collections import defaultdict
 
-from openpyxl.chart import LineChart, PieChart, Reference, Series
+from openpyxl.chart import PieChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.chart.series import DataPoint
-from openpyxl.formatting.rule import DataBarRule
+from openpyxl.formatting.rule import ColorScaleRule, DataBarRule
+from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter as L
 
 from . import diag_dictionnaire as DD
-from .diag_calculs import SANS_SITE
+from .diag_calculs import AGE_INCONNU, SANS_SITE, TRANCHES, age_sexe
 from .styles import ecrire
 from .texte import MOIS, JOURS_COURTS
 
@@ -103,146 +104,250 @@ def entete_commun(ws, R, titre, sous_titre, liens):
         lien(c, cible)
 
 
-def synthese(wb, R, nom, P, titre, onglet, lignes_source, note_source, serie_cols, pos_compo, pos_dico):
+def _titre_bloc(ws, r, texte, c1, c2):
+    bloc(ws, r, c1, r, c2, texte, taille=9, gras=True, couleur=BLANC, fond=NAVY)
+    ws.row_dimensions[r].height = 17
+
+
+def _entete(ws, r, colonnes, hauteur=26, a_gauche=()):
+    for c1, c2, t in colonnes:
+        bloc(ws, r, c1, r, c2, t, taille=8, gras=True, couleur=TXT, fond=CLAIR,
+             h="left" if c1 == colonnes[0][0] or c1 in a_gauche else "right")
+    ws.row_dimensions[r].height = hauteur
+
+
+def _cel(ws, r, c1, c2, v, fmt=NB, h="right", couleur=TXT, gras=False, fond=None):
+    return bloc(ws, r, c1, r, c2, v, taille=9, couleur=couleur, gras=gras, fond=fond or zebre(r), fmt=fmt if not isinstance(v, str) else None,
+                h=h, wrap=False)
+
+
+def _tot(ws, r, c1, c2, v, fmt=NB, h="right"):
+    return bloc(ws, r, c1, r, c2, v, taille=9, gras=True, couleur=BLANC, fond=TEAL, fmt=fmt if not isinstance(v, str) else None, h=h,
+                wrap=False)
+
+
+def synthese(wb, R, nom, P, titre, onglet, lignes_source, pos_compo, pos_dico):
+    """Synthèse lisible sur un écran (zoom 85 %) : indicateurs, familles, 12 diagnostics, âge et sexe, sources."""
     ws = wb.create_sheet(nom)
-    mise_en_page(ws, onglet, zoom=80, figer="A4")
-    per = periode_txt(R)
-    entete_commun(ws, R, titre, f"Médecin directeur | {per} | GPS + Evolucare | Diagnostics comptabilisés dans les dossiers",
-                  [("CSMKL2 / synthèse", "'CSMKL2'!A1"), ("CHME / synthèse", "'CHME'!A1"),
-                   ("Dictionnaire / correspondances", "'Dictionnaire'!A1"), ("Règles / contrôles", "'Notez bien'!A1")])
-    sites_ok = not any(s["site"] == SANS_SITE for s in R.sources)
-    bloc(ws, 6, 1, 7, 16, "REGROUPEMENTS PROPOSÉS : les formulations équivalentes sont rapprochées. Les hypothèses restent à part. "
-         "Validation médicale requise. " + ("Tous les sites sont renseignés dans cet export." if sites_ok
-                                          else "Des lignes sans site restent présentées à part."),
-         taille=11, gras=True, couleur=AL_T, fond=AL_F)
-    kpis = [("DOSSIERS DES LOGICIELS", len(P.dossiers), "Pas de patients uniques entre logiciels"),
-            ("DIAGNOSTICS COMPTABILISÉS", P.total, f"{len(P.dossiers_cliniques):,} dossiers avec au moins un diagnostic comptabilisé".replace(",", " ")),
-            ("DIAGNOSTICS RÉCURRENTS", P.recurrents, f"Sur {P.differents} diagnostics différents après regroupement"),
-            ("HYPOTHÈSES SEULES", len(P.hyp), "Exclues du disque principal")]
+    mise_en_page(ws, onglet, zoom=85)
+    ws.page_setup.fitToHeight = 1
+    for c in range(1, 17):
+        ws.column_dimensions[L(c)].width = 10.5
+    ws.column_dimensions["I"].width = 2
+    bloc(ws, 1, 1, 1, 10, f"{titre} — {periode_txt(R)}", taille=15, gras=True, couleur=BLANC, fond=NAVY, wrap=False)
+    if nom == "Dashboard":
+        liens = [(11, 11, "CSMKL2", "'CSMKL2'!A1"), (12, 12, "CHME", "'CHME'!A1"), (13, 13, "Familles", "'Composition familles'!A1"),
+                 (14, 15, "Âge et sexe", "'Âge et sexe'!A1"), (16, 16, "Règles", "'Notez bien'!A1")]
+    else:
+        liens = [(11, 12, "Dashboard", "'Dashboard'!A1"), (13, 14, "Âge et sexe", "'Âge et sexe'!A1"),
+                 (15, 16, "Notez bien", "'Notez bien'!A1")]
+    for c1, c2, t, cible in liens:
+        lien(bloc(ws, 1, c1, 1, c2, t, taille=9, gras=True, couleur=TEAL, fond=CLAIR, h="center"), cible)
+    ws.row_dimensions[1].height = 26
+
+    # Indicateurs
+    A, S = age_sexe(R, P)
+    nd = len(P.dossiers) or 1
+    a_classer = sum(1 for src in P.sources if src.get("origine") == "à classer")
+    kpis = [("DOSSIERS", len(P.dossiers), f"Femmes {S['F']['dos'] / nd:.0%} · hommes {S['M']['dos'] / nd:.0%}".replace("%", " %")),
+            ("DIAGNOSTICS COMPTABILISÉS", P.total, f"{P.differents} différents · {P.recurrents} récurrents (≥ 2 dossiers)"),
+            ("HYPOTHÈSES SEULES", len(P.hyp), "hors disque"),
+            ("LIGNES À CLASSER / À CLARIFIER", f"{a_classer} / {P.lignes_a_clarifier}",
+             f"{P.lignes_non_exploitables} lignes sans diagnostic exploitable")]
     for i, (t, v, com) in enumerate(kpis):
         c1 = 1 + 4 * i
-        bloc(ws, 9, c1, 9, c1 + 3, t, taille=11, gras=True, couleur=BLANC, fond=TEAL, h=None)
-        bloc(ws, 10, c1, 12, c1 + 3, v, taille=29, gras=True, couleur=TEAL, fond=BLANC, fmt=NB, h="center", wrap=None)
-        bloc(ws, 13, c1, 13, c1 + 3, com, couleur=GRIS, fond=CLAIR, h=None)
-    bloc(ws, 15, 1, 15, 16, "Un diagnostic répété dans le même dossier et logiciel ne compte qu'une fois. Récurrent = au moins deux "
-                            "dossiers, pas une rechute.", taille=11, couleur=GRIS, fond=CLAIR)
-    bloc(ws, 17, 1, 17, 8, "01 / PROPORTION PAR FAMILLE CLINIQUE", taille=11, gras=True, couleur=BLANC, fond=NAVY)
-    bloc(ws, 17, 9, 17, 16, "02 / LES 12 DIAGNOSTICS LES PLUS FRÉQUENTS", taille=11, gras=True, couleur=BLANC, fond=NAVY)
-    # Top 12
-    bloc(ws, 19, 9, 19, 13, "Diagnostic / situation clinique", gras=True, couleur=TXT, fond=CLAIR)
-    for c, t in ((14, "Comptés"), (15, "Part"), (16, "Hyp.\nseules")):
-        ecrire(ws, (19, c), t, gras=True, couleur=TXT, fond=CLAIR)
-    top = tri_groupes([x for x in P.groupes.values() if x["total"] > 0])[:12]
-    for i, x in enumerate(top):
-        r = 20 + i
-        c = bloc(ws, r, 9, r, 13, x["groupe"], couleur=TEAL_C, fond=zebre(r))
-        if x["code"] in pos_dico:
-            lien(c, f"'Dictionnaire'!A{pos_dico[x['code']]}")
-        ecrire(ws, (r, 14), x["total"], couleur=TXT, fond=BLANC, fmt=NB, h="right", wrap=None)
-        ecrire(ws, (r, 15), x["total"] / P.total if P.total else 0, couleur=TXT, fond=BLANC, fmt=PCT, h="right", wrap=None)
-        ecrire(ws, (r, 16), x["hyp"], couleur=TXT, fond=BLANC, fmt=NB, h="right", wrap=None)
-    if top:
-        ws.conditional_formatting.add(f"N20:N{19 + len(top)}", DataBarRule(start_type="min", end_type="max", color="54A6A6"))
-    bloc(ws, 33, 9, 34, 16, f"Tous les {P.differents} diagnostics différents sont détaillés. Sans marqueur de doute ne signifie pas "
-                            "diagnostic confirmé.", couleur=AL_T, fond=AL_F)
-    bloc(ws, 36, 9, 36, 16, "03 / DOSSIERS ET DIAGNOSTICS PAR SOURCE", taille=11, gras=True, couleur=BLANC, fond=NAVY)
-    bloc(ws, 37, 9, 37, 12, "Site / logiciel", gras=True, couleur=TXT, fond=CLAIR)
-    bloc(ws, 37, 13, 37, 14, "Dossiers", gras=True, couleur=TXT, fond=CLAIR)
-    bloc(ws, 37, 15, 37, 16, "Diagnostics\ncomptés", gras=True, couleur=TXT, fond=CLAIR)
-    for i, (lib, dos, dia) in enumerate(lignes_source):
-        r = 38 + i
-        bloc(ws, r, 9, r, 12, lib, taille=11, couleur=TXT, fond=zebre(r))
-        bloc(ws, r, 13, r, 14, dos, couleur=TXT, fond=BLANC, fmt=NB)
-        bloc(ws, r, 15, r, 16, dia, couleur=TXT, fond=BLANC, fmt=NB)
-    if note_source:
-        bloc(ws, 40, 9, 40, 16, note_source, taille=11, couleur=TXT, fond=zebre(40))
-    # Familles
-    bloc(ws, 40, 1, 40, 8, "16 FAMILLES / CLIQUER POUR LA COMPOSITION", gras=True, couleur=BLANC, fond=NAVY)
-    bloc(ws, 41, 1, 41, 4, "Famille clinique", gras=True, couleur=TXT, fond=CLAIR)
-    bloc(ws, 41, 5, 41, 6, "Diagnostics\ndifférents", gras=True, couleur=TXT, fond=CLAIR, h="center")
-    ecrire(ws, (41, 7), "Diagnostics\ncomptés", gras=True, couleur=TXT, fond=CLAIR, h="center")
-    ecrire(ws, (41, 8), "Part", gras=True, couleur=TXT, fond=CLAIR, h="center")
+        bloc(ws, 2, c1, 2, c1 + 3, t, taille=9, gras=True, couleur=BLANC, fond=TEAL, h=None)
+        bloc(ws, 3, c1, 3, c1 + 3, v, taille=20, gras=True, couleur=TEAL, fond=BLANC, fmt=NB, h="center", wrap=None)
+        bloc(ws, 4, c1, 4, c1 + 3, com, taille=8, couleur=GRIS, fond=CLAIR, h="center")
+    hauteurs(ws, {2: 16, 3: 30, 4: 14, 5: 5})
+
+    # Familles : disque + tableau (légende)
+    _titre_bloc(ws, 6, "FAMILLES CLINIQUES / PART DES DIAGNOSTICS COMPTABILISÉS", 1, 8)
+    _entete(ws, 7, [(5, 7, "Famille (cliquer : composition)"), (8, 8, "Comptés")], hauteur=18)
     fams = tri_familles(P)
     for i, f in enumerate(fams):
-        r = 42 + i
+        r = 8 + i
         x = P.familles[f]
-        c = bloc(ws, r, 1, r, 4, f, gras=True, couleur=COULEURS[f], fond=zebre(r))
+        c = _cel(ws, r, 5, 7, f, h="left", couleur=COULEURS[f], gras=True)
         lien(c, f"'Composition familles'!A{pos_compo[f]}")
-        bloc(ws, r, 5, r, 6, x["differents"], couleur=TXT, fond=BLANC, fmt='#,##0;[Red]-#,##0;"—"', h="center")
-        ecrire(ws, (r, 7), x["total"], couleur=TXT, fond=BLANC, fmt=NB, h=None, wrap=None)
-        ecrire(ws, (r, 8), x["total"] / P.total if P.total else 0, couleur=TXT, fond=BLANC, fmt=PCT, h=None, wrap=None)
-    rt = 42 + len(fams)
-    bloc(ws, rt, 1, rt, 4, "TOTAL / DIAGNOSTICS", taille=11, gras=True, couleur=BLANC, fond=TEAL)
-    bloc(ws, rt, 5, rt, 6, sum(P.familles[f]["differents"] for f in fams), taille=11, gras=True, couleur=BLANC, fond=TEAL, fmt=NB, h="center")
-    ecrire(ws, (rt, 7), sum(P.familles[f]["total"] for f in fams), taille=11, gras=True, couleur=BLANC, fond=TEAL, fmt=NB)
-    ecrire(ws, (rt, 8), 1 if P.total else 0, taille=11, gras=True, couleur=BLANC, fond=TEAL, fmt=PCT)
-    bloc(ws, rt + 1, 1, rt + 1, 8, "Cliquer sur une famille : diagnostics, nombres et parts internes à 100 %", couleur=GRIS, fond=CLAIR)
-    bloc(ws, rt + 2, 1, rt + 3, 16, "Le disque inclut diagnostics cités, symptômes et situations cliniques. Une grossesse ou une "
-                                    "naissance n'est pas une maladie. Ce ne sont pas des proportions de patients.", couleur=GRIS, fond=CLAIR)
-    bloc(ws, 42, 9, 42, 16, "04 / DIAGNOSTICS COMPTABILISÉS PAR JOUR", taille=11, gras=True, couleur=BLANC, fond=NAVY)
-    # Graphiques
+        _cel(ws, r, 8, 8, x["total"])
+    rt = 8 + len(fams)
+    _tot(ws, rt, 5, 7, "Total", h="left")
+    _tot(ws, rt, 8, 8, P.total)
     pie = PieChart()
-    pie.height, pie.width = 10.5, 14.5
-    data = Reference(ws, min_col=7, min_row=42, max_row=41 + len(fams))
-    cats = Reference(ws, min_col=1, min_row=42, max_row=41 + len(fams))
-    pie.add_data(data, titles_from_data=False)
-    pie.set_categories(cats)
-    s = pie.series[0]
+    pie.height, pie.width = 8.6, 8.3
+    pie.add_data(Reference(ws, min_col=8, min_row=8, max_row=7 + len(fams)), titles_from_data=False)
+    pie.set_categories(Reference(ws, min_col=5, min_row=8, max_row=7 + len(fams)))
+    sr = pie.series[0]
     for i, f in enumerate(fams):
         pt = DataPoint(idx=i)
         pt.graphicalProperties.solidFill = COULEURS[f]
         pt.graphicalProperties.line.solidFill = "FFFFFF"
-        s.dPt.append(pt)
-    s.dLbls = DataLabelList()
-    s.dLbls.showPercent = True
-    s.dLbls.showVal = False
-    s.dLbls.showCatName = False
-    s.dLbls.showSerName = False
-    s.dLbls.showLeaderLines = True
-    pie.legend = None           # les couleurs des familles figurent dans le tableau sous le disque
-    ws.add_chart(pie, "A18")
-    cal = wb["Calculs"]
-    lc = LineChart()
-    lc.title = "Diagnostics comptabilises par jour"
-    lc.height, lc.width = 7.5, 15
-    lc.legend.position = "b"
-    for col, t in serie_cols:
-        se = Series(Reference(cal, min_col=col, min_row=R.ligne_quotidien, max_row=R.ligne_quotidien + len(R.jours) - 1), title=t)
-        lc.series.append(se)
-    lc.set_categories(Reference(cal, min_col=14, min_row=R.ligne_quotidien, max_row=R.ligne_quotidien + len(R.jours) - 1))
-    ws.add_chart(lc, "I43")
-    # Points de revue
-    r0 = rt + 5
-    bloc(ws, r0, 1, r0, 16, "05 / POINTS A PORTER A LA REVUE MÉDICALE", taille=11, gras=True, couleur=BLANC, fond=NAVY)
-    g = P.groupes
-    val = lambda code, k="total": g.get(code, {}).get(k, 0)
-    sites_txt = "Aucun site manquant." if sites_ok else f"{sum(1 for s in R.sources if s['site'] == SANS_SITE)} lignes sans site."
-    pts = [("CHRONIQUES / SUIVI", f"Hypertension : {val('HTA')} dossiers; diabète de type 2 : {val('DM2')}. Lire leur répartition par "
-                                  "site et conserver les associations, sans additionner en patients uniques."),
-           ("PROFIL / ACTIVITÉ", f"Grossesse / suivi prénatal : {val('PREG')} diagnostics comptabilisés. Les situations obstétricales "
-                                 "et les maladies restent distinguées dans les détails."),
-           ("DOUTE / VÉRIFICATION", f"Paludisme cité sans doute explicite : {val('PAL')}; hypothèses seules : {val('PAL', 'hyp')}. Ne pas "
-                                    "les présenter comme des cas confirmés."),
-           ("QUALITÉ / PRIORITÉ", f"{P.lignes_non_exploitables} lignes sans diagnostic exploitable; {P.lignes_a_clarifier} avec un "
-                                  f"fragment ou sigle à clarifier. {P.lignes_gps_50} textes GPS de 50 caractères : vérifier une "
-                                  f"éventuelle troncature. {sites_txt}")]
-    for i, (lib, t) in enumerate(pts):
-        r = r0 + 2 + 2 * i
-        bloc(ws, r, 1, r + 1, 4, lib, gras=True, couleur=TEAL, fond=CLAIR)
-        bloc(ws, r, 5, r + 1, 16, t, taille=11, couleur=TXT, fond=zebre(r))
-    r = r0 + 11
-    rep = P.somme_jours - P.total
-    bloc(ws, r, 1, r + 1, 16, f"Somme des jours : {P.somme_jours}; diagnostics sur la période : {P.total}. Les {rep} répétitions "
-                              "entre jours ne sont pas ajoutées au total. Ces exports remplacent les précédents, sans cumul.",
-         couleur=GRIS, fond=CLAIR)
-    h = {1: 24, 2: 22, 3: 27}
-    h.update({r: 21 for r in range(4, 79)})
-    h.update({9: 31, 13: 32, 15: 32, 17: 25, 19: 28, 33: 30, 36: 25, 37: 34, 40: 25, 41: 34, 42: 25, 59: 30, 60: 30, 63: 25, 74: 30})
-    h.update({r: 29 for r in range(20, 32)})
-    h.update({r: 23 for r in range(43, 58)})
-    h[rt] = 27
-    hauteurs(ws, h)
+        sr.dPt.append(pt)
+    sr.dLbls = DataLabelList()
+    sr.dLbls.showPercent = True
+    sr.dLbls.showVal = False
+    sr.dLbls.showCatName = False
+    sr.dLbls.showSerName = False
+    sr.dLbls.showLeaderLines = True
+    pie.legend = None           # les couleurs des familles figurent dans le tableau à droite du disque
+    ws.add_chart(pie, "A8")
+
+    # 12 diagnostics les plus fréquents
+    _titre_bloc(ws, 6, "LES 12 DIAGNOSTICS LES PLUS FRÉQUENTS", 10, 16)
+    _entete(ws, 7, [(10, 13, "Diagnostic / situation clinique"), (14, 14, "Comptés"), (15, 15, "Part"), (16, 16, "Hyp. seules")],
+            hauteur=18)
+    top = tri_groupes([x for x in P.groupes.values() if x["total"] > 0])[:12]
+    for i, x in enumerate(top):
+        r = 8 + i
+        c = _cel(ws, r, 10, 13, x["groupe"], h="left", couleur=TEAL_C)
+        if x["code"] in pos_dico:
+            lien(c, f"'Dictionnaire'!A{pos_dico[x['code']]}")
+        _cel(ws, r, 14, 14, x["total"])
+        _cel(ws, r, 15, 15, x["total"] / P.total if P.total else 0, fmt=PCT)
+        _cel(ws, r, 16, 16, x["hyp"])
+    if top:
+        ws.conditional_formatting.add(f"N8:N{7 + len(top)}", DataBarRule(start_type="min", end_type="max", color="54A6A6"))
+
+    # Âge et sexe
+    r = 8 + 12 + 1
+    _titre_bloc(ws, r, "ÂGE ET SEXE / DOSSIERS ET DIAGNOSTICS COMPTABILISÉS", 10, 16)
+    _entete(ws, r + 1, [(10, 11, "Tranche d’âge"), (12, 12, "Femmes"), (13, 13, "Hommes"),
+                        (14, 14, "Dossiers"), (15, 15, "Part"), (16, 16, "Diagnostics")], hauteur=16)
+    r += 2
+    for n, x in A.items():
+        if n == AGE_INCONNU and not sum(x["dos"].values()):
+            continue
+        tot = sum(x["dos"].values())
+        _cel(ws, r, 10, 11, n, h="left")
+        _cel(ws, r, 12, 12, x["dos"]["F"])
+        _cel(ws, r, 13, 13, x["dos"]["M"])
+        _cel(ws, r, 14, 14, tot)
+        _cel(ws, r, 15, 15, tot / nd, fmt=PCT)
+        _cel(ws, r, 16, 16, x["diag"])
+        r += 1
+    _tot(ws, r, 10, 11, "Total", h="left")
+    _tot(ws, r, 12, 12, S["F"]["dos"])
+    _tot(ws, r, 13, 13, S["M"]["dos"])
+    _tot(ws, r, 14, 14, len(P.dossiers))
+    _tot(ws, r, 15, 15, 1 if P.dossiers else 0, fmt=PCT)
+    _tot(ws, r, 16, 16, P.total)
+    r_fin_droite = r
+
+    # Sources (gauche, sous les familles)
+    r = rt + 2
+    _titre_bloc(ws, r, "DOSSIERS ET DIAGNOSTICS PAR SOURCE", 1, 8)
+    _entete(ws, r + 1, [(1, 4, "Site / logiciel"), (5, 6, "Dossiers"), (7, 8, "Diagnostics comptés")], hauteur=16)
+    r += 2
+    for lib, dos, dia in lignes_source:
+        _cel(ws, r, 1, 4, lib, h="left")
+        _cel(ws, r, 5, 6, dos)
+        _cel(ws, r, 7, 8, dia)
+        r += 1
+    for x in range(6, max(r, r_fin_droite) + 1):
+        if ws.row_dimensions[x].height is None:
+            ws.row_dimensions[x].height = 16
     return ws
+
+
+# ----------------------------------------------------------------------------------------------
+def feuille_age_sexe(wb, R, onglet):
+    """Dossiers, diagnostics et familles par tranche d'âge et par sexe (Monkole, CSMKL2, CHME)."""
+    ws = wb.create_sheet("Âge et sexe")
+    mise_en_page(ws, onglet, zoom=85, figer="A3")
+    ws.column_dimensions["A"].width = 30
+    for c in range(2, 13):
+        ws.column_dimensions[L(c)].width = 11.5
+    der = 12
+    bloc(ws, 1, 1, 1, der - 2, f"MONKOLE / DIAGNOSTICS PAR ÂGE ET PAR SEXE — {periode_txt(R)}", taille=15, gras=True, couleur=BLANC,
+         fond=NAVY, wrap=False)
+    lien(bloc(ws, 1, der - 1, 1, der, "Dashboard", taille=9, gras=True, couleur=TEAL, fond=CLAIR, h="center"), "'Dashboard'!A1")
+    bloc(ws, 2, 1, 2, der, "Âge au premier jour du dossier dans la période (date de naissance de l’export). Dossiers par logiciel, pas "
+                           "patients uniques. Diagnostics comptabilisés = sans marqueur de doute, une fois par dossier.",
+         taille=9, couleur=GRIS, fond=CLAIR)
+    hauteurs(ws, {1: 26, 2: 28})
+    noms = [t[0] for t in TRANCHES] + [AGE_INCONNU]
+    r = 4
+    perims = [("MONKOLE", R.global_)] + [(s, R.sites[s]) for s in ("CSMKL2", "CHME")]
+    # 1. Tranches d'âge par périmètre
+    for titre, P in perims:
+        A, S = age_sexe(R, P)
+        nd = len(P.dossiers) or 1
+        _titre_bloc(ws, r, f"{titre} / DOSSIERS ET DIAGNOSTICS PAR TRANCHE D’ÂGE", 1, der)
+        _entete(ws, r + 1, [(1, 1, "Tranche d’âge"), (2, 2, "Dossiers\nfemmes"), (3, 3, "Dossiers\nhommes"), (4, 4, "Sexe\ninconnu"),
+                            (5, 5, "Dossiers"), (6, 6, "Part des\ndossiers"), (7, 7, "Diagnostics\ncomptés"), (8, 8, "Diagnostics\npar dossier"),
+                            (9, 12, "Trois diagnostics les plus fréquents")], a_gauche=(9,))
+        r += 2
+        for n in noms:
+            x = A[n]
+            tot = sum(x["dos"].values())
+            if n == AGE_INCONNU and not tot:
+                continue
+            _cel(ws, r, 1, 1, n, h="left", gras=True)
+            for c, v in ((2, x["dos"]["F"]), (3, x["dos"]["M"]), (4, x["dos"]["Inconnu"]), (5, tot)):
+                _cel(ws, r, c, c, v)
+            _cel(ws, r, 6, 6, tot / nd, fmt=PCT)
+            _cel(ws, r, 7, 7, x["diag"])
+            _cel(ws, r, 8, 8, x["diag"] / tot if tot else 0, fmt="0.00")
+            c = _cel(ws, r, 9, 12, _top(x["groupes"], 3), h="left")
+            c.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True, indent=1)
+            c.font = Font(name="Calibri", size=8, color=TXT)
+            ws.row_dimensions[r].height = 30
+            r += 1
+        _tot(ws, r, 1, 1, "Total", h="left")
+        for c, v in ((2, S["F"]["dos"]), (3, S["M"]["dos"]), (4, S["Inconnu"]["dos"]), (5, len(P.dossiers))):
+            _tot(ws, r, c, c, v)
+        _tot(ws, r, 6, 6, 1 if P.dossiers else 0, fmt=PCT)
+        _tot(ws, r, 7, 7, P.total)
+        _tot(ws, r, 8, 8, P.total / nd, fmt="0.00")
+        _tot(ws, r, 9, 12, "", h="left")
+        r += 3
+    # 2. Familles par tranche d'âge (Monkole)
+    A, S = age_sexe(R, R.global_)
+    presents = [n for n in noms if sum(A[n]["dos"].values())]
+    _titre_bloc(ws, r, "MONKOLE / FAMILLES CLINIQUES PAR TRANCHE D’ÂGE ET PAR SEXE (DIAGNOSTICS COMPTABILISÉS)", 1, der)
+    cols = [(1, 1, "Famille clinique")] + [(2 + i, 2 + i, n) for i, n in enumerate(presents)]
+    cf = 2 + len(presents)
+    cols += [(cf, cf, "Femmes"), (cf + 1, cf + 1, "Hommes")]
+    _entete(ws, r + 1, cols)
+    r += 2
+    r0 = r
+    for f in tri_familles(R.global_):
+        _cel(ws, r, 1, 1, f, h="left", couleur=COULEURS[f], gras=True)
+        for i, n in enumerate(presents):
+            _cel(ws, r, 2 + i, 2 + i, A[n]["familles"][f])
+        _cel(ws, r, cf, cf, S["F"]["familles"][f])
+        _cel(ws, r, cf + 1, cf + 1, S["M"]["familles"][f])
+        r += 1
+    ws.conditional_formatting.add(f"B{r0}:{L(1 + len(presents))}{r - 1}",
+                                  ColorScaleRule(start_type="min", start_color="FFFFFF", end_type="max", end_color="54A6A6"))
+    r += 2
+    # 3. Diagnostics les plus fréquents par sexe
+    _titre_bloc(ws, r, "MONKOLE / LES 10 DIAGNOSTICS LES PLUS FRÉQUENTS PAR SEXE", 1, der)
+    _entete(ws, r + 1, [(1, 4, "Femmes"), (5, 5, "Comptés"), (7, 10, "Hommes"), (11, 11, "Comptés")])
+    r += 2
+    tf = _classement(S["F"]["groupes"])[:10]
+    tm = _classement(S["M"]["groupes"])[:10]
+    for i in range(max(len(tf), len(tm))):
+        if i < len(tf):
+            _cel(ws, r, 1, 4, tf[i][0], h="left")
+            _cel(ws, r, 5, 5, tf[i][1])
+        if i < len(tm):
+            _cel(ws, r, 7, 10, tm[i][0], h="left")
+            _cel(ws, r, 11, 11, tm[i][1])
+        r += 1
+    for x in range(3, r + 1):
+        if ws.row_dimensions[x].height is None:
+            ws.row_dimensions[x].height = 17
+    return ws
+
+
+def _classement(compteur):
+    return sorted(compteur.items(), key=lambda kv: (-kv[1], kv[0].lower()))
+
+
+def _top(compteur, n):
+    return " · ".join(f"{g} ({k})" for g, k in _classement(compteur)[:n])
 
 
 # ----------------------------------------------------------------------------------------------

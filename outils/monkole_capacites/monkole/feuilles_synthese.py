@@ -2,18 +2,18 @@
 from collections import defaultdict
 
 from openpyxl.chart import LineChart, Reference, Series
+from openpyxl.styles import Alignment, Font, PatternFill
 
 from . import visites as V
 from .calculs import indicateurs
 from .feuilles_detail import libelle_periode
-from .styles import (ALERTE_F, ALERTE_T, BLANC, CLAIR, DATE, DEC, GRIS, NAVY, NB, PCT, TEAL, TEXTE, ZEBRE, bandeau, ecrire,
-                     lien, mise_en_page)
-from .texte import MOIS, fr_nombre_espace as fr, fr_pct, nom_jour
+from .styles import (ALERTE_F, ALERTE_T, BLANC, CLAIR, DATE, DEC, GRIS, NAVY, NB, PCT, ROUGE_F, ROUGE_T, TEAL, TEXTE, ZEBRE,
+                     alerte, bandeau, ecrire, lien, mise_en_page)
+from .texte import fr_nombre_espace as fr, fr_pct, nom_jour
 
-LAB = "Laboratoire"
-IMAGERIE = "Imagerie Médicale"
-DASH_SPECS = ["Laboratoire", "Imagerie Médicale", "Nursing", "Hospitalisation", "Chirurgie", "Pédiatrie", "Ophtalmologie",
-              "Dentisterie", "ORL"]
+
+def fr_dec(x):
+    return f"{x:.1f}".replace(".", ",")
 
 
 def zebre(r):
@@ -86,12 +86,13 @@ def note_bloc(ws, r, texte, c1, c2, alerte=False, taille=10, hauteur=None):
         ws.row_dimensions[r].height = hauteur
 
 
-def graphique(ws, ancre, source, premiere_ligne, n, series, col_etiquette, titre, axe="Visites"):
+def graphique(ws, ancre, source, premiere_ligne, n, series, col_etiquette, titre, axe="Visites", hauteur=7.5, largeur=15):
     ch = LineChart()
-    ch.title = titre
+    if titre:
+        ch.title = titre
     ch.y_axis.title = axe
-    ch.height = 7.5
-    ch.width = 15
+    ch.height = hauteur
+    ch.width = largeur
     ch.legend.position = "b"
     for col, nom in series:
         data = Reference(source, min_col=col, min_row=premiere_ligne, max_row=premiere_ligne + n - 1)
@@ -100,6 +101,16 @@ def graphique(ws, ancre, source, premiere_ligne, n, series, col_etiquette, titre
         ch.series.append(s)
     ch.set_categories(Reference(source, min_col=col_etiquette, min_row=premiere_ligne, max_row=premiere_ligne + n - 1))
     ws.add_chart(ch, ancre)
+
+
+def colorer(ws, r, c, x, R, force=False):
+    """Applique la couleur d'alerte (orange / vert / rouge) à une cellule déjà écrite."""
+    fond, coul = (ROUGE_F, ROUGE_T) if force else alerte(x, R.seuil_bas, R.seuil_haut)
+    if fond:
+        cel = ws.cell(row=r, column=c)
+        cel.fill = PatternFill("solid", fgColor=fond)
+        f = cel.font
+        cel.font = Font(name=f.name, size=f.size, bold=True, color=coul)
 
 
 def titre_periode(R):
@@ -112,9 +123,9 @@ def titre_periode(R):
 def feuille_csmkl2(wb, R, positions_actes, arbre_actes, onglet):
     ws = wb.create_sheet("CSMKL2")
     mise_en_page(ws, onglet, zoom=85, figer="A4")
-    der = 12
+    der = 13
     ws.column_dimensions["A"].width = 30
-    for c in "BCDEFGHIJKL":
+    for c in "BCDEFGHIJKLM":
         ws.column_dimensions[c].width = 12
     ind = indicateurs(R, "CSMKL2", V.PRINCIPALE)
     lignes = R.jours_act[("CSMKL2", V.PRINCIPALE)]
@@ -123,12 +134,16 @@ def feuille_csmkl2(wb, R, positions_actes, arbre_actes, onglet):
                  f"{titre_periode(R)} • GPS + Evolucare • MAISON ROSE et actes conservés en complément", der)
     kpi(ws, 1, 3, "CAPACITÉ UTILISÉE", ind["util"] if ind["util"] is not None else "N/D", f"sur {ind['cap']:,} visites théoriques",
         fmt=PCT, lien_cible="'Dashboard'!A1", lien_texte="Dashboard")
+    fond, coul = alerte(ind["util"], R.seuil_bas, R.seuil_haut)
+    if fond:
+        ws.cell(row=5, column=1).fill = PatternFill("solid", fgColor=fond)
+        ws.cell(row=5, column=1).font = Font(name="Calibri", size=27, bold=True, color=coul)
     kpi(ws, 4, 6, "VISITES PRINCIPALES", ind["total"], "Toutes les visites principales, isolées incluses",
         lien_cible="'CSMKL2 médecins'!A1", lien_texte="Médecins par jour")
     kpi(ws, 7, 9, "JOURS AU-DELÀ CAPACITÉ", ind["jour_audela"], f"{R.cap_jour} × cabinets principaux comptés / jour",
         lien_cible="'CSMKL2 jours'!A1", lien_texte="Jours par médecin")
-    kpi(ws, 10, 12, f"JOURS AVEC PLUS DE {R.cabinets_csmkl2} CABINETS", jours_plus,
-        f"Vérifier le partage et les rotations, pas {R.cabinets_csmkl2 + 1} salles supposées",
+    kpi(ws, 10, 13, f"JOURS AVEC PLUS DE {R.cabinets_csmkl2} CABINETS", jours_plus,
+        f"Maximum : {max((l['cab'] for l in lignes), default=0)} cabinets comptés le même jour",
         lien_cible="'CSMKL2 actes'!A1", lien_texte="Actes détaillés")
     section(ws, 9, "VISITES PRINCIPALES ET CAPACITÉ DU MODÈLE", 1, der)
     for r in range(10, 27):
@@ -142,8 +157,8 @@ def feuille_csmkl2(wb, R, positions_actes, arbre_actes, onglet):
     # Lecture quotidienne
     section(ws, 29, "LECTURE QUOTIDIENNE / ACTIVITÉ PRINCIPALE", 1, der)
     cols = ["Jour", "GPS", "Evolucare", "Visites réelles", "Cabinets", "Capacité", "Utilisation", "Marge cumulée",
-            f"Intervenants >{R.cap_jour}", "Sans médecin", "Visites isolées", "Cabinets toutes activités"]
-    entete_tableau(ws, 30, [(i, i, t) for i, t in enumerate(cols, start=1)])
+            f"Intervenants >{R.cap_jour}", "Sans médecin", "Visites isolées"]
+    entete_tableau(ws, 30, [(i, i, t) for i, t in enumerate(cols, start=1)] + [(12, 13, "Cabinets toutes activités")])
     r = 31
     for l in lignes:
         j = l["jour"]
@@ -151,34 +166,43 @@ def feuille_csmkl2(wb, R, positions_actes, arbre_actes, onglet):
         for c, v in enumerate([l["gps"], l["evo"], l["total"], l["cab"], l["cap"]], start=2):
             cellule(ws, r, c, v)
         cellule(ws, r, 7, l["util"] if l["util"] is not None else "N/D", fmt=PCT)
-        for c, v in enumerate([l["marge"], l["depass"], l["sans"], l["isolees"], R.cab_site["CSMKL2"][j]], start=8):
+        colorer(ws, r, 7, l["util"], R)
+        for c, v in enumerate([l["marge"], l["depass"], l["sans"], l["isolees"]], start=8):
             cellule(ws, r, c, v)
+        cellule(ws, r, 12, R.cab_site["CSMKL2"][j], c2=13)
+        if l["cab"] > R.cabinets_csmkl2:
+            colorer(ws, r, 5, 1, R, force=True)
         ws.row_dimensions[r].height = 26
         r += 1
-    # Charge individuelle
+    # Charge individuelle : moyenne = visites / jours actifs ; classement sur la moyenne
     r += 2
     section(ws, r, "CHARGE INDIVIDUELLE / ACTIVITÉ PRINCIPALE", 1, der)
     r += 1
-    cols = ["Intervenant", "Consultation", "Avant 1 sem.", "Après 1 sem.", "Visites", "Jours actifs", "Min / jour actif",
-            "Max / jour", "GPS au pic", "Evo au pic", "Date du pic", f"Jours >{R.cap_jour}"]
+    cols = ["Intervenant", "Consultation", "Avant 1 sem.", "Après 1 sem.", "Visites", "Jours actifs", "Moyenne / jour actif",
+            "Min / jour actif", "Max / jour", "GPS au pic", "Evo au pic", "Date du pic", f"Jours >{R.cap_jour}"]
     entete_tableau(ws, r, [(i, i, t) for i, t in enumerate(cols, start=1)])
     r += 1
     md = R.medjour[("CSMKL2", V.PRINCIPALE)]
     par_med = defaultdict(dict)
     for (j, m), c in md.items():
         par_med[m][j] = c
-    ordre = sorted(par_med, key=lambda m: (min(par_med[m]), m))
+    total = {m: sum(c["total"] for c in jm.values()) for m, jm in par_med.items()}
+    moyenne = {m: total[m] / len(par_med[m]) for m in par_med}
+    ordre = sorted(par_med, key=lambda m: (-moyenne[m], -total[m], m))
     for m in ordre:
         jours_m = par_med[m]
         pic_j = min(jours_m, key=lambda j: (-jours_m[j]["total"], j))
         vals = [sum(c["cons"] for c in jours_m.values()), sum(c["avant"] for c in jours_m.values()),
-                sum(c["apres"] for c in jours_m.values()), sum(c["total"] for c in jours_m.values()), len(jours_m),
-                min(c["total"] for c in jours_m.values()), jours_m[pic_j]["total"], jours_m[pic_j]["gps"], jours_m[pic_j]["evo"]]
+                sum(c["apres"] for c in jours_m.values()), total[m], len(jours_m)]
         cellule(ws, r, 1, m, h="left", fmt=None)
         for c, v in enumerate(vals, start=2):
             cellule(ws, r, c, v)
-        cellule(ws, r, 11, pic_j, fmt=DATE)
-        cellule(ws, r, 12, sum(c["audela"] for c in jours_m.values()))
+        cellule(ws, r, 7, moyenne[m], fmt="0.0", gras=True)
+        for c, v in enumerate([min(c["total"] for c in jours_m.values()), jours_m[pic_j]["total"], jours_m[pic_j]["gps"],
+                               jours_m[pic_j]["evo"]], start=8):
+            cellule(ws, r, c, v)
+        cellule(ws, r, 12, pic_j, fmt=DATE)
+        cellule(ws, r, 13, sum(c["audela"] for c in jours_m.values()))
         ws.row_dimensions[r].height = 30
         r += 1
     # MAISON ROSE
@@ -224,8 +248,7 @@ def feuille_csmkl2(wb, R, positions_actes, arbre_actes, onglet):
         r += 1
     r += 2
     note_bloc(ws, r, f"{ind['depass']} journées-intervenants dépassent {R.cap_jour} visites; pic individuel {ind['pic_medecin']}. "
-                     f"Examiner les répartitions et horaires avant toute décision de renfort. Les {R.cabinets_csmkl2} cabinets restent "
-                     f"l’hypothèse physique du modèle.", 1, der, alerte=True, hauteur=44)
+                     f"{jours_plus} jour(s) avec plus de {R.cabinets_csmkl2} cabinets comptés.", 1, der, alerte=True, hauteur=30)
     return ws
 
 
@@ -248,54 +271,62 @@ def feuille_chme(wb, R, onglet):
     for c in "BCDEFGHIJKL":
         ws.column_dimensions[c].width = 12
     t = R.unites_total
-    sans = t["sans_gps"] + t["sans_evo"]
+    L = R.lits_occ
+    cab = [R.cab_chme_spec[j] for j in R.jours]
+    ouvres = [n for n in cab if n]
+    jours_plus = sum(1 for n in cab if n > R.cabinets_chme)
     haut_de_page(ws, "CHME / CAPACITÉ ET ACTIVITÉS",
-                 f"{titre_periode(R)} • GPS + Evolucare • Visites, actes et hospitalisation; sources distinguées", der)
-    kpi(ws, 1, 3, "OCCUPATION DOCUMENTÉE / GPS", t["occ_gps"], f"Huit unités / {R.total_lits} lits / durées GPS connues", fmt=PCT,
-        lien_cible="'Dashboard'!A1", lien_texte="Dashboard")
-    kpi(ws, 4, 6, "OCCUPATION RECONSTITUÉE / EVO", t["occ_evo"], "Dates sans heures et sorties futures : à confirmer", fmt=PCT,
-        lien_cible="'CHME médecins'!A1", lien_texte="Médecins par jour")
-    kpi(ws, 7, 9, "DOSSIERS HOSPI / GPS - EVO", f"{t['dos_gps']} / {t['dos_evo']}", "Pas de fusion de patients entre les logiciels",
+                 f"{titre_periode(R)} • GPS + Evolucare • {R.lits_reels} lits réels • {R.cabinets_chme} cabinets de spécialistes", der)
+    kpi(ws, 1, 3, f"OCCUPATION / {R.lits_reels} LITS RÉELS", L["taux"], f"{fr_dec(L['moy'])} lits occupés en moyenne (GPS + Evo)",
+        fmt=PCT, lien_cible="'Dashboard'!A1", lien_texte="Dashboard")
+    colorer(ws, 5, 1, L["taux"], R)
+    kpi(ws, 4, 6, "LITS OCCUPÉS / DERNIER JOUR", f"{fr_dec(L['dernier'])} / {R.lits_reels}",
+        f"{fr_pct(L['taux_dernier'] or 0)} le {R.fin.strftime('%d/%m')} ; pic {fr_dec(L['pic'])} le {L['date_pic'].strftime('%d/%m')}",
+        taille=23, lien_cible="'CHME médecins'!A1", lien_texte="Médecins par jour")
+    kpi(ws, 7, 9, "DOSSIERS HOSPI / GPS - EVO", f"{t['dos_gps']} / {t['dos_evo']}", f"dont {L['sans_entree']} sans date d’entrée (sans durée)",
         lien_cible="'CHME jours'!A1", lien_texte="Jours et séjours")
-    kpi(ws, 10, 12, "DOSSIERS SANS DATE D’ENTRÉE", sans, "Comptés; aucune durée inventée",
+    kpi(ws, 10, 12, f"CABINETS SPÉCIALISTES / {R.cabinets_chme}", max(cab, default=0),
+        f"maximum / jour ; moyenne {fr_dec(sum(ouvres) / len(ouvres) if ouvres else 0)} ; {jours_plus} jour(s) > {R.cabinets_chme}",
         lien_cible="'CHME actes'!A1", lien_texte="Actes détaillés")
-    section(ws, 9, "HOSPITALISATION / OCCUPATION PAR SOURCE — NE PAS ADDITIONNER LES COURBES", 1, der)
+    if max(cab, default=0) > R.cabinets_chme:
+        colorer(ws, 5, 10, 1, R, force=True)
+    section(ws, 9, f"HOSPITALISATION / LITS OCCUPÉS PAR JOUR (GPS + EVOLUCARE) ET {R.lits_reels} LITS RÉELS", 1, der)
     for r in range(10, 27):
         ws.row_dimensions[r].height = 20
-    graphique(ws, "A10", wb["_Hospi jour"], 6, R.ndays, [(2, "GPS journées / 8 unités"), (3, "Evo journées / 8 unités"),
-                                                          (4, "Lits CHME")], 10, "Moyenne sur 24 heures, par source", axe="Lits occupés")
-    note_bloc(ws, 27, "Les taux sont partiels : séjours sans entrée exclus des durées et éventuels séjours communs GPS/Evo non "
-                      "rapprochables. Le complément à 100 % ne prouve pas des lits libres.", 1, der, alerte=True, hauteur=34)
+    graphique(ws, "A10", wb["_Hospi jour"], 6, R.ndays, [(4, "Lits occupés GPS + Evo"), (2, "dont GPS"), (3, "dont Evo"),
+                                                          (5, "Lits réels")], 11, "Moyenne sur 24 heures", axe="Lits occupés")
+    note_bloc(ws, 27, f"Les séjours entrés avant le {R.debut.strftime('%d/%m')} n’ont pas de date d’entrée dans les exports "
+                      f"({L['sans_entree']} dossiers) : les premiers jours sont sous-estimés. Les dates de sortie Evolucare sont "
+                      "provisoires (proposées à l’admission).", 1, der, alerte=True, hauteur=34)
     section(ws, 29, "HOSPITALISATION / RÉPARTITION PAR UNITÉ", 1, der)
-    cols = ["Unité", "Lits", "Dossiers\nGPS", "Dossiers\nEvolucare", "Sans entrée\nGPS", "Sans entrée\nEvolucare", "Jours\nGPS",
-            "Jours\nEvolucare", "Occupation\nGPS", "Occupation\nEvolucare", "Sorties\nGPS", "Sorties\nEvolucare"]
+    cols = ["Unité", "Lits\nlogiciel", "Dossiers\nGPS", "Dossiers\nEvolucare", "Sans entrée\nGPS", "Sans entrée\nEvolucare",
+            "Jours\nGPS", "Jours\nEvolucare", "Lits occupés\nmoy. / jour", "Lits occupés\ndernier jour", "Sorties\nGPS",
+            "Sorties\nEvolucare"]
     entete_tableau(ws, 30, [(i, i, x) for i, x in enumerate(cols, start=1)])
     r = 31
     for u in R.unites:
         cellule(ws, r, 1, u["unite"], h="left", fmt=None)
-        cellule(ws, r, 2, u["lits"] if u["lits"] else "N/D")
+        cellule(ws, r, 2, u["lits"] if u["lits"] else "–")
         for c, v in enumerate([u["dos_gps"], u["dos_evo"], u["sans_gps"], u["sans_evo"]], start=3):
             cellule(ws, r, c, v)
         cellule(ws, r, 7, u["jours_gps"], fmt=DEC)
         cellule(ws, r, 8, u["jours_evo"], fmt=DEC)
-        cellule(ws, r, 9, u["occ_gps"] if u["lits"] else "Hors capacité", fmt=PCT)
-        cellule(ws, r, 10, u["occ_evo"] if u["lits"] else "Hors capacité", fmt=PCT)
+        cellule(ws, r, 9, u["moy"], fmt="0.0")
+        cellule(ws, r, 10, u["dernier"], fmt="0.0")
         cellule(ws, r, 11, u["sorties_gps"])
         cellule(ws, r, 12, u["sorties_evo"])
         ws.row_dimensions[r].height = 28
         r += 1
     r += 1
-    tot = [t["lits"], t["dos_gps"], t["dos_evo"], t["sans_gps"], t["sans_evo"]]
-    ecrire(ws, (r, 1), "TOTAL CHME", gras=True, couleur=BLANC, fond=TEAL)
-    for c, v in enumerate(tot, start=2):
-        ecrire(ws, (r, c), v, gras=True, couleur=BLANC, fond=TEAL, fmt=NB, h="right")
-    ecrire(ws, (r, 7), t["jours_gps"], gras=True, couleur=BLANC, fond=TEAL, fmt=DEC, h="right")
-    ecrire(ws, (r, 8), t["jours_evo"], gras=True, couleur=BLANC, fond=TEAL, fmt=DEC, h="right")
-    ecrire(ws, (r, 9), t["occ_gps"], gras=True, couleur=BLANC, fond=TEAL, fmt=PCT, h="right")
-    ecrire(ws, (r, 10), t["occ_evo"], gras=True, couleur=BLANC, fond=TEAL, fmt=PCT, h="right")
-    ecrire(ws, (r, 11), t["sorties_gps"], gras=True, couleur=BLANC, fond=TEAL, fmt=NB, h="right")
-    ecrire(ws, (r, 12), t["sorties_evo"], gras=True, couleur=BLANC, fond=TEAL, fmt=NB, h="right")
+    ecrire(ws, (r, 1), f"TOTAL CHME / {R.lits_reels} LITS RÉELS", gras=True, couleur=BLANC, fond=TEAL)
+    for c, (v, f) in enumerate([(t["lits"], NB), (t["dos_gps"], NB), (t["dos_evo"], NB), (t["sans_gps"], NB), (t["sans_evo"], NB),
+                                (t["jours_gps"], DEC), (t["jours_evo"], DEC), (L["moy"], "0.0"), (L["dernier"], "0.0"),
+                                (t["sorties_gps"], NB), (t["sorties_evo"], NB)], start=2):
+        ecrire(ws, (r, c), v, gras=True, couleur=BLANC, fond=TEAL, fmt=f, h="right")
     ws.row_dimensions[r].height = 28
+    r += 1
+    note_bloc(ws, r, f"Lits logiciel = lits paramétrés dans GPS / Evolucare (lits fictifs inclus, total {t['lits']}) : répartition "
+                     f"indicative. Le taux d’occupation se calcule sur les {R.lits_reels} lits réels.", 1, der, hauteur=30)
     r += 1
     fusion(ws, r, 1, der)
     lien(ws, (r, 1), "Ouvrir la liste des dossiers hospitaliers, dates et durées", "'CHME jours'!A1")
@@ -374,193 +405,206 @@ def feuille_chme(wb, R, onglet):
 
 
 # ----------------------------------------------------------------------------------------------
-# DASHBOARD
+# DASHBOARD : tout sur un écran (zoom 85 %), sans défilement
 # ----------------------------------------------------------------------------------------------
+H_LIGNE = 15
+
+
+def _kpi_compact(ws, c1, c2, titre, valeur, sous, fmt=NB, couleur=None, taille=20):
+    fusion(ws, 2, c1, c2)
+    for c in range(c1, c2 + 1):
+        ecrire(ws, (2, c), titre if c == c1 else None, taille=9, gras=True, couleur=BLANC, fond=TEAL)
+    fond, coul = couleur if couleur else (BLANC, TEAL)
+    fusion(ws, 3, c1, c2)
+    for c in range(c1, c2 + 1):
+        ecrire(ws, (3, c), valeur if c == c1 else None, taille=taille, gras=True, couleur=coul, fond=fond,
+               fmt=fmt if not isinstance(valeur, str) else None, h="center", wrap=None)
+    fusion(ws, 4, c1, c2)
+    for c in range(c1, c2 + 1):
+        ecrire(ws, (4, c), sous if c == c1 else None, taille=8, couleur=GRIS, fond=CLAIR, h="center")
+
+
+def _titre_bloc(ws, r, texte, c1, c2):
+    section(ws, r, texte, c1, c2, taille=9, hauteur=17)
+
+
+def _entete(ws, r, colonnes):
+    entete_tableau(ws, r, colonnes, hauteur=28, taille=8)
+
+
+def _val(ws, r, c, v, fmt=NB, c2=None, h="right", gras=False, fond=None):
+    return cellule(ws, r, c, v, fmt=fmt, c2=c2, h=h, gras=gras, taille=9, fond=fond)
+
+
+def _total(ws, r, c, v, fmt=NB, c2=None, h="right"):
+    if c2:
+        fusion(ws, r, c, c2)
+        for x in range(c + 1, c2 + 1):
+            ecrire(ws, (r, x), fond=TEAL)
+    return ecrire(ws, (r, c), v, taille=9, gras=True, couleur=BLANC, fond=TEAL, fmt=fmt if not isinstance(v, str) else None, h=h)
+
+
 def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
     ws = wb.create_sheet("Dashboard", 0)
-    mise_en_page(ws, onglet, zoom=80, figer="A4")
-    der = 15
+    mise_en_page(ws, onglet, zoom=85)
+    ws.page_setup.fitToHeight = 1
+    der = 20
     for i in range(1, der + 1):
-        ws.column_dimensions[chr(64 + i)].width = 12
+        ws.column_dimensions[chr(64 + i)].width = 9.5
+    ws.column_dimensions["N"].width = 2
     cs = indicateurs(R, "CSMKL2", V.PRINCIPALE)
     mr = indicateurs(R, "CSMKL2", V.SECONDAIRE)
     amb = indicateurs(R, "CHME", V.AMBULATOIRE)
     urg = indicateurs(R, "CHME", V.URGENCES)
     t = R.unites_total
-    tot_cs = cs["total"] + mr["total"]
-    tot_ch = amb["total"] + urg["total"]
-    g_tot = sum(1 for a in R.actes if a["logiciel"] == "GPS")
-    e_tot = sum(1 for a in R.actes if a["logiciel"] != "GPS")
-    haut_de_page(ws, "MONKOLE / ACTIVITÉS ET CAPACITÉS PAR SITE",
-                 f"Direction des opérations • {titre_periode(R)} • CSMKL2 + CHME • GPS + Evolucare", der)
-    kpi(ws, 1, 4, "VISITES HORS HOSPITALISATION", tot_cs + tot_ch, f"CSMKL2 : {fr(tot_cs)} | CHME : {fr(tot_ch)}",
-        lien_cible="'CSMKL2'!A1", lien_texte="CSMKL2 / modèle actualisé")
-    kpi(ws, 5, 8, "ACTES / GPS — EVOLUCARE", f"{g_tot:,} / {e_tot:,}", "Date_V GPS / DATEHEURE Evo; séries séparées", taille=23,
-        lien_cible="'CHME'!A1", lien_texte="CHME / modèle actualisé")
-    kpi(ws, 9, 12, "DOSSIERS HOSPI CHME / GPS — EVO", f"{t['dos_gps']} / {t['dos_evo']}", "Dossiers par logiciel, pas patients uniques",
-        lien_cible="'CHME actes'!A1", lien_texte="Actes par spécialité")
-    kpi(ws, 13, 15, f"LITS CHME / {len(R.lits)} UNITÉS", R.total_lits, "Capacité reprise du modèle fourni",
-        lien_cible="'Notez bien'!A1", lien_texte="Règles / contrôles")
-    note_bloc(ws, 9, "Visites, actes et séjours sont trois mesures différentes. Ne pas les additionner. Les deux logiciels restent "
-                     "identifiables; aucun dédoublonnage patient interlogiciels n’est présumé.", 1, der, hauteur=30)
-    section(ws, 11, "01 / ACTIVITÉ ET CAPACITÉ DES CONSULTATIONS / LECTURE PAR SITE", 1, der)
-    entete_tableau(ws, 12, [(1, 3, "Site / activité"), (4, 4, "GPS"), (5, 5, "Evolucare"), (6, 6, "Visites"), (7, 8, "Cabinets-jours"),
-                            (9, 10, "Capacité du modèle"), (11, 12, "Utilisation"), (13, 15, "Lecture opérationnelle")], taille=9, hauteur=35)
-    lignes = [
-        ("CSMKL2 / principale", cs, f"{cs['depass']} journées-intervenants >{R.cap_jour}; pic à {cs['pic_medecin']}."),
-        ("CSMKL2 / MAISON ROSE", mr, "Information; hors capacité principale."),
-        ("CHME / ambulatoire", amb, f"{amb['depass']} journées-intervenants >{R.cap_jour}; pic à {amb['pic_medecin']}."),
-        ("CHME / urgences", urg, f"{urg['sans']} visites sans médecin; repère incomplet."),
-    ]
-    for i, (nom, d, lecture) in enumerate(lignes):
-        r = 13 + i
-        cellule(ws, r, 1, nom, c2=3, h="left", fmt=None)
-        cellule(ws, r, 4, d["gps"])
-        cellule(ws, r, 5, d["evo"])
-        cellule(ws, r, 6, d["total"])
-        if nom.endswith("MAISON ROSE"):
-            cellule(ws, r, 7, "Hors repère", c2=8, fmt=None)
-            cellule(ws, r, 9, "Hors repère", c2=10, fmt=None)
-            cellule(ws, r, 11, "N/D", c2=12, fmt=None)
+    L = R.lits_occ
+    seuils = (R.seuil_bas, R.seuil_haut)
+
+    # Titre et navigation
+    fusion(ws, 1, 1, 14)
+    ecrire(ws, (1, 1), f"MONKOLE / ACTIVITÉS ET CAPACITÉS — {titre_periode(R)}", taille=15, gras=True, couleur=BLANC, fond=NAVY)
+    for c1, texte, cible in ((15, "CSMKL2", "'CSMKL2'!A1"), (17, "CHME", "'CHME'!A1"), (19, "Notez bien", "'Notez bien'!A1")):
+        fusion(ws, 1, c1, c1 + 1)
+        ecrire(ws, (1, c1 + 1), fond=CLAIR)
+        lien(ws, (1, c1), texte, cible, fond=CLAIR, taille=9).alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 26
+
+    # Indicateurs clés
+    act = lambda site, lg: sum(1 for a in R.actes if a["site"] == site and (a["logiciel"] == "GPS") == (lg == "GPS"))
+    _kpi_compact(ws, 1, 4, "CSMKL2 · UTILISATION", cs["util"] if cs["util"] is not None else "N/D",
+                 f"{fr(cs['total'])} visites / {fr(cs['cap'])} de capacité", fmt=PCT,
+                 couleur=alerte(cs["util"], *seuils))
+    _kpi_compact(ws, 5, 8, "CHME AMBULATOIRE · UTILISATION", amb["util"] if amb["util"] is not None else "N/D",
+                 f"{fr(amb['total'])} visites / {fr(amb['cap'])} de capacité", fmt=PCT,
+                 couleur=alerte(amb["util"], *seuils))
+    _kpi_compact(ws, 9, 12, "URGENCES CHME · VISITES", urg["total"], f"dont {fr(urg['sans'])} sans médecin renseigné",
+)
+    _kpi_compact(ws, 13, 16, f"LITS CHME · OCCUPATION / {R.lits_reels}", L["taux"],
+                 f"{fr_dec(L['moy'])} lits / jour ; dernier jour {fr_dec(L['dernier'])} ({fr_pct(L['taux_dernier'] or 0, 0)})",
+                 fmt=PCT, couleur=alerte(L["taux"], *seuils))
+    _kpi_compact(ws, 17, 20, "ACTES · GPS / EVOLUCARE", f"{fr(act('CSMKL2', 'GPS') + act('CHME', 'GPS'))} / "
+                 f"{fr(act('CSMKL2', 'Evo') + act('CHME', 'Evo'))}",
+                 f"CSMKL2 {fr(act('CSMKL2', 'GPS'))} / {fr(act('CSMKL2', 'Evo'))} • CHME {fr(act('CHME', 'GPS'))} / {fr(act('CHME', 'Evo'))}",
+                 taille=16)
+    for r, h in ((2, 16), (3, 30), (4, 14), (5, 5)):
+        ws.row_dimensions[r].height = h
+
+    # Consultations (gauche, colonnes 1-13)
+    _titre_bloc(ws, 6, f"CONSULTATIONS / VISITES ET CAPACITÉ ({R.cap_jour} VISITES PAR MÉDECIN EN CABINET ET PAR JOUR)", 1, 13)
+    _entete(ws, 7, [(1, 2, "Site / activité"), (3, 3, "Visites"), (4, 4, "GPS"), (5, 5, "Evolucare"), (6, 6, "Capacité"),
+                    (7, 7, "Utilisation"), (8, 8, f"Journées\nmédecin >{R.cap_jour}"), (9, 9, "Pic\nmédecin / jour"),
+                    (10, 10, "Cabinets\nmoy. / jour"), (11, 11, "Cabinets\nmax / jour"), (12, 12, "Cabinets\nphysiques"),
+                    (13, 13, "Jours au-delà\ndes cabinets")])
+    cab_cs = [l["cab"] for l in R.jours_act[("CSMKL2", V.PRINCIPALE)]]
+    cab_ch = [R.cab_chme_spec[j] for j in R.jours]
+    cab_urg = [l["cab"] for l in R.jours_act[("CHME", V.URGENCES)]]
+    moy = lambda xs: (sum(x for x in xs if x) / sum(1 for x in xs if x)) if any(xs) else 0
+    lignes = [("CSMKL2 / principale", cs, cab_cs, R.cabinets_csmkl2), ("CSMKL2 / MAISON ROSE", mr, None, None),
+              ("CHME / ambulatoire", amb, cab_ch, R.cabinets_chme), ("CHME / urgences", urg, cab_urg, None)]
+    for i, (nom, d, cab, phys) in enumerate(lignes):
+        r = 8 + i
+        _val(ws, r, 1, nom, fmt=None, c2=2, h="left")
+        for c, v in ((3, d["total"]), (4, d["gps"]), (5, d["evo"])):
+            _val(ws, r, c, v)
+        if cab is None:
+            for c in range(6, 14):
+                _val(ws, r, c, "Hors repère" if c == 6 else "–", fmt=None, h="center")
         else:
-            cellule(ws, r, 7, d["cab"], c2=8)
-            cellule(ws, r, 9, d["cap"], c2=10)
-            cellule(ws, r, 11, d["util"] if d["util"] is not None else "N/D", c2=12, fmt=PCT)
-        cellule(ws, r, 13, lecture, c2=15, fmt=None)
-        ws.row_dimensions[r].height = 35
-    note_bloc(ws, 18, f"Repère conservé : {R.cap_jour} × intervenants comptés à partir de {R.seuil} visites/jour. Les visites isolées "
-                      "restent au numérateur. Ce n’est pas un inventaire des cabinets physiques du CHME.", 1, der, hauteur=30)
-    section(ws, 20, "CSMKL2 / VISITES PRINCIPALES ET CAPACITÉ", 1, 7, taille=10, hauteur=25)
-    section(ws, 20, "CHME / VISITES AMBULATOIRES ET CAPACITÉ", 9, 15, taille=10, hauteur=25)
-    for r in range(21, 37):
-        ws.row_dimensions[r].height = 18
-    per = titre_periode(R).replace(f" {R.fin.year}", "")
-    graphique(ws, "A21", wb["_Jours"], R.lignes_jours[("CSMKL2", V.PRINCIPALE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 20, per)
-    graphique(ws, "I21", wb["_Jours"], R.lignes_jours[("CHME", V.AMBULATOIRE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 20, per)
-    jours_plus = sum(1 for l in R.jours_act[("CSMKL2", V.PRINCIPALE)] if l["cab"] > R.cabinets_csmkl2)
-    note_bloc(ws, 37, f"CSMKL2 : {jours_plus} journée(s) avec plus de {R.cabinets_csmkl2} cabinets comptés. Vérifier les rotations.",
-              1, 7, alerte=True, taille=9)
-    note_bloc(ws, 37, "CHME : les capacités des appareils et les horaires des spécialités ne sont pas fournis.", 9, 15, taille=9)
-    ws.row_dimensions[37].height = 32
-    # 02 actes CHME / 03 hospitalisation
-    section(ws, 39, "02 / CHME / ACTES ET PRESTATIONS", 1, 7, taille=10, hauteur=25)
-    section(ws, 39, "03 / CHME / HOSPITALISATION", 9, 15, taille=10, hauteur=25)
-    entete_tableau(ws, 40, [(1, 4, "Spécialité"), (5, 6, "GPS / Date_V"), (7, 7, "Evo / DATEHEURE"), (9, 11, "Unité"), (12, 12, "Lits"),
-                            (13, 13, "Taux GPS"), (14, 14, "Taux Evo"), (15, 15, "Sans entrée")], taille=9, hauteur=35)
-    par_nom = {sp["nom"]: sp for sp in arbre_chme}
-    for i, nom in enumerate(DASH_SPECS):
-        r = 41 + i
-        sp = par_nom.get(nom)
-        c = cellule(ws, r, 1, nom, c2=4, h="left", fmt=None, taille=11)
-        if sp:
-            c.hyperlink = f"#'CHME actes'!A{pos_chme[nom]}"
-        cellule(ws, r, 5, sp["agg"]["gps"] if sp else 0, c2=6, taille=11, fond=BLANC)
-        cellule(ws, r, 7, sp["agg"]["evo"] if sp else 0, taille=11, fond=BLANC)
-    autres = [sp for sp in arbre_chme if sp["nom"] not in DASH_SPECS]
-    r = 41 + len(DASH_SPECS)
-    c = cellule(ws, r, 1, "Autres spécialités — voir détail +", c2=4, h="left", fmt=None, taille=11)
-    c.hyperlink = "#'CHME actes'!A1"
-    cellule(ws, r, 5, sum(sp["agg"]["gps"] for sp in autres), c2=6, taille=11, fond=BLANC)
-    cellule(ws, r, 7, sum(sp["agg"]["evo"] for sp in autres), taille=11, fond=BLANC)
-    for i, u in enumerate(R.unites):
-        r = 41 + i
-        cellule(ws, r, 9, u["unite"], c2=11, h="left", fmt=None)
-        cellule(ws, r, 12, u["lits"] if u["lits"] else "N/D", taille=11, fond=BLANC)
-        cellule(ws, r, 13, u["occ_gps"] if u["lits"] else "Hors capacité", fmt=PCT, taille=11, fond=BLANC)
-        cellule(ws, r, 14, u["occ_evo"] if u["lits"] else "Hors capacité", fmt=PCT, taille=11, fond=BLANC)
-        cellule(ws, r, 15, u["sans_gps"] + u["sans_evo"], taille=11, fond=BLANC)
-        ws.row_dimensions[r].height = 29
-    ws.row_dimensions[50].height = 28
-    r = 51
-    fusion(ws, r, 1, 4)
-    for c in range(1, 5):
-        ecrire(ws, (r, c), "TOTAL CHME / SOURCES SÉPARÉES" if c == 1 else None, gras=True, couleur=BLANC, fond=TEAL)
-    fusion(ws, r, 5, 6)
-    for c, v in ((5, sum(1 for a in R.actes if a["logiciel"] == "GPS" and a["site"] == "CHME")), (6, None),
-                 (7, sum(1 for a in R.actes if a["logiciel"] != "GPS" and a["site"] == "CHME"))):
-        ecrire(ws, (r, c), v, gras=True, couleur=BLANC, fond=TEAL, fmt=NB, h="right")
-    fusion(ws, r, 9, 11)
-    for c in range(9, 12):
-        nb_u = "HUIT" if len(R.lits) == 8 else str(len(R.lits))
-        ecrire(ws, (r, c), f"TOTAL / {nb_u} UNITÉS POUR LES TAUX" if c == 9 else None,
-               taille=9, gras=True, couleur=BLANC, fond=TEAL)
-    ecrire(ws, (r, 12), t["lits"], gras=True, couleur=BLANC, fond=TEAL, fmt=NB, h="right")
-    ecrire(ws, (r, 13), t["occ_gps"], gras=True, couleur=BLANC, fond=TEAL, fmt=PCT, h="right")
-    ecrire(ws, (r, 14), t["occ_evo"], gras=True, couleur=BLANC, fond=TEAL, fmt=PCT, h="right")
-    ecrire(ws, (r, 15), t["sans_gps"] + t["sans_evo"], gras=True, couleur=BLANC, fond=TEAL, fmt=NB, h="right")
-    ws.row_dimensions[r].height = 30
-    note_bloc(ws, 53, "Evo : Date_V absente; DATEHEURE affichée à part. Quantités et produits dans le détail, sans montant.", 1, 7,
-              alerte=True, taille=9)
-    note_bloc(ws, 53, "Taux partiels, non additionnables entre logiciels. Dates de sortie Evo futures à confirmer; pas des lits libres "
-                      "déduits.", 9, 15, alerte=True, taille=9)
-    ws.row_dimensions[53].height = 35
-    # 04 laboratoire / 05 imagerie
-    section(ws, 55, "04 / LABORATOIRE / PRINCIPALES SOUS-SPÉCIALITÉS", 1, 7, taille=10, hauteur=26)
-    section(ws, 55, "05 / IMAGERIE CHME / SOUS-SPÉCIALITÉS", 9, 15, taille=10, hauteur=26)
-    entete_tableau(ws, 56, [(1, 4, "Laboratoire"), (5, 6, "GPS / Date_V"), (7, 7, "Evo / DATEHEURE"), (9, 12, "Imagerie"),
-                            (13, 14, "GPS / Date_V"), (15, 15, "Evo / DATEHEURE")], taille=9, hauteur=35)
-    lab = par_nom.get(LAB, {"subs": []})["subs"]
-    img = par_nom.get(IMAGERIE, {"subs": []})["subs"]
-    for i, sb in enumerate(lab):
-        r = 57 + i
-        cellule(ws, r, 1, sb["nom"], c2=4, h="left", fmt=None, taille=9)
-        cellule(ws, r, 5, sb["agg"]["gps"], c2=6, taille=11, fond=BLANC)
-        cellule(ws, r, 7, sb["agg"]["evo"], taille=11, fond=BLANC)
-        ws.row_dimensions[r].height = 26
-    for i, sb in enumerate(img):
-        r = 57 + i
-        cellule(ws, r, 9, sb["nom"], c2=12, h="left", fmt=None, taille=9)
-        cellule(ws, r, 13, sb["agg"]["gps"], c2=14, taille=11, fond=BLANC)
-        cellule(ws, r, 15, sb["agg"]["evo"], taille=11, fond=BLANC)
-        ws.row_dimensions[r].height = 26
-    rb = max(57 + len(img) + 2, 65)
-    section(ws, rb, "CSMKL2 / ACTES PAR SOURCE", 9, 15, taille=10, hauteur=26)
-    g_cs = sum(1 for a in R.actes if a["logiciel"] == "GPS" and a["site"] == "CSMKL2")
-    e_cs = sum(1 for a in R.actes if a["logiciel"] != "GPS" and a["site"] == "CSMKL2")
-    for k, (lib, v) in enumerate((("GPS / Date_V", g_cs), ("Evolucare / DATEHEURE", e_cs))):
-        r = rb + 1 + k
-        cellule(ws, r, 9, lib, c2=12, h="left", fmt=None, taille=9)
-        cellule(ws, r, 13, v, taille=11, fond=BLANC)
-        ws.row_dimensions[r].height = 26
-    r = rb + 3
-    fusion(ws, r, 9, 15)
-    lien(ws, (r, 9), "Ouvrir les actes CSMKL2", "'CSMKL2 actes'!A1")
-    ws.row_dimensions[r].height = 24
-    # 06 points d'attention
-    r0 = max(57 + len(lab), rb + 4) + 2
-    section(ws, r0, "06 / POINTS D’ATTENTION POUR LE DIRECTEUR DES OPÉRATIONS", 1, der)
-    hors = [b for b in R.base_hospi if b["logiciel"] == "Evolucare" and not b["dans_periode"]]
-    mois_hors = sorted({MOIS[b["entree"].month - 1] for b in hors if b["entree"]})
-    if len(hors) == 1 and mois_hors:
-        txt_hors = f"1 entrée de {mois_hors[0]} est hors période."
-    else:
-        txt_hors = f"{len(hors)} entrée(s) hors période" + (f" ({', '.join(mois_hors)})." if mois_hors else ".")
-    nb_sans_site = sum(1 for b in R.base_hospi if b["logiciel"] == "Evolucare" and b["dans_periode"] and b["site"] not in ("CHME", "CSMKL2"))
-    points = [
-        ("CSMKL2 / RÉPARTIR LA CHARGE", f"{cs['depass']} journées-intervenants dépassent {R.cap_jour} visites; {jours_plus} jour(s) avec plus "
-                                        f"de {R.cabinets_csmkl2} cabinets comptés. Examiner les rotations avant de conclure à un besoin de renfort."),
-        ("CHME / CHARGE PAR SPÉCIALITÉ", f"{amb['depass']} journées-intervenants ambulatoires dépassent {R.cap_jour}, malgré un taux global de "
-                                         f"{fr_pct(amb['util'] or 0)}. Lire le détail par médecin : la moyenne du site masque les pointes."),
-        ("URGENCES / IDENTITÉS", f"{urg['sans']} visites sans intervenant renseigné. Compléter ce champ avant de tirer une conclusion de "
-                                 "capacité aux urgences."),
-        ("HOSPITALISATION / FIABILITÉ", f"{t['sans_gps'] + t['sans_evo']} dossiers CHME sans date d’entrée. Les taux GPS et Evo restent "
-                                        "séparés; aucun patient unique commun n’est identifié entre logiciels."),
-        ("ACTES / DATES ET PÉRIMÈTRE", f"Date_V est disponible uniquement pour GPS. Les {fr(e_tot)} prestations Evo sont visibles séparément "
-                                       f"sur DATEHEURE; {fr(len(R.produits))} lignes de produits sont hors actes."),
-        ("SOURCE EVOLUCARE / SÉJOURS", f"{txt_hors} {nb_sans_site} séjours couvrant {MOIS[R.debut.month - 1]} restent sans site; ils ne "
-                                       "sont pas attribués au CHME par supposition."),
-    ]
-    for i, (lib, txt) in enumerate(points):
-        r = r0 + 2 + i
-        fond = zebre(r)
-        fusion(ws, r, 1, 4)
-        for c in range(1, 5):
-            ecrire(ws, (r, c), lib if c == 1 else None, taille=9, gras=True, couleur=TEAL, fond=fond)
-        fusion(ws, r, 5, der)
-        for c in range(5, der + 1):
-            ecrire(ws, (r, c), txt if c == 5 else None, couleur=TEXTE, fond=fond)
-        ws.row_dimensions[r].height = 42
-    r = r0 + 9
-    note_bloc(ws, r, "Périmètre : CSMKL2 et CHME documentés dans ces exports. Les visites et actes sont des enregistrements; les séjours "
-                     "peuvent être incomplets. Aucun montant, facture ou diagnostic analysé dans ce fichier.", 1, der, hauteur=34)
+            _val(ws, r, 6, d["cap"])
+            _val(ws, r, 7, d["util"] if d["util"] is not None else "N/D", fmt=PCT)
+            colorer(ws, r, 7, d["util"], R)
+            _val(ws, r, 8, d["depass"])
+            _val(ws, r, 9, d["pic_medecin"])
+            _val(ws, r, 10, moy(cab), fmt="0.0")
+            _val(ws, r, 11, max(cab, default=0))
+            _val(ws, r, 12, phys if phys else "–", h="right" if phys else "center")
+            plus = sum(1 for x in cab if x > phys) if phys else "–"
+            _val(ws, r, 13, plus, h="right" if phys else "center")
+            if phys and max(cab, default=0) > phys:
+                colorer(ws, r, 11, 1, R, force=True)
+                colorer(ws, r, 13, 1, R, force=True)
+            if d["depass"]:
+                colorer(ws, r, 8, 1, R, force=True)
+        ws.row_dimensions[r].height = H_LIGNE + 2
+
+    # Graphiques quotidiens (gauche)
+    _titre_bloc(ws, 13, "CSMKL2 / VISITES ET CAPACITÉ PAR JOUR", 1, 6)
+    _titre_bloc(ws, 13, "CHME AMBULATOIRE / VISITES ET CAPACITÉ PAR JOUR", 7, 13)
+    for r in range(14, 25):
+        ws.row_dimensions[r].height = H_LIGNE
+    graphique(ws, "A14", wb["_Jours"], R.lignes_jours[("CSMKL2", V.PRINCIPALE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 21,
+              None, hauteur=5.8, largeur=11.3)
+    graphique(ws, "G14", wb["_Jours"], R.lignes_jours[("CHME", V.AMBULATOIRE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 21,
+              None, hauteur=5.8, largeur=13.2)
+
+    # Hospitalisation par unité (droite, colonnes 15-20)
+    _titre_bloc(ws, 6, f"HOSPITALISATION CHME / {R.lits_reels} LITS RÉELS", 15, 20)
+    _entete(ws, 7, [(15, 16, "Unité"), (17, 17, "Dossiers\nGPS"), (18, 18, "Dossiers\nEvolucare"),
+                    (19, 19, "Lits occupés\nmoy. / jour"), (20, 20, "Lits occupés\ndernier jour")])
+    r = 8
+    for u in R.unites:
+        _val(ws, r, 15, u["unite"].replace("Hors unités / UF absente", "Sans unité"), fmt=None, c2=16, h="left")
+        _val(ws, r, 17, u["dos_gps"])
+        _val(ws, r, 18, u["dos_evo"])
+        _val(ws, r, 19, u["moy"], fmt="0.0")
+        _val(ws, r, 20, u["dernier"], fmt="0.0")
+        r += 1
+    _total(ws, r, 15, "Total CHME", c2=16, h="left")
+    _total(ws, r, 17, t["dos_gps"])
+    _total(ws, r, 18, t["dos_evo"])
+    _total(ws, r, 19, L["moy"], fmt="0.0")
+    _total(ws, r, 20, L["dernier"], fmt="0.0")
+    r += 1
+    _val(ws, r, 15, f"Occupation / {R.lits_reels} lits", fmt=None, c2=18, h="left", gras=True)
+    _val(ws, r, 19, L["taux"], fmt=PCT, gras=True)
+    colorer(ws, r, 19, L["taux"], R)
+    _val(ws, r, 20, L["taux_dernier"], fmt=PCT, gras=True)
+    colorer(ws, r, 20, L["taux_dernier"], R)
+    r += 1
+    _val(ws, r, 15, f"Sans date d’entrée (non comptés dans les lits) : {L['sans_entree']} dossiers", fmt=None, c2=20, h="left")
+    ws.cell(row=r, column=15).font = Font(name="Calibri", size=8, italic=True, color=GRIS)
+    r_lits = r + 2
+    _titre_bloc(ws, r_lits, f"CHME / LITS OCCUPÉS PAR JOUR ET {R.lits_reels} LITS RÉELS", 15, 20)
+    graphique(ws, f"O{r_lits + 1}", wb["_Hospi jour"], 6, R.ndays, [(4, "Lits occupés"), (5, "Lits réels")], 12, None,
+              axe="Lits", hauteur=5.8, largeur=11.3)
+
+    # Lecture par semaine (gauche)
+    r = 26
+    _titre_bloc(ws, r, "PAR SEMAINE (LUNDI-DIMANCHE)", 1, 13)
+    _entete(ws, r + 1, [(1, 2, "Semaine"), (3, 3, "Jours"), (4, 4, "CSMKL2\nvisites"), (5, 5, "CSMKL2\nutilisation"),
+                        (6, 6, "CSMKL2\ncabinets max"), (7, 7, "CHME amb.\nvisites"), (8, 8, "CHME amb.\nutilisation"),
+                        (9, 9, "CHME\ncabinets max"), (10, 10, "Urgences\nvisites"), (11, 11, "Lits occupés\nmoy. / jour"),
+                        (12, 13, "Occupation\ndes lits")])
+    r += 2
+    for s in R.semaines:
+        _val(ws, r, 1, f"S{s['num']} · {s['debut'].strftime('%d/%m')}-{s['fin'].strftime('%d/%m')}", fmt=None, c2=2, h="left")
+        vals = [(3, s["n"], NB), (4, s["cs"], NB), (5, s["cs_util"], PCT), (6, s["cab_cs_max"], NB), (7, s["amb"], NB),
+                (8, s["amb_util"], PCT), (9, s["cab_chme_max"], NB), (10, s["urg"], NB), (11, s["lits"], "0.0")]
+        for c, v, f in vals:
+            _val(ws, r, c, v if v is not None else "N/D", fmt=f)
+        _val(ws, r, 12, s["occ"], fmt=PCT, c2=13)
+        colorer(ws, r, 5, s["cs_util"], R)
+        colorer(ws, r, 8, s["amb_util"], R)
+        colorer(ws, r, 12, s["occ"], R)
+        if s["cab_cs_max"] > R.cabinets_csmkl2:
+            colorer(ws, r, 6, 1, R, force=True)
+        if s["cab_chme_max"] > R.cabinets_chme:
+            colorer(ws, r, 9, 1, R, force=True)
+        ws.row_dimensions[r].height = H_LIGNE + 1
+        r += 1
+    _total(ws, r, 1, "Période", c2=2, h="left")
+    for c, v, f in ((3, R.ndays, NB), (4, cs["total"], NB), (5, cs["util"], PCT), (6, max(cab_cs, default=0), NB),
+                    (7, amb["total"], NB), (8, amb["util"], PCT), (9, max(cab_ch, default=0), NB), (10, urg["total"], NB),
+                    (11, L["moy"], "0.0")):
+        _total(ws, r, c, v if v is not None else "N/D", fmt=f)
+    _total(ws, r, 12, L["taux"], fmt=PCT, c2=13)
+    ws.row_dimensions[r].height = H_LIGNE + 1
+    r += 1
+    fusion(ws, r, 1, 13)
+    ecrire(ws, (r, 1), f"Couleurs : orange < {fr_pct(R.seuil_bas, 0)} ≤ vert < {fr_pct(R.seuil_haut, 0)} ≤ rouge "
+                       "(seuils modifiables dans Referentiel_Monkole.xlsx) ; rouge aussi quand les cabinets comptés dépassent "
+                       "les cabinets physiques.", taille=8, couleur=GRIS, fond=CLAIR)
+    for x in range(26, r_lits + 14):
+        if ws.row_dimensions[x].height is None:
+            ws.row_dimensions[x].height = H_LIGNE
     return ws

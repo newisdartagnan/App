@@ -333,7 +333,9 @@ def notez_bien(wb, R):
            ("Famille Infectieux / parasitaire", "Ce n'est pas le total de toutes les infections : les infections d'organe restent dans "
                                                 "les familles urinaire, ORL, peau, etc. selon le modèle."),
            ("Formulation à classer", "Texte absent du dictionnaire et non décomposable en morceaux connus : conservé hors disque jusqu'à "
-                                     "son classement dans Dictionnaire_Diagnostics.xlsx.")]
+                                     "son classement dans Dictionnaire_Diagnostics.xlsx."),
+           ("Âge et sexe", "Sexe et date de naissance de l’export (première valeur renseignée du dossier). Âge au premier jour du "
+                           "dossier dans la période ; date absente ou incohérente = âge inconnu. Dossiers par logiciel, pas patients.")]
     for i, (a, b) in enumerate(lex):
         rr = r + 2 + i
         bloc(ws, rr, 1, rr, 5, a, gras=True, couleur=C_TXT, fond=C_CLAIR, **AP)

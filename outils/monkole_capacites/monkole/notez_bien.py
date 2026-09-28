@@ -10,7 +10,7 @@ from . import visites as V
 from .feuilles_detail import libelle_periode
 from .feuilles_synthese import entete_tableau, fusion, section, zebre
 from .styles import ALERTE_F, ALERTE_T, BLANC, CLAIR, DATE, GRIS, NB, ORANGE, ZEBRE, bandeau, ecrire, lien, mise_en_page
-from .texte import MOIS, fr_nombre_espace as fr
+from .texte import MOIS, fr_nombre_espace as fr, fr_pct
 
 DER = 15
 
@@ -72,7 +72,7 @@ def feuille_notez_bien(wb, R, positions, onglet):
          f"Les six nouveaux fichiers remplacent les anciens exports cumulés. Période : du {d:%d/%m/%Y} 00:00 au {fx:%d/%m/%Y} 00:00 exclu. "
          f"Deux sites documentés : CSMKL2 et CHME. Ne pas additionner d’anciens exports à ces fichiers {libelle_periode(R, '-')}."),
         ("2 / Structure conservée",
-         "Un grand Dashboard commun, puis toutes les feuilles CSMKL2 ensemble, puis toutes les feuilles CHME ensemble. Médecins par jour "
+         "Un Dashboard commun lisible sur un écran, puis toutes les feuilles CSMKL2 ensemble, puis toutes les feuilles CHME ensemble. Médecins par jour "
          "et Jours par médecin présents pour chaque site; actes détaillés pour chacun. Les bases de contrôle sont masquées, pas supprimées."),
         ("3 / Une visite",
          "Une ligne conservée dans les fichiers Visites compte une visite enregistrée. Ce n’est pas un patient unique. Les traces "
@@ -149,10 +149,11 @@ def feuille_notez_bien(wb, R, positions, onglet):
          + (f"Toutes les sorties Evo fournies sont postérieures au {fin_j} : zéro sortie dans cet export ne prouve pas zéro sortie "
             "réelle. " if toutes_apres else "")
          + "Nature prévisionnelle des dates à confirmer."),
-        ("21 / Occupation : deux sources séparées",
-         f"GPS : journées connues des {'huit' if len(R.lits) == 8 else len(R.lits)} unités / ({R.total_lits} × {R.ndays}). Evo : même dénominateur mais série distincte, "
-         "sur les dossiers datés dont le site est retrouvé. Les taux ne sont pas additionnés : pas d’identifiant patient commun "
-         "permettant de dédoublonner les séjours interlogiciels. Les jours hors des " f"{'huit' if len(R.lits) == 8 else len(R.lits)} unités restent hors taux."),
+        ("21 / Occupation des lits",
+         f"Lits occupés = journées GPS + journées Evolucare des dossiers CHME datés (toutes unités), divisées par {R.ndays} jours. "
+         f"Taux = lits occupés / {R.lits_reels} lits réels (paramètre du référentiel). Les deux séries sont additionnées car un patient "
+         "hospitalisé n’est suivi que dans un des deux logiciels (migration en cours). Les dates de sortie Evolucare sont provisoires "
+         "(proposées dès l’admission). Le graphique « dont GPS / dont Evo » reste disponible dans CHME."),
         ("22 / Occupation incomplète",
          "Aucun jour de séjour n’est inventé pour un dossier sans entrée. Les actes ne servent pas à lui attribuer des jours. Les séjours "
          f"antérieurs au {d:%d/%m} sont intégrés seulement si leurs dates sont effectivement fournies. Le complément d’un taux à 100 % "
@@ -160,10 +161,12 @@ def feuille_notez_bien(wb, R, positions, onglet):
         ("23 / Unités et lits",
          "UF Hospi prioritaire, UH Evo rapprochée par libellé d’unité : chirurgie, gynéco-obstétrique, médecine interne, néonatologie, "
          "pédiatrie, urgences, soins intensifs pédiatriques, réanimation. Pas de réattribution à partir du diagnostic. Hors unité / UF "
-         f"absente reste hors capacité. Inventaire repris : {lits_txt} lits."),
+         f"absente reste sans unité. Lits paramétrés dans les logiciels : {lits_txt} (total {R.total_lits}, lits fictifs inclus) ; "
+         f"répartition indicative : la capacité réelle retenue est de {R.lits_reels} lits, sans découpage par unité."),
         ("24 / Limites et diffusion",
-         "Les exports ne prouvent pas l’exhaustivité de l’hôpital. Ils ne donnent ni horaires/cabinets physiques CHME ni capacité des "
-         "appareils. Pas d’incidence médicale, de taux de saturation technique ou de patients uniques inventés. Base sans adresses ni "
+         "Les exports ne prouvent pas l’exhaustivité de l’hôpital. Ils ne donnent ni horaires des cabinets ni capacité des "
+         f"appareils. Cabinets physiques retenus : {R.cabinets_csmkl2} à CSMKL2, {R.cabinets_chme} de spécialistes au CHME (hors "
+         f"{', '.join(sorted(R.hors_cabinets))}). Pas d’incidence médicale, de taux de saturation technique ou de patients uniques inventés. Base sans adresses ni "
          "contacts; Num_Dossier et noms d’intervenants réservés aux personnes habilitées."),
         ("25 / Calculs et prochaine mise à jour",
          f"Les calculs et leurs résultats sont enregistrés. Ce classeur est un arrêté contrôlé au {f:%d/%m}; une prochaine extraction "
@@ -351,8 +354,14 @@ def feuille_notez_bien(wb, R, positions, onglet):
            ("Dossiers concernés", "Num_Dossier distincts dans chaque logiciel et site; pas de patients uniques interlogiciels."),
            ("Profil du dossier", "Activité retrouvée par les liens : hospitalisation, ambulatoire ou urgences. Ne prouve pas la "
                                  "localisation de chaque acte."),
-           ("Occupation documentée", "Part des journées-lits expliquée par les dates connues; pas occupation exhaustive ni mesure des "
-                                     "lits libres.")]
+           ("Moyenne / jour actif", "Visites de l’intervenant / ses jours actifs (feuille CSMKL2, charge individuelle). Le tableau "
+                                    "est classé de la moyenne la plus haute à la plus basse."),
+           ("Occupation des lits", f"Lits occupés (GPS + Evolucare, dates connues) / {R.lits_reels} lits réels. Les dossiers sans date "
+                                   "d’entrée n’y sont pas comptés : la mesure est un minimum."),
+           ("Cabinets physiques", f"{R.cabinets_csmkl2} à CSMKL2 et {R.cabinets_chme} de spécialistes au CHME. Cabinets comptés = "
+                                  f"médecins ayant au moins {R.seuil} visites dans la journée (CHME : hors {', '.join(sorted(R.hors_cabinets))})."),
+           ("Couleurs d’alerte", f"Orange sous {fr_pct(R.seuil_bas, 0)}, vert entre les deux, rouge à partir de {fr_pct(R.seuil_haut, 0)} ; "
+                                 "rouge aussi quand les cabinets comptés dépassent les cabinets physiques.")]
     for i, (a, b) in enumerate(lex):
         rr = r + 1 + i
         fusion(ws, rr, 1, 4)

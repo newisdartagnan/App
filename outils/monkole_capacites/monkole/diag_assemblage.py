@@ -5,7 +5,7 @@ from . import diag_classeur as DC
 from . import diag_notez as DN
 from .diag_calculs import SANS_SITE
 
-ORDRE = ["Dashboard", "Composition familles", "CSMKL2", "CSMKL2 diagnostics", "CHME", "CHME diagnostics", "Dictionnaire",
+ORDRE = ["Dashboard", "Composition familles", "Âge et sexe", "CSMKL2", "CSMKL2 diagnostics", "CHME", "CHME diagnostics", "Dictionnaire",
          "À classer", "Notez bien", "Groupes globaux", "Base sources", "Base mentions", "Dossiers source", "Calculs"]
 
 
@@ -17,13 +17,12 @@ def construire(R, chemin):
     _, pos_compo = DC.composition(wb, R, pos_dico)
     G = R.global_
     DC.synthese(wb, R, "Dashboard", G, "MONKOLE / DIAGNOSTICS REGROUPÉS PAR SITE", DC.TEAL,
-                [(s, len(R.sites[s].dossiers), R.sites[s].total) for s in ("CSMKL2", "CHME", SANS_SITE)], None,
-                [(2, "GPS"), (3, "Evolucare")], pos_compo, pos_dico)
-    for site, cols, onglet in (("CSMKL2", [(5, "GPS"), (6, "Evolucare")], "3D91CC"), ("CHME", [(8, "GPS"), (9, "Evolucare")], "264E70")):
+                [(s, len(R.sites[s].dossiers), R.sites[s].total) for s in ("CSMKL2", "CHME", SANS_SITE)], pos_compo, pos_dico)
+    DC.feuille_age_sexe(wb, R, DC.TEAL)
+    for site, onglet in (("CSMKL2", "3D91CC"), ("CHME", "264E70")):
         P = R.sites[site]
         par_lg = [(lg, len(R.tableau[(site, lg)].dossiers), R.tableau[(site, lg)].total) for lg in ("GPS", "Evolucare")]
-        DC.synthese(wb, R, site, P, f"{site} / DIAGNOSTICS REGROUPÉS PAR SITE", onglet, par_lg,
-                    "Aucune fusion de patients entre logiciels.", cols, pos_compo, pos_dico)
+        DC.synthese(wb, R, site, P, f"{site} / DIAGNOSTICS REGROUPÉS", onglet, par_lg, pos_compo, pos_dico)
         DC.diagnostics_site(wb, R, f"{site} diagnostics", P, f"{site} / DIAGNOSTICS REGROUPÉS", onglet, pos_dico)
     DC.diagnostics_site(wb, R, "Groupes globaux", G, "MONKOLE / DIAGNOSTICS REGROUPÉS", DC.TEAL, pos_dico, masquer=True)
     DN.a_classer(wb, R)

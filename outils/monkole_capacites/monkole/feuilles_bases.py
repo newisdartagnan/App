@@ -40,20 +40,24 @@ def parametres(wb, R):
     ecrire(ws, "A1", "PARAMÈTRES REPRIS DU MODÈLE", taille=14, gras=True, couleur=BLANC, fond=NAVY)
     ecrire(ws, "A2", "Hypothèses, pas normes cliniques ni inventaire validé à cette date", fond=CLAIR)
     lignes = [("Début", R.debut), ("Fin", R.fin), ("Jours", R.ndays), ("Visites / intervenant / jour", R.cap_jour),
-              ("Seuil de visites pour compter un cabinet", R.seuil), ("Cabinets physiques CSMKL2", R.cabinets_csmkl2)]
+              ("Seuil de visites pour compter un cabinet", R.seuil), ("Cabinets physiques CSMKL2", R.cabinets_csmkl2),
+              ("Cabinets physiques CHME (spécialistes)", R.cabinets_chme), ("Lits réels CHME", R.lits_reels),
+              ("Alerte : utilisation basse sous", R.seuil_bas), ("Alerte : utilisation haute à partir de", R.seuil_haut)]
     r = 5
     for k, v in lignes:
         ws.cell(row=r, column=1, value=k)
         c = ws.cell(row=r, column=2, value=v)
         if hasattr(v, "year"):
             c.number_format = DATE
+        elif isinstance(v, float):
+            c.number_format = "0%"
         r += 1
     r += 2
     for u, n in R.lits:
         ws.cell(row=r, column=1, value=u)
         ws.cell(row=r, column=2, value=n)
         r += 1
-    ws.cell(row=r, column=1, value="Total lits CHME")
+    ws.cell(row=r, column=1, value="Total lits paramétrés dans les logiciels (indicatif)")
     ws.cell(row=r, column=2, value=R.total_lits)
     ws.column_dimensions["A"].width = 42
     ws.column_dimensions["B"].width = 14
@@ -128,7 +132,7 @@ def jours(wb, R):
     ws = _feuille(wb, "_Jours", ["Site", "Activité", "Jour", "Jour affiché", "Visites", "GPS", "Evolucare", "Consultation",
                                   "Avant une semaine", "Après une semaine", "Cabinets comptés", "Capacité", "Utilisation",
                                   "Marge individuelle", "Dépassements individuels", "Sans médecin", "Visites isolées",
-                                  "Jour au-delà capacité", "Cabinets toutes activités", "Étiquette"])
+                                  "Jour au-delà capacité", "Cabinets toutes activités", "Étiquette", "Jour du mois"])
     lignes = []
     R.lignes_jours = {}
     r = 6
@@ -139,14 +143,16 @@ def jours(wb, R):
             lignes.append((site, act, j, f"{nom_jour(j)} {j.strftime('%d/%m')}", l["total"], l["gps"], l["evo"], l["cons"],
                            l["avant"], l["apres"], l["cab"], l["cap"], l["util"] if l["util"] is not None else "N/D",
                            l["marge"], l["depass"], l["sans"], l["isolees"], l["jour_audela"], R.cab_site[site][j],
-                           j.strftime("%d/%m")))
+                           j.strftime("%d/%m"), j.strftime("%d")))
             r += 1
     _lignes(ws, lignes, {3: DATE, 13: "0.0%"})
 
 
 def hospi_jour(wb, R):
-    ws = _feuille(wb, "_Hospi jour", ["Jour", "GPS journées / 8 unités", "Evo journées / 8 unités", "Lits CHME", "Entrées GPS",
-                                       "Entrées Evo", "Sorties GPS", "Sorties Evo", "Dossiers sans entrée avec trace", "Étiquette"])
-    lignes = [(h["jour"], round(h["gps"], 6), h["evo"], h["lits"], h["ent_gps"], h["ent_evo"], h["sor_gps"], h["sor_evo"],
-               h["sans_trace"], h["jour"].strftime("%d/%m")) for h in R.hospi_jour]
-    _lignes(ws, lignes, {1: DATE, 2: DEC, 3: DEC})
+    ws = _feuille(wb, "_Hospi jour", ["Jour", "Lits occupés GPS", "Lits occupés Evo", "Lits occupés GPS + Evo", "Lits réels",
+                                       "Entrées GPS", "Entrées Evo", "Sorties GPS", "Sorties Evo", "Dossiers sans entrée avec trace",
+                                       "Étiquette", "Jour du mois"])
+    lignes = [(h["jour"], round(h["gps"], 6), round(h["evo"], 6), round(h["total"], 6), h["lits_reels"], h["ent_gps"], h["ent_evo"],
+               h["sor_gps"], h["sor_evo"], h["sans_trace"], h["jour"].strftime("%d/%m"), h["jour"].strftime("%d"))
+              for h in R.hospi_jour]
+    _lignes(ws, lignes, {1: DATE, 2: DEC, 3: DEC, 4: DEC})

@@ -12,6 +12,7 @@ EXPORTS = {
     "GPS": (r"^diagnostic_gps", ["Date", "Num_Dossier", "Diagnostic", "Nature", "Etablissement"]),
     "Evolucare": (r"^diagnostic_evolucare", ["Date", "Num_Dossier", "Diagnostic", "Nature", "Etablissement"]),
 }
+OPTIONNELLES = ["Sexe", "DOB"]      # lues si présentes (analyse par âge et par sexe)
 SANS_SITE = "Site non renseigné"
 SITES = ["CSMKL2", "CHME"]
 UN_JOUR = dt.timedelta(days=1)
@@ -52,6 +53,9 @@ def lire(chemin, colonnes):
         if cle(c) not in cles:
             raise ErreurExport(f"Colonne « {c} » absente de {os.path.basename(chemin)}.")
         idx[c] = cles.index(cle(c))
+    for c in OPTIONNELLES:
+        if cle(c) in cles:
+            idx[c] = cles.index(cle(c))
     out = []
     for n, row in lignes[1:]:
         if not row or all(v is None for v in row):
@@ -94,6 +98,75 @@ def proposer(texte, d):
     return lignes, complet and bool(lignes)
 
 
+# ------------------------------------------------------------------------------------------------
+# Âge et sexe
+# ------------------------------------------------------------------------------------------------
+TRANCHES = [("< 1 an", 0, 1), ("1-4 ans", 1, 5), ("5-14 ans", 5, 15), ("15-24 ans", 15, 25), ("25-49 ans", 25, 50),
+            ("50-64 ans", 50, 65), ("65 ans et +", 65, 111)]
+AGE_INCONNU = "Âge inconnu"
+SEXES = ["F", "M", "Inconnu"]
+
+
+def _sexe(v):
+    v = str(v).strip().upper() if v not in (None, "") else ""
+    return v[0] if v[:1] in ("F", "M") else "Inconnu"
+
+
+def _naissance(v):
+    if isinstance(v, dt.datetime):
+        return v
+    if isinstance(v, dt.date):
+        return dt.datetime(v.year, v.month, v.day)
+    if isinstance(v, str):
+        for f in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+            try:
+                return dt.datetime.strptime(v.strip(), f)
+            except ValueError:
+                pass
+    return None
+
+
+def tranche(naissance, jour_ref):
+    if naissance is None or jour_ref is None or naissance > jour_ref:
+        return AGE_INCONNU
+    age = jour_ref.year - naissance.year - ((jour_ref.month, jour_ref.day) < (naissance.month, naissance.day))
+    for nom, a, b in TRANCHES:
+        if a <= age < b:
+            return nom
+    return AGE_INCONNU
+
+
+def _profils(R):
+    """Sexe et tranche d'âge de chaque dossier (première valeur renseignée ; âge au premier jour du dossier dans la période)."""
+    R.profils = {}
+    for s in sorted(R.sources, key=lambda s: (s["jour"], s["ligne"])):
+        p = R.profils.setdefault(s["cle"], {"sexe": "Inconnu", "naissance": None, "jour": s["jour"]})
+        if p["sexe"] == "Inconnu":
+            p["sexe"] = s["sexe"]
+        if p["naissance"] is None:
+            p["naissance"] = s["naissance"]
+    for p in R.profils.values():
+        p["tranche"] = tranche(p["naissance"], p["jour"])
+
+
+def age_sexe(R, P):
+    """Dossiers et diagnostics comptabilisés par tranche d'âge et par sexe pour un périmètre."""
+    noms = [t[0] for t in TRANCHES] + [AGE_INCONNU]
+    A = {n: {"dos": Counter(), "diag": 0, "groupes": Counter(), "familles": Counter()} for n in noms}
+    S = {x: {"dos": 0, "diag": 0, "groupes": Counter(), "familles": Counter()} for x in SEXES}
+    for k in P.dossiers:
+        p = R.profils[k]
+        A[p["tranche"]]["dos"][p["sexe"]] += 1
+        S[p["sexe"]]["dos"] += 1
+    for (k, code), m in P.decrits.items():
+        p = R.profils[k]
+        for x in (A[p["tranche"]], S[p["sexe"]]):
+            x["diag"] += 1
+            x["groupes"][m["groupe"]] += 1
+            x["familles"][m["famille"]] += 1
+    return A, S
+
+
 def calculer(chemins, d, debut=None, fin=None):
     R = Resultats()
     R.dico = d
@@ -109,7 +182,8 @@ def calculer(chemins, d, debut=None, fin=None):
             num = dossier(r["Num_Dossier"])
             R.sources.append({"id": f"{lg}-{r['_ligne']}", "ligne": r["_ligne"], "logiciel": lg, "jour": j, "site": site,
                               "dossier": num, "cle": f"{lg}|{site}|{num}", "texte": _texte_source(r["Diagnostic"]),
-                              "nature": r["Nature"], "fichier": os.path.basename(chemin)})
+                              "nature": r["Nature"], "fichier": os.path.basename(chemin),
+                              "sexe": _sexe(r.get("Sexe")), "naissance": _naissance(r.get("DOB"))})
     jours = [s["jour"] for s in R.sources if s["jour"]]
     R.debut = debut or min(jours)
     R.fin = fin or max(jours)
@@ -118,6 +192,7 @@ def calculer(chemins, d, debut=None, fin=None):
         hors = {id(s) for s in R.hors_periode}
         R.sources = [s for s in R.sources if id(s) not in hors]
     R.jours = [R.debut + UN_JOUR * i for i in range((R.fin - R.debut).days + 1)]
+    _profils(R)
 
     # Rattachement au dictionnaire
     R.nouvelles = {}     # texte -> {"id", "lignes", "complet", "n", "suggestion"}

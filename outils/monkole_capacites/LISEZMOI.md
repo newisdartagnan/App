@@ -45,23 +45,38 @@ Dashboard → toutes les feuilles CSMKL2 → toutes les feuilles CHME → « Not
 
 | Feuille | Contenu |
 |---|---|
-| Dashboard | Visites, actes, hospitalisation, capacité, points d'attention ; lignes 1 à 3 figées |
-| CSMKL2 / CHME | Synthèse du site, lecture quotidienne, charge individuelle, graphiques ; lignes 1 à 3 figées |
+| Dashboard | Tout sur un écran (zoom 85 %) : utilisation CSMKL2 et CHME, urgences, occupation des lits, actes ; tableau des consultations (capacité, cabinets comptés / physiques) ; courbes quotidiennes ; lecture **par semaine** ; lits par unité. Couleurs d'alerte |
+| CSMKL2 | Synthèse, lecture quotidienne, **charge individuelle avec la moyenne de visites par jour actif** (classement de la plus haute à la plus basse) |
+| CHME | Occupation sur les lits réels (GPS + Evolucare), lits occupés par unité, cabinets de spécialistes, ambulatoire, urgences, spécialités |
 | … médecins | Médecins en lignes, jours du mois en colonnes (dimanches en violet), 4 lignes par médecin |
 | … jours | Date → Jour → Médecin, filtre sur la date pour voir qui a consulté un jour donné |
 | … actes | Spécialité → sous-spécialité → acte (groupes « + »), GPS sur Date_V, Evolucare sur DATEHEURE |
 | Notez bien | Règles, contrôles quantitatifs (écarts attendus : 0), sources, rapprochements de noms, lexique |
 
-Règles conservées : repère de 24 visites par intervenant-jour compté (à partir de 2 visites), visites isolées
-comptées, suivi hospitalier séparé, activités secondaires CSMKL2 = **MAISON ROSE**, taux d'occupation GPS et
-Evolucare séparés, dossiers sans date d'entrée comptés sans durée inventée, produits Evolucare séparés des actes.
+Règles conservées : repère de 24 visites par médecin en cabinet et par jour (cabinet compté à partir de 2 visites),
+visites isolées comptées, suivi hospitalier séparé, activités secondaires CSMKL2 = **MAISON ROSE**, dossiers sans date
+d'entrée comptés sans durée inventée, produits Evolucare séparés des actes.
+
+Règles fixées avec le directeur des opérations (septembre 2026) :
+
+- **Moyenne / jour actif** = visites du médecin / ses jours actifs (CSMKL2, charge individuelle), sans comparaison au repère ;
+- **Lits** : 104 lits réels au CHME (les lits paramétrés dans GPS et Evolucare comprennent des lits fictifs). Les journées GPS
+  et Evolucare sont additionnées : un patient n'est suivi que dans un des deux logiciels (migration en cours). Les dates de
+  sortie Evolucare sont provisoires. Les séjours entrés avant le début de la période n'ont pas de date d'entrée dans les
+  exports : les premiers jours sont sous-estimés, le chiffre du **dernier jour** est le plus représentatif ;
+- **Cabinets physiques** : 6 à CSMKL2, 15 de spécialistes au CHME. Ne sont pas comptés dans les 15 : nutrition, kinésithérapie,
+  soins infirmiers, laboratoire, imagerie, pharmacie, documents médicaux (liste modifiable) ;
+- **Couleurs d'alerte** : orange sous 50 %, vert de 50 à 85 %, rouge à partir de 85 % ; rouge aussi quand les cabinets
+  comptés un jour dépassent les cabinets physiques.
 
 ## Adapter les règles sans toucher au code : `Referentiel_Monkole.xlsx`
 
 Créé au premier lancement à côté du programme. On peut y modifier :
 
-- **Paramètres** : 24 visites par jour, seuil de 2 visites, 6 cabinets CSMKL2 ;
-- **Lits CHME** par unité ;
+- **Paramètres** : 24 visites par jour, seuil de 2 visites, 6 cabinets CSMKL2, 15 cabinets CHME, 104 lits réels, seuils d'alerte
+  (50 % et 85 %) ;
+- **Lits CHME** par unité (lits paramétrés dans les logiciels, indicatif) ;
+- **Hors cabinets CHME** : spécialités qui n'occupent pas un des cabinets de spécialistes ;
 - **MAISON ROSE** : UF rattachées ;
 - **UF visites** : UF → spécialité (à compléter quand « Notez bien » signale une UF nouvelle) ;
 - **Catégories Evo** et **Produits Evo** : harmonisation des actes Evolucare ;
@@ -70,11 +85,13 @@ Créé au premier lancement à côté du programme. On peut y modifier :
 Si un nouveau libellé apparaît dans les exports, le programme ne devine rien : il le garde tel quel et le liste
 dans « Notez bien », rubrique *À valider*.
 
+Un référentiel d'une version précédente est complété automatiquement au lancement (valeurs déjà saisies conservées).
+
 ## Vérification faite sur la période du 1er au 15 septembre 2026
 
-À partir des six exports du 01-15/09, le classeur produit a été comparé cellule par cellule à la version retenue :
-Dashboard, CSMKL2, CHME, médecins et jours CSMKL2 sont **identiques**. Toutes les lignes d'actes sont identiques.
-Différences voulues et limitées :
+À partir des six exports du 01-15/09, le classeur de la première version a été comparé cellule par cellule à la version
+retenue : médecins et jours CSMKL2 et toutes les lignes d'actes sont **identiques** (Dashboard, CSMKL2 et CHME ont depuis
+été remaniés à la demande du directeur des opérations). Différences voulues et limitées :
 
 - le titre « MS » est retiré de tous les noms (la version retenue le gardait pour 3 intervenants seulement) ;
 - l'ordre de deux actes **à égalité** de volume suit l'ordre alphabétique (il était arbitraire dans la version retenue) ;
@@ -85,9 +102,14 @@ Différences voulues et limitées :
 ## Partie 2 — Diagnostics et composition des familles
 
 `LANCER_DIAGNOSTICS.bat` reproduit le classeur **« Diagnostics et composition des familles »** de la version retenue
-(`Monkole_Diagnostics_Composition_Familles_01-15_Septembre_2026`) : Dashboard avec le disque des 16 familles et les
-12 diagnostics les plus fréquents, Composition des familles (chaque famille à 100 %, global et par site), CSMKL2,
+(`Monkole_Diagnostics_Composition_Familles_01-15_Septembre_2026`) : Dashboard sur un écran (disque des 16 familles,
+12 diagnostics les plus fréquents, tranches d'âge et sexe, sources), Composition des familles (chaque famille à 100 %,
+global et par site), **Âge et sexe** (dossiers et diagnostics par tranche d'âge et par sexe, trois diagnostics les plus
+fréquents par tranche, familles par âge, dix premiers diagnostics chez les femmes et chez les hommes), CSMKL2,
 CSMKL2 diagnostics, CHME, CHME diagnostics, Dictionnaire, Notez bien.
+
+Tranches d'âge : moins d'un an, 1-4, 5-14, 15-24, 25-49, 50-64, 65 ans et plus (âge au premier jour du dossier dans la
+période, calculé avec la date de naissance de l'export).
 
 Règles conservées : un diagnostic compte une fois par dossier et logiciel sur la période ; les hypothèses seules
 restent à part ; récurrent = au moins deux dossiers ; pas de patients uniques entre logiciels ; lignes sans diagnostic
@@ -125,10 +147,10 @@ les lignes complétées et copiées, il retrouve exactement les 2 440 diagnostic
 ### Vérification sur la période du 1er au 15 septembre 2026
 
 Comparaison cellule par cellule avec la version retenue : Composition familles, CSMKL2 diagnostics, CHME diagnostics,
-Dictionnaire et Groupes globaux **identiques** ; Dashboard, CSMKL2 et CHME identiques sauf une phrase de bas de page
-(« ces exports remplacent les précédents »). « Notez bien » garde la même structure, mais les textes propres à la mise à jour
+Dictionnaire et Groupes globaux **identiques** ; les chiffres du Dashboard, de CSMKL2 et de CHME sont les mêmes (leur
+présentation a été resserrée sur un écran à la demande du directeur des opérations). « Notez bien » garde la même structure, mais les textes propres à la mise à jour
 d'Astra (comparaison avec l'export 01-14) sont remplacés par les indicateurs de la période (formulations nouvelles, à classer…).
-Le disque n'a plus de légende : les couleurs des familles figurent dans le tableau placé juste en dessous.
+Le disque n'a plus de légende : les couleurs des familles figurent dans le tableau placé à côté.
 
 ## Avec Claude gratuit (facultatif)
 
