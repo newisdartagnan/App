@@ -4,6 +4,10 @@ from .calculs import indicateurs
 from .texte import fr_pct
 
 
+def fr_dec(x):
+    return f"{x:.1f}".replace(".", ",")
+
+
 def ecrire_resume(R, chemin, nom_classeur):
     cs = indicateurs(R, "CSMKL2", V.PRINCIPALE)
     mr = indicateurs(R, "CSMKL2", V.SECONDAIRE)
@@ -32,7 +36,14 @@ def ecrire_resume(R, chemin, nom_classeur):
         f"Actes GPS (Date_V) : {sum(1 for a in R.actes if a['logiciel'] == 'GPS')} ; prestations Evolucare (DATEHEURE, série "
         f"séparée) : {sum(1 for a in R.actes if a['logiciel'] != 'GPS')} ; produits Evolucare séparés : {len(R.produits)}.",
         f"Hospitalisation CHME : {t['dos_gps']} dossiers GPS / {t['dos_evo']} Evolucare ; {t['sans_gps'] + t['sans_evo']} sans date "
-        f"d'entrée ; occupation GPS {pct(t['occ_gps'])}, Evolucare {pct(t['occ_evo'])} (non additionnables).",
+        f"d'entrée ; lits occupés GPS + Evolucare : {fr_dec(R.lits_occ['moy'])} en moyenne sur {R.lits_reels} lits réels "
+        f"(occupation {pct(R.lits_occ['taux'])}), {fr_dec(R.lits_occ['dernier'])} le dernier jour ({pct(R.lits_occ['taux_dernier'])}).",
+        f"Cabinets de spécialistes CHME : maximum {max(R.cab_chme_spec.values(), default=0)} par jour pour {R.cabinets_chme} "
+        f"cabinets physiques ; {sum(1 for n in R.cab_chme_spec.values() if n > R.cabinets_chme)} jour(s) au-delà.",
+        "",
+        "Par semaine : " + " | ".join(f"S{s['num']} ({s['debut']:%d/%m}-{s['fin']:%d/%m}) CSMKL2 {s['cs']} visites "
+                                      f"{pct(s['cs_util'])}, CHME amb. {s['amb']} {pct(s['amb_util'])}, lits {pct(s['occ'])}"
+                                      for s in R.semaines),
         "",
         "Contrôles quantitatifs (écart attendu 0) : "
         + ("tous à zéro." if all(abs(a - b) < 1e-6 for _, a, b in getattr(R, "controles", [])) else "ÉCART À VÉRIFIER dans Notez bien."),

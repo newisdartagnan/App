@@ -9,9 +9,37 @@ PARAMETRES = {
     "visites_par_intervenant_jour": 24,
     "seuil_visites_cabinet": 2,
     "cabinets_physiques_csmkl2": 6,
+    "cabinets_physiques_chme": 15,
+    "lits_reels_chme": 104,
+    "seuil_utilisation_basse": 0.50,
+    "seuil_utilisation_haute": 0.85,
 }
 
-# Lits CHME par unité (ordre d'affichage conservé)
+# Libellés des paramètres dans Referentiel_Monkole.xlsx (feuille Paramètres), dans l'ordre d'affichage
+LIBELLES_PARAMETRES = [
+    ("visites_par_intervenant_jour", "Visites par intervenant et par jour"),
+    ("seuil_visites_cabinet", "Seuil de visites pour compter un cabinet"),
+    ("cabinets_physiques_csmkl2", "Cabinets physiques CSMKL2"),
+    ("cabinets_physiques_chme", "Cabinets physiques CHME (spécialistes)"),
+    ("lits_reels_chme", "Lits réels CHME"),
+    ("seuil_utilisation_basse", "Alerte : utilisation basse sous (ex. 0,50 = 50 %)"),
+    ("seuil_utilisation_haute", "Alerte : utilisation haute à partir de (ex. 0,85 = 85 %)"),
+]
+
+# Spécialités CHME qui n'occupent pas un des cabinets de spécialistes (nutritionniste, soins, plateaux techniques)
+HORS_CABINETS_CHME = [
+    "Nutrition",
+    "Kinésithérapie",
+    "Soins infirmiers",
+    "Soins infirmiers / pansements",
+    "Laboratoire",
+    "Imagerie médicale",
+    "Pharmacie",
+    "Documents médicaux",
+]
+
+# Lits CHME par unité tels que paramétrés dans les logiciels (lits fictifs inclus) : répartition indicative.
+# La capacité réelle retenue est PARAMETRES["lits_reels_chme"].
 LITS = [
     ("Hospi CHIR", 16),
     ("Hospi GO", 54),

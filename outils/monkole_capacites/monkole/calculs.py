@@ -40,6 +40,11 @@ def calculer(donnees, ref, debut, fin):
     R.cap_jour = p["visites_par_intervenant_jour"]
     R.seuil = p["seuil_visites_cabinet"]
     R.cabinets_csmkl2 = p["cabinets_physiques_csmkl2"]
+    R.cabinets_chme = p["cabinets_physiques_chme"]
+    R.lits_reels = p["lits_reels_chme"]
+    R.seuil_bas = p["seuil_utilisation_basse"]
+    R.seuil_haut = p["seuil_utilisation_haute"]
+    R.hors_cabinets = set(ref["HORS_CABINETS_CHME"])
     R.lits = ref["LITS"]
     R.total_lits = sum(n for _, n in R.lits)
 
@@ -85,6 +90,7 @@ def calculer(donnees, ref, debut, fin):
 
     _visites_par_activite(R)
     _hospitalisation(R)
+    _semaines(R)
     return R
 
 
@@ -136,6 +142,13 @@ def _visites_par_activite(R):
                 cnt[(v["jour"], v["medecin"])] += 1
         R.cab_site[site] = {j: sum(1 for (jj, _), n in cnt.items() if jj == j and n >= seuil) for j in R.jours}
 
+    # Cabinets de spécialistes CHME (ambulatoire, hors spécialités sans cabinet) : à comparer aux cabinets physiques
+    cnt = Counter()
+    for v in R.visites:
+        if v["site"] == "CHME" and v["activite"] == V.AMBULATOIRE and v["medecin"] and v["specialite"] not in R.hors_cabinets:
+            cnt[(v["jour"], v["medecin"])] += 1
+    R.cab_chme_spec = {j: sum(1 for (jj, _), n in cnt.items() if jj == j and n >= seuil) for j in R.jours}
+
     # Journées intervenants par spécialité (CHME ambulatoire et urgences)
     R.spec_jour = defaultdict(Counter)
     for v in R.visites:
@@ -183,13 +196,28 @@ def _hospitalisation(R):
     t["occ_gps"] = sum(x["jours_gps"] for x in huit) / (R.total_lits * R.ndays)
     t["occ_evo"] = sum(x["jours_evo"] for x in huit) / (R.total_lits * R.ndays)
     R.unites_total = t
+    # Lits occupés GPS + Evolucare (un patient hospitalisé n'est suivi que dans un logiciel), sur les lits réels
+    der = R.ndays - 1
+    for x in R.unites:
+        ds = [d for d in chme if d["unite"] == x["unite"]]
+        x["moy"] = (x["jours_gps"] + x["jours_evo"]) / R.ndays
+        x["dernier"] = sum(d["par_jour"][der] for d in ds)
+    occ = [sum(d["par_jour"][i] for d in chme) for i in range(R.ndays)]
+    ipic = max(range(R.ndays), key=lambda i: (occ[i], -i))
+    R.lits_occ = {
+        "jour": occ, "moy": sum(occ) / R.ndays, "dernier": occ[der], "pic": occ[ipic], "date_pic": R.jours[ipic],
+        "sans_entree": t["sans_gps"] + t["sans_evo"],
+        "jours_haut": sum(1 for o in occ if o >= R.seuil_haut * R.lits_reels),
+    }
+    R.lits_occ["taux"] = R.lits_occ["moy"] / R.lits_reels if R.lits_reels else None
+    R.lits_occ["taux_dernier"] = R.lits_occ["dernier"] / R.lits_reels if R.lits_reels else None
     # Série quotidienne (moyenne sur 24 h)
     R.hospi_jour = []
     for i, j in enumerate(R.jours):
-        g = sum(d["par_jour"][i] for d in chme if d["logiciel"] == "GPS" and d["unite"] in lits)
-        e = sum(d["par_jour"][i] for d in chme if d["logiciel"] == "Evolucare" and d["unite"] in lits)
+        g = sum(d["par_jour"][i] for d in chme if d["logiciel"] == "GPS")
+        e = sum(d["par_jour"][i] for d in chme if d["logiciel"] == "Evolucare")
         R.hospi_jour.append({
-            "jour": j, "gps": g, "evo": e, "lits": R.total_lits,
+            "jour": j, "gps": g, "evo": e, "lits": R.total_lits, "total": R.lits_occ["jour"][i], "lits_reels": R.lits_reels,
             "ent_gps": sum(1 for d in chme if d["logiciel"] == "GPS" and d["entree"] and d["entree_periode"] and d["entree"].date() == j.date()),
             "ent_evo": sum(1 for d in chme if d["logiciel"] == "Evolucare" and d["entree"] and d["entree_periode"] and d["entree"].date() == j.date()),
             "sor_gps": sum(1 for d in chme if d["logiciel"] == "GPS" and d["sortie"] and d["sortie_periode"] and d["sortie"].date() == j.date()),
@@ -198,6 +226,26 @@ def _hospitalisation(R):
         })
     R.sans_site = [d for d in R.dossiers if d["site"] not in ("CHME", "CSMKL2")]
     R.hospi_evo_non_attribues = [b for b in R.base_hospi if b["logiciel"] == "Evolucare" and b["site"] not in ("CHME", "CSMKL2")]
+
+
+def _semaines(R):
+    """Lecture hebdomadaire (lundi-dimanche, coupée aux bornes de la période) pour le suivi du directeur."""
+    groupes = defaultdict(list)
+    for i, j in enumerate(R.jours):
+        groupes[j.isocalendar()[:2]].append(i)
+    R.semaines = []
+    for (_, num), idx in sorted(groupes.items()):
+        s = {"num": num, "debut": R.jours[idx[0]], "fin": R.jours[idx[-1]], "n": len(idx)}
+        for k, (site, act) in (("cs", ("CSMKL2", V.PRINCIPALE)), ("amb", ("CHME", V.AMBULATOIRE)), ("urg", ("CHME", V.URGENCES))):
+            lignes = [R.jours_act[(site, act)][i] for i in idx]
+            s[k] = sum(l["total"] for l in lignes)
+            s[k + "_cap"] = sum(l["cap"] for l in lignes)
+            s[k + "_util"] = s[k] / s[k + "_cap"] if s[k + "_cap"] else None
+        s["cab_cs_max"] = max(R.jours_act[("CSMKL2", V.PRINCIPALE)][i]["cab"] for i in idx)
+        s["cab_chme_max"] = max(R.cab_chme_spec[R.jours[i]] for i in idx)
+        s["lits"] = sum(R.lits_occ["jour"][i] for i in idx) / len(idx)
+        s["occ"] = s["lits"] / R.lits_reels if R.lits_reels else None
+        R.semaines.append(s)
 
 
 def actes_site(R, site):

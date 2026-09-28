@@ -33,13 +33,15 @@ def ecrire_modele(chemin, ref):
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     p = ref["PARAMETRES"]
-    _feuille(wb, "Paramètres", ["Paramètre", "Valeur"],
-             [("Visites par intervenant et par jour", p["visites_par_intervenant_jour"]),
-              ("Seuil de visites pour compter un cabinet", p["seuil_visites_cabinet"]),
-              ("Cabinets physiques CSMKL2", p["cabinets_physiques_csmkl2"])], [45, 12],
+    _feuille(wb, "Paramètres", ["Paramètre", "Valeur"], [(lib, p[k]) for k, lib in D.LIBELLES_PARAMETRES], [55, 12],
              "Modifier seulement la colonne Valeur.")
+    for (c,) in wb["Paramètres"].iter_rows(min_row=3, min_col=2, max_col=2):
+        if isinstance(c.value, float):
+            c.number_format = "0%"
     _feuille(wb, "Lits CHME", ["Unité", "Lits"], ref["LITS"], [25, 10],
-             "Une ligne par unité d'hospitalisation (libellés Hospi CHIR, Hospi GO...).")
+             "Lits par unité tels que paramétrés dans les logiciels (indicatif). La capacité réelle est dans Paramètres.")
+    _feuille(wb, "Hors cabinets CHME", ["Spécialité non comptée dans les cabinets CHME"], [(x,) for x in ref["HORS_CABINETS_CHME"]],
+             [50], "Spécialités (libellé affiché) qui n'occupent pas un cabinet de spécialiste.")
     _feuille(wb, "MAISON ROSE", ["UF rattachée à MAISON ROSE (CSMKL2)"], [(u,) for u in ref["MAISON_ROSE_UF"]], [45],
              "Les autres UF de CSMKL2 restent en activité principale.")
     _feuille(wb, "UF visites", ["UF (export visites)", "Spécialité affichée"], sorted(ref["UF_SPECIALITE"].items()), [45, 35],
@@ -71,11 +73,27 @@ def charger(chemin):
         return ref
     wb = openpyxl.load_workbook(chemin, read_only=True, data_only=True)
     noms = wb.sheetnames
+    manquants = False
     if "Paramètres" in noms:
-        cles = ["visites_par_intervenant_jour", "seuil_visites_cabinet", "cabinets_physiques_csmkl2"]
-        for k, row in zip(cles, _lignes(wb["Paramètres"])):
-            if isinstance(row[1], (int, float)):
-                ref["PARAMETRES"][k] = int(row[1])
+        par_libelle = {lib: k for k, lib in D.LIBELLES_PARAMETRES}
+        lus = set()
+        for i, row in enumerate(_lignes(wb["Paramètres"])):
+            k = par_libelle.get(str(row[0]).strip())
+            if k is None and i < 3:     # anciens fichiers : trois paramètres dans l'ordre
+                k = D.LIBELLES_PARAMETRES[i][0]
+            if k and len(row) > 1 and isinstance(row[1], (int, float)):
+                v = row[1]
+                if isinstance(D.PARAMETRES[k], float):
+                    v = v / 100 if v > 1 else float(v)     # 85 ou 85 % acceptés
+                else:
+                    v = int(v)
+                ref["PARAMETRES"][k] = v
+                lus.add(k)
+        manquants = len(lus) < len(D.LIBELLES_PARAMETRES)
+    if "Hors cabinets CHME" in noms:
+        ref["HORS_CABINETS_CHME"] = [str(r[0]).strip() for r in _lignes(wb["Hors cabinets CHME"])]
+    else:
+        manquants = True
     if "Lits CHME" in noms:
         lits = [(str(r[0]).strip(), int(r[1])) for r in _lignes(wb["Lits CHME"]) if isinstance(r[1], (int, float))]
         if lits:
@@ -93,4 +111,9 @@ def charger(chemin):
         ref["ALIAS_MEDECINS"] = {str(r[0]).strip().upper(): str(r[1]).strip().upper()
                                  for r in _lignes(wb["Alias médecins"]) if r[1]}
     wb.close()
+    if manquants:     # référentiel d'une version précédente : on le complète en gardant les valeurs lues
+        try:
+            ecrire_modele(chemin, ref)
+        except OSError:
+            pass
     return ref

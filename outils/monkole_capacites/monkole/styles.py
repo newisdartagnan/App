@@ -13,6 +13,10 @@ ZEBRE = "E8F3F6"
 BLANC = "FFFFFF"
 ALERTE_T = "A96108"
 ALERTE_F = "FFF2CC"
+VERT_T = "2E6B30"        # seuils d'alerte : zone normale
+VERT_F = "E2F0D9"
+ROUGE_T = "9C0006"       # seuils d'alerte : saturation / dépassement
+ROUGE_F = "FAD4D4"
 
 # Feuilles médecins / jours (Aptos, ancienne disposition)
 NUIT = "123047"
@@ -30,6 +34,17 @@ PCT = "0.0%"
 DEC = "0.00"
 DATE = "dd/mm/yyyy"
 NB_TIRET = "0;\\-0;\\–"
+
+
+def alerte(x, bas, haut):
+    """(fond, texte) selon les seuils : orange sous « bas », vert entre les deux, rouge à partir de « haut »."""
+    if x is None or isinstance(x, str):
+        return None, None
+    if x >= haut:
+        return ROUGE_F, ROUGE_T
+    if x < bas:
+        return ALERTE_F, ALERTE_T
+    return VERT_F, VERT_T
 
 
 @lru_cache(maxsize=None)
