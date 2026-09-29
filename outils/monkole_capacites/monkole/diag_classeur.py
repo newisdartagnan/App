@@ -4,6 +4,8 @@ from collections import defaultdict
 from openpyxl.chart import PieChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.chart.series import DataPoint
+from openpyxl.comments import Comment
+from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, TwoCellAnchor
 from openpyxl.formatting.rule import ColorScaleRule, DataBarRule
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter as L
@@ -104,33 +106,74 @@ def entete_commun(ws, R, titre, sous_titre, liens):
         lien(c, cible)
 
 
-def _titre_bloc(ws, r, texte, c1, c2):
-    bloc(ws, r, c1, r, c2, texte, taille=9, gras=True, couleur=BLANC, fond=NAVY)
-    ws.row_dimensions[r].height = 17
+def expliquer(ws, r, c, texte):
+    """Explication d'un terme : note Excel affichée au survol de la cellule (petit triangle rouge)."""
+    note = Comment(texte, "Monkole")
+    note.width, note.height = 320, 130
+    ws.cell(row=r, column=c).comment = note
 
 
-def _entete(ws, r, colonnes, hauteur=26, a_gauche=()):
+def _titre_bloc(ws, r, texte, c1, c2, aide=None):
+    bloc(ws, r, c1, r, c2, texte, taille=10, gras=True, couleur=BLANC, fond=NAVY)
+    ws.row_dimensions[r].height = 18
+    if aide:
+        expliquer(ws, r, c1, aide)
+
+
+def _entete(ws, r, colonnes, hauteur=26, a_gauche=(), aides=None):
     for c1, c2, t in colonnes:
-        bloc(ws, r, c1, r, c2, t, taille=8, gras=True, couleur=TXT, fond=CLAIR,
+        bloc(ws, r, c1, r, c2, t, taille=9, gras=True, couleur=TXT, fond=CLAIR,
              h="left" if c1 == colonnes[0][0] or c1 in a_gauche else "right")
+        if aides and t in aides:
+            expliquer(ws, r, c1, aides[t])
     ws.row_dimensions[r].height = hauteur
 
 
 def _cel(ws, r, c1, c2, v, fmt=NB, h="right", couleur=TXT, gras=False, fond=None):
-    return bloc(ws, r, c1, r, c2, v, taille=9, couleur=couleur, gras=gras, fond=fond or zebre(r), fmt=fmt if not isinstance(v, str) else None,
-                h=h, wrap=False)
+    return bloc(ws, r, c1, r, c2, v, taille=10, couleur=couleur, gras=gras, fond=fond or zebre(r),
+                fmt=fmt if not isinstance(v, str) else None, h=h, wrap=False)
 
 
 def _tot(ws, r, c1, c2, v, fmt=NB, h="right"):
-    return bloc(ws, r, c1, r, c2, v, taille=9, gras=True, couleur=BLANC, fond=TEAL, fmt=fmt if not isinstance(v, str) else None, h=h,
+    return bloc(ws, r, c1, r, c2, v, taille=10, gras=True, couleur=BLANC, fond=TEAL, fmt=fmt if not isinstance(v, str) else None, h=h,
                 wrap=False)
+
+
+TERMES_DIAG = {
+    "Dossiers": "Numéros de dossier distincts, par logiciel et par site, ayant au moins une ligne de diagnostic. Ce ne sont pas "
+                "des patients uniques (un patient peut avoir un dossier dans GPS et un dans Evolucare).",
+    "Diagnostics comptabilisés": "Un diagnostic écrit sans marqueur de doute, compté une seule fois par dossier et logiciel sur la "
+                                 "période, même s’il est répété plusieurs jours.",
+    "Différents / récurrents": "Différents : nombre de diagnostics regroupés distincts. Récurrents : diagnostics retrouvés dans au "
+                               "moins deux dossiers (ce n’est pas une rechute).",
+    "Hypothèses seules": "Diagnostics seulement évoqués avec doute (?, suspicion, à exclure, probable…) et jamais écrits sans doute "
+                         "dans le même dossier. Ils ne sont pas dans le disque.",
+    "Lignes à classer / à clarifier": "À classer : textes absents du dictionnaire, à compléter dans Dictionnaire_Diagnostics.xlsx "
+                                      "(fichier Diagnostics_a_classer_… dans sorties). À clarifier : sigles ou fragments "
+                                      "incompréhensibles. Sans diagnostic exploitable : lignes vides ou sans sens clinique.",
+    "Famille clinique": "Regroupement des diagnostics en 16 familles (ORL / respiratoire, cardiovasculaire…). Le disque montre la "
+                        "part de chaque famille dans les diagnostics comptabilisés. Cliquer sur une famille pour voir sa composition.",
+    "Comptés": "Nombre de diagnostics comptabilisés (une fois par dossier et logiciel).",
+    "Part": "Diagnostics comptabilisés de la ligne ÷ total des diagnostics comptabilisés (ou dossiers de la tranche ÷ total des "
+            "dossiers dans le tableau Âge et sexe).",
+    "Hyp. seules": "Nombre de dossiers où ce diagnostic n’est qu’une hypothèse (non compté dans « Comptés »).",
+    "Diagnostic / situation clinique": "Diagnostic regroupé : les différentes écritures d’un même diagnostic (HTA, hypertension "
+                                       "artérielle…) sont rapprochées. Cliquer pour voir les écritures dans le Dictionnaire.",
+    "Tranche d’âge": "Âge au premier jour du dossier dans la période, calculé avec la date de naissance de l’export. Âge inconnu : "
+                     "date absente ou incohérente.",
+    "Femmes": "Dossiers dont le sexe renseigné est F.",
+    "Hommes": "Dossiers dont le sexe renseigné est M.",
+    "Diagnostics": "Diagnostics comptabilisés des dossiers de la tranche d’âge.",
+    "Site / logiciel": "Répartition des dossiers et des diagnostics comptabilisés par site (CSMKL2, CHME) ou par logiciel "
+                       "(GPS, Evolucare).",
+}
 
 
 def synthese(wb, R, nom, P, titre, onglet, lignes_source, pos_compo, pos_dico):
     """Synthèse lisible sur un écran (zoom 85 %) : indicateurs, familles, 12 diagnostics, âge et sexe, sources."""
     ws = wb.create_sheet(nom)
-    mise_en_page(ws, onglet, zoom=85)
-    ws.page_setup.fitToHeight = 1
+    mise_en_page(ws, onglet, zoom=78)
+    ws.page_setup.fitToHeight = 0
     for c in range(1, 17):
         ws.column_dimensions[L(c)].width = 10.5
     ws.column_dimensions["I"].width = 2
@@ -142,28 +185,32 @@ def synthese(wb, R, nom, P, titre, onglet, lignes_source, pos_compo, pos_dico):
         liens = [(11, 12, "Dashboard", "'Dashboard'!A1"), (13, 14, "Âge et sexe", "'Âge et sexe'!A1"),
                  (15, 16, "Notez bien", "'Notez bien'!A1")]
     for c1, c2, t, cible in liens:
-        lien(bloc(ws, 1, c1, 1, c2, t, taille=9, gras=True, couleur=TEAL, fond=CLAIR, h="center"), cible)
+        lien(bloc(ws, 1, c1, 1, c2, t, taille=10, gras=True, couleur=TEAL, fond=CLAIR, h="center"), cible)
     ws.row_dimensions[1].height = 26
 
     # Indicateurs
     A, S = age_sexe(R, P)
     nd = len(P.dossiers) or 1
     a_classer = sum(1 for src in P.sources if src.get("origine") == "à classer")
-    kpis = [("DOSSIERS", len(P.dossiers), f"Femmes {S['F']['dos'] / nd:.0%} · hommes {S['M']['dos'] / nd:.0%}".replace("%", " %")),
-            ("DIAGNOSTICS COMPTABILISÉS", P.total, f"{P.differents} différents · {P.recurrents} récurrents (≥ 2 dossiers)"),
-            ("HYPOTHÈSES SEULES", len(P.hyp), "hors disque"),
+    T = TERMES_DIAG
+    kpis = [("DOSSIERS", len(P.dossiers), f"Femmes {S['F']['dos'] / nd:.0%} · hommes {S['M']['dos'] / nd:.0%}".replace("%", " %"),
+             T["Dossiers"]),
+            ("DIAGNOSTICS COMPTABILISÉS", P.total, f"{P.differents} différents · {P.recurrents} récurrents (≥ 2 dossiers)",
+             T["Diagnostics comptabilisés"] + " " + T["Différents / récurrents"]),
+            ("HYPOTHÈSES SEULES", len(P.hyp), "hors disque", T["Hypothèses seules"]),
             ("LIGNES À CLASSER / À CLARIFIER", f"{a_classer} / {P.lignes_a_clarifier}",
-             f"{P.lignes_non_exploitables} lignes sans diagnostic exploitable")]
-    for i, (t, v, com) in enumerate(kpis):
+             f"{P.lignes_non_exploitables} lignes sans diagnostic exploitable", T["Lignes à classer / à clarifier"])]
+    for i, (t, v, com, aide) in enumerate(kpis):
         c1 = 1 + 4 * i
-        bloc(ws, 2, c1, 2, c1 + 3, t, taille=9, gras=True, couleur=BLANC, fond=TEAL, h=None)
-        bloc(ws, 3, c1, 3, c1 + 3, v, taille=20, gras=True, couleur=TEAL, fond=BLANC, fmt=NB, h="center", wrap=None)
-        bloc(ws, 4, c1, 4, c1 + 3, com, taille=8, couleur=GRIS, fond=CLAIR, h="center")
-    hauteurs(ws, {2: 16, 3: 30, 4: 14, 5: 5})
+        bloc(ws, 2, c1, 2, c1 + 3, t, taille=10, gras=True, couleur=BLANC, fond=TEAL, h=None)
+        expliquer(ws, 2, c1, aide)
+        bloc(ws, 3, c1, 3, c1 + 3, v, taille=22, gras=True, couleur=TEAL, fond=BLANC, fmt=NB, h="center", wrap=None)
+        bloc(ws, 4, c1, 4, c1 + 3, com, taille=9, couleur=TXT, fond=CLAIR, h="center")
+    hauteurs(ws, {2: 17, 3: 30, 4: 15, 5: 5})
 
     # Familles : disque + tableau (légende)
-    _titre_bloc(ws, 6, "FAMILLES CLINIQUES / PART DES DIAGNOSTICS COMPTABILISÉS", 1, 8)
-    _entete(ws, 7, [(5, 7, "Famille (cliquer : composition)"), (8, 8, "Comptés")], hauteur=18)
+    _titre_bloc(ws, 6, "FAMILLES CLINIQUES / PART DES DIAGNOSTICS COMPTABILISÉS", 1, 8, aide=T["Famille clinique"])
+    _entete(ws, 7, [(5, 7, "Famille clinique"), (8, 8, "Comptés")], hauteur=18, aides=T)
     fams = tri_familles(P)
     for i, f in enumerate(fams):
         r = 8 + i
@@ -191,12 +238,15 @@ def synthese(wb, R, nom, P, titre, onglet, lignes_source, pos_compo, pos_dico):
     sr.dLbls.showSerName = False
     sr.dLbls.showLeaderLines = True
     pie.legend = None           # les couleurs des familles figurent dans le tableau à droite du disque
-    ws.add_chart(pie, "A8")
+    # le disque occupe exactement les colonnes A-D, sans recouvrir le tableau des familles
+    pie.anchor = TwoCellAnchor(_from=AnchorMarker(col=0, row=7, colOff=38100, rowOff=19050),
+                               to=AnchorMarker(col=4, row=rt, colOff=0, rowOff=0))
+    ws.add_chart(pie)
 
     # 12 diagnostics les plus fréquents
-    _titre_bloc(ws, 6, "LES 12 DIAGNOSTICS LES PLUS FRÉQUENTS", 10, 16)
+    _titre_bloc(ws, 6, "LES 12 DIAGNOSTICS LES PLUS FRÉQUENTS", 10, 16, aide=T["Diagnostic / situation clinique"])
     _entete(ws, 7, [(10, 13, "Diagnostic / situation clinique"), (14, 14, "Comptés"), (15, 15, "Part"), (16, 16, "Hyp. seules")],
-            hauteur=18)
+            hauteur=18, aides=T)
     top = tri_groupes([x for x in P.groupes.values() if x["total"] > 0])[:12]
     for i, x in enumerate(top):
         r = 8 + i
@@ -211,9 +261,9 @@ def synthese(wb, R, nom, P, titre, onglet, lignes_source, pos_compo, pos_dico):
 
     # Âge et sexe
     r = 8 + 12 + 1
-    _titre_bloc(ws, r, "ÂGE ET SEXE / DOSSIERS ET DIAGNOSTICS COMPTABILISÉS", 10, 16)
+    _titre_bloc(ws, r, "ÂGE ET SEXE / DOSSIERS ET DIAGNOSTICS COMPTABILISÉS", 10, 16, aide=T["Tranche d’âge"])
     _entete(ws, r + 1, [(10, 11, "Tranche d’âge"), (12, 12, "Femmes"), (13, 13, "Hommes"),
-                        (14, 14, "Dossiers"), (15, 15, "Part"), (16, 16, "Diagnostics")], hauteur=16)
+                        (14, 14, "Dossiers"), (15, 15, "Part"), (16, 16, "Diagnostics")], hauteur=17, aides=T)
     r += 2
     for n, x in A.items():
         if n == AGE_INCONNU and not sum(x["dos"].values()):
@@ -236,8 +286,8 @@ def synthese(wb, R, nom, P, titre, onglet, lignes_source, pos_compo, pos_dico):
 
     # Sources (gauche, sous les familles)
     r = rt + 2
-    _titre_bloc(ws, r, "DOSSIERS ET DIAGNOSTICS PAR SOURCE", 1, 8)
-    _entete(ws, r + 1, [(1, 4, "Site / logiciel"), (5, 6, "Dossiers"), (7, 8, "Diagnostics comptés")], hauteur=16)
+    _titre_bloc(ws, r, "DOSSIERS ET DIAGNOSTICS PAR SOURCE", 1, 8, aide=T["Site / logiciel"])
+    _entete(ws, r + 1, [(1, 4, "Site / logiciel"), (5, 6, "Dossiers"), (7, 8, "Diagnostics comptés")], hauteur=17, aides=T)
     r += 2
     for lib, dos, dia in lignes_source:
         _cel(ws, r, 1, 4, lib, h="left")
@@ -246,7 +296,17 @@ def synthese(wb, R, nom, P, titre, onglet, lignes_source, pos_compo, pos_dico):
         r += 1
     for x in range(6, max(r, r_fin_droite) + 1):
         if ws.row_dimensions[x].height is None:
-            ws.row_dimensions[x].height = 16
+            ws.row_dimensions[x].height = 17
+    # Lexique sous l'écran (les mêmes explications s'affichent au survol des titres)
+    r = max(r, r_fin_droite) + 3
+    bloc(ws, r, 1, r, 16, "LEXIQUE / EXPLICATION DES TERMES (aussi au survol des titres marqués d’un petit triangle rouge)",
+         taille=10, gras=True, couleur=BLANC, fond=NAVY)
+    ws.row_dimensions[r].height = 20
+    for i, (terme, texte) in enumerate(T.items()):
+        rr = r + 1 + i
+        bloc(ws, rr, 1, rr, 3, terme, taille=10, gras=True, couleur=TEAL, fond=zebre(rr))
+        bloc(ws, rr, 4, rr, 16, texte, taille=10, couleur=TXT, fond=zebre(rr))
+        ws.row_dimensions[rr].height = 30 if len(texte) > 150 else 17
     return ws
 
 

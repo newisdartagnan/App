@@ -45,7 +45,7 @@ Dashboard → toutes les feuilles CSMKL2 → toutes les feuilles CHME → « Not
 
 | Feuille | Contenu |
 |---|---|
-| Dashboard | Tout sur un écran (zoom 85 %) : utilisation CSMKL2 et CHME, urgences, occupation des lits, actes ; tableau des consultations (capacité, cabinets comptés / physiques) ; courbes quotidiennes ; lecture **par semaine** ; lits par unité. Couleurs d'alerte |
+| Dashboard | Tout sur un écran (zoom 78 %) : utilisation CSMKL2 et CHME, urgences, occupation des lits, actes ; tableau des consultations (capacité, cabinets comptés / physiques) ; courbes quotidiennes ; lecture **par semaine** ; lits par unité. Couleurs d'alerte. Chaque titre porte une explication au survol (petit triangle rouge) ; lexique complet sous l'écran |
 | CSMKL2 | Synthèse, lecture quotidienne, **charge individuelle avec la moyenne de visites par jour actif** (classement de la plus haute à la plus basse) |
 | CHME | Occupation sur les lits réels (GPS + Evolucare), occupation par unité, cabinets de spécialistes, ambulatoire, urgences, spécialités |
 | … médecins | Médecins en lignes, jours du mois en colonnes (dimanches en violet), 4 lignes par médecin |
@@ -105,7 +105,8 @@ retenue : médecins et jours CSMKL2 et toutes les lignes d'actes sont **identiqu
 
 `LANCER_DIAGNOSTICS.bat` reproduit le classeur **« Diagnostics et composition des familles »** de la version retenue
 (`Monkole_Diagnostics_Composition_Familles_01-15_Septembre_2026`) : Dashboard sur un écran (disque des 16 familles,
-12 diagnostics les plus fréquents, tranches d'âge et sexe, sources), Composition des familles (chaque famille à 100 %,
+12 diagnostics les plus fréquents, tranches d'âge et sexe, sources ; explication de chaque terme au survol et lexique
+sous l'écran), Composition des familles (chaque famille à 100 %,
 global et par site), **Âge et sexe** (dossiers et diagnostics par tranche d'âge et par sexe, trois diagnostics les plus
 fréquents par tranche, familles par âge, dix premiers diagnostics chez les femmes et chez les hommes), CSMKL2,
 CSMKL2 diagnostics, CHME, CHME diagnostics, Dictionnaire, Notez bien.
