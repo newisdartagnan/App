@@ -5,7 +5,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from . import diag_dictionnaire as DD
 from .diag_calculs import SANS_SITE, SITES
-from .diag_classeur import (AL_F, AL_T, BLANC, C_CLAIR, C_NAVY, C_TXT, CLAIR, GRIS, NAVY, NB, TXT, bloc, entete_commun,
+from .diag_classeur import (TERMES_DIAG, AL_F, AL_T, BLANC, C_CLAIR, C_NAVY, C_TXT, CLAIR, GRIS, NAVY, NB, TXT, bloc, entete_commun,
                             hauteurs, mise_en_page, periode_txt, zebre)
 from .styles import ecrire
 
@@ -313,7 +313,7 @@ def notez_bien(wb, R):
         bloc(ws, rr, 1, rr, 10, a, couleur=C_TXT, fond=C_CLAIR, **AP)
         bloc(ws, rr, 11, rr, 16, b, gras=True, couleur=C_TXT, fond=BLANC, **AP)
     r += len(kv) + 2
-    bloc(ws, r, 1, r, 16, "LEXIQUE / LES MOTS DU DASHBOARD", gras=True, couleur=BLANC, fond=C_NAVY, **AP)
+    bloc(ws, r, 1, r, 16, "LEXIQUE / EXPLICATION DES TERMES DU DASHBOARD", gras=True, couleur=BLANC, fond=C_NAVY, **AP)
     lex = [("Dossier des logiciels", "Un numéro de dossier dans un site et un logiciel. Ce n'est pas nécessairement une personne differente."),
            ("Diagnostic regroupé", "Plusieurs ecritures reconnues comme équivalentes, par exemple HTA et hypertension artérielle."),
            ("Diagnostic comptabilisé", "Un diagnostic retrouve dans un dossier. Repete trois fois dans le même dossier et logiciel, il ne "
@@ -336,6 +336,7 @@ def notez_bien(wb, R):
                                      "son classement dans Dictionnaire_Diagnostics.xlsx."),
            ("Âge et sexe", "Sexe et date de naissance de l’export (première valeur renseignée du dossier). Âge au premier jour du "
                            "dossier dans la période ; date absente ou incohérente = âge inconnu. Dossiers par logiciel, pas patients.")]
+    lex = list(TERMES_DIAG.items()) + [x for x in lex if x[0] not in TERMES_DIAG]
     for i, (a, b) in enumerate(lex):
         rr = r + 2 + i
         bloc(ws, rr, 1, rr, 5, a, gras=True, couleur=C_TXT, fond=C_CLAIR, **AP)
