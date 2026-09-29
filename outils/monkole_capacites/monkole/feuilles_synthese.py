@@ -305,8 +305,9 @@ def feuille_chme(wb, R, onglet):
     graphique(ws, "A10", wb["_Hospi jour"], 6, R.ndays, [(4, "Lits occupés GPS + Evo"), (2, "dont GPS"), (3, "dont Evo"),
                                                           (5, "Lits réels")], 11, "Moyenne sur 24 heures", axe="Lits occupés")
     note_bloc(ws, 27, f"Les séjours entrés avant le {R.debut.strftime('%d/%m')} n’ont pas de date d’entrée dans les exports "
-                      f"({L['sans_entree']} dossiers) : les premiers jours sont sous-estimés. Les dates de sortie Evolucare sont "
-                      "provisoires (proposées à l’admission).", 1, der, alerte=True, hauteur=34)
+                      f"({L['sans_entree']} dossiers) : les premiers jours sont sous-estimés. Evolucare propose une sortie à 4 jours dès "
+                      "l’admission : une sortie à exactement 4 jours n’est pas confirmée, les autres sont réelles.", 1, der, alerte=True,
+              hauteur=34)
     section(ws, 29, "HOSPITALISATION / RÉPARTITION PAR UNITÉ", 1, der)
     cols = ["Unité", "Lits réels", "Dossiers\nGPS", "Dossiers\nEvolucare", "Sans entrée\nGPS", "Sans entrée\nEvolucare",
             "Lits occupés\nmoy. / jour", "Occupation\nmoyenne", "Lits occupés\ndernier jour", "Occupation\ndernier jour", "Sorties\nGPS",
@@ -504,8 +505,8 @@ def termes_capacites(R):
                                      "date d’entrée ne sont pas comptés.",
         "Occupation\nmoyenne": "Lits occupés en moyenne ÷ lits réels de l’unité. Au-delà de 100 % : patients enregistrés dans l’unité "
                                "mais couchés ailleurs, ou séjours sans date de sortie restés ouverts.",
-        "Occupation\ndernier jour": "Lits occupés le dernier jour de la période ÷ lits réels. Les dates de sortie Evolucare sont "
-                                    "provisoires.",
+        "Occupation\ndernier jour": "Lits occupés le dernier jour de la période ÷ lits réels. Evolucare : une sortie à "
+                                    "exactement 4 jours de l’entrée est la date proposée à l’admission (non confirmée).",
         "Actes": "Actes GPS (datés par Date_V) et prestations Evolucare (datées par DATEHEURE). Les produits (médicaments, "
                  "consommables) ne sont pas comptés.",
         "Semaine": "Du lundi au dimanche, coupée au début et à la fin de la période (colonne Jours).",

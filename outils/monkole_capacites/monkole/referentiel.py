@@ -13,6 +13,7 @@ PARAMETRES = {
     "seuil_utilisation_basse": 0.50,
     "seuil_utilisation_haute": 0.85,
     "capacite_horaire_rdv": 1,
+    "sortie_proposee_evo_jours": 4,
 }
 
 # Libellés des paramètres dans Referentiel_Monkole.xlsx (feuille Paramètres), dans l'ordre d'affichage
@@ -24,6 +25,7 @@ LIBELLES_PARAMETRES = [
     ("seuil_utilisation_basse", "Alerte : utilisation basse sous (ex. 0,50 = 50 %)"),
     ("seuil_utilisation_haute", "Alerte : utilisation haute à partir de (ex. 0,85 = 85 %)"),
     ("capacite_horaire_rdv", "Capacité : horaires des rendez-vous (1 = oui, 0 = repère de 24 visites)"),
+    ("sortie_proposee_evo_jours", "Evolucare : durée de séjour proposée à l'admission (jours ; cette durée exacte = sortie non confirmée)"),
 ]
 
 # Capacité horaire par médecin, tirée du dernier fichier RDV_Horaire_* (rempli automatiquement, modifiable) :

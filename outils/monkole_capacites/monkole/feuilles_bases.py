@@ -77,9 +77,10 @@ def base_visites(wb, R):
 def base_hospitalisations(wb, R):
     ws = _feuille(wb, "Base hospitalisations", ["Logiciel", "Ligne source", "Site retenu", "Num_Dossier", "Entrée source",
                                                  "Sortie source", "UF / UH source", "Unité harmonisée", "Origine du site",
-                                                 "Intervalle dans période", "Sortie après la fin", "Dates invalides"])
+                                                 "Intervalle dans période", "Sortie après la fin", "Dates invalides",
+                                                 "Sortie proposée (Evolucare)"])
     lignes = [(b["logiciel"], b["ligne"], b["site"], b["dossier"], b["entree"], b["sortie"], b["uf"], b["unite"],
-               b["origine_site"], b["dans_periode"], b["sortie_apres"], b["invalide"]) for b in R.base_hospi]
+               b["origine_site"], b["dans_periode"], b["sortie_apres"], b["invalide"], b["sortie_proposee"]) for b in R.base_hospi]
     _lignes(ws, lignes, {5: "dd/mm/yyyy hh:mm", 6: "dd/mm/yyyy hh:mm"})
 
 
