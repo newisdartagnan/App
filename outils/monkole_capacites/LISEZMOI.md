@@ -47,7 +47,7 @@ Dashboard → toutes les feuilles CSMKL2 → toutes les feuilles CHME → « Not
 |---|---|
 | Dashboard | Tout sur un écran (zoom 85 %) : utilisation CSMKL2 et CHME, urgences, occupation des lits, actes ; tableau des consultations (capacité, cabinets comptés / physiques) ; courbes quotidiennes ; lecture **par semaine** ; lits par unité. Couleurs d'alerte |
 | CSMKL2 | Synthèse, lecture quotidienne, **charge individuelle avec la moyenne de visites par jour actif** (classement de la plus haute à la plus basse) |
-| CHME | Occupation sur les lits réels (GPS + Evolucare), lits occupés par unité, cabinets de spécialistes, ambulatoire, urgences, spécialités |
+| CHME | Occupation sur les lits réels (GPS + Evolucare), occupation par unité, cabinets de spécialistes, ambulatoire, urgences, spécialités |
 | … médecins | Médecins en lignes, jours du mois en colonnes (dimanches en violet), 4 lignes par médecin |
 | … jours | Date → Jour → Médecin, filtre sur la date pour voir qui a consulté un jour donné |
 | … actes | Spécialité → sous-spécialité → acte (groupes « + »), GPS sur Date_V, Evolucare sur DATEHEURE |
@@ -60,12 +60,15 @@ d'entrée comptés sans durée inventée, produits Evolucare séparés des actes
 Règles fixées avec le directeur des opérations (septembre 2026) :
 
 - **Moyenne / jour actif** = visites du médecin / ses jours actifs (CSMKL2, charge individuelle), sans comparaison au repère ;
-- **Lits** : 104 lits réels au CHME (les lits paramétrés dans GPS et Evolucare comprennent des lits fictifs). Les journées GPS
+- **Lits** : 104 lits réels au CHME — chirurgie 13, gynéco-obstétrique 27, médecine interne 15, néonatologie 12, pédiatrie 13,
+  urgences 5, soins intensifs pédiatriques 12, réanimation 7 — d'où un taux d'occupation par unité (les lits paramétrés dans
+  GPS et Evolucare comprennent des lits fictifs et ne sont pas utilisés). Les journées GPS
   et Evolucare sont additionnées : un patient n'est suivi que dans un des deux logiciels (migration en cours). Les dates de
   sortie Evolucare sont provisoires. Les séjours entrés avant le début de la période n'ont pas de date d'entrée dans les
   exports : les premiers jours sont sous-estimés, le chiffre du **dernier jour** est le plus représentatif ;
 - **Cabinets physiques** : 6 à CSMKL2, 15 de spécialistes au CHME. Ne sont pas comptés dans les 15 : nutrition, kinésithérapie,
-  soins infirmiers, laboratoire, imagerie, pharmacie, documents médicaux (liste modifiable) ;
+  soins infirmiers, laboratoire, imagerie, pharmacie, documents médicaux (liste modifiable). Certaines spécialités se relaient
+  dans un même cabinet : le nombre de cabinets comptés est un maximum ;
 - **Couleurs d'alerte** : orange sous 50 %, vert de 50 à 85 %, rouge à partir de 85 % ; rouge aussi quand les cabinets
   comptés un jour dépassent les cabinets physiques.
 
@@ -73,9 +76,8 @@ Règles fixées avec le directeur des opérations (septembre 2026) :
 
 Créé au premier lancement à côté du programme. On peut y modifier :
 
-- **Paramètres** : 24 visites par jour, seuil de 2 visites, 6 cabinets CSMKL2, 15 cabinets CHME, 104 lits réels, seuils d'alerte
-  (50 % et 85 %) ;
-- **Lits CHME** par unité (lits paramétrés dans les logiciels, indicatif) ;
+- **Paramètres** : 24 visites par jour, seuil de 2 visites, 6 cabinets CSMKL2, 15 cabinets CHME, seuils d'alerte (50 % et 85 %) ;
+- **Lits CHME** : lits réels par unité (leur total, 104, est la capacité du CHME) ;
 - **Hors cabinets CHME** : spécialités qui n'occupent pas un des cabinets de spécialistes ;
 - **MAISON ROSE** : UF rattachées ;
 - **UF visites** : UF → spécialité (à compléter quand « Notez bien » signale une UF nouvelle) ;

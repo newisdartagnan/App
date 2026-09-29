@@ -10,7 +10,6 @@ PARAMETRES = {
     "seuil_visites_cabinet": 2,
     "cabinets_physiques_csmkl2": 6,
     "cabinets_physiques_chme": 15,
-    "lits_reels_chme": 104,
     "seuil_utilisation_basse": 0.50,
     "seuil_utilisation_haute": 0.85,
 }
@@ -21,7 +20,6 @@ LIBELLES_PARAMETRES = [
     ("seuil_visites_cabinet", "Seuil de visites pour compter un cabinet"),
     ("cabinets_physiques_csmkl2", "Cabinets physiques CSMKL2"),
     ("cabinets_physiques_chme", "Cabinets physiques CHME (spécialistes)"),
-    ("lits_reels_chme", "Lits réels CHME"),
     ("seuil_utilisation_basse", "Alerte : utilisation basse sous (ex. 0,50 = 50 %)"),
     ("seuil_utilisation_haute", "Alerte : utilisation haute à partir de (ex. 0,85 = 85 %)"),
 ]
@@ -38,18 +36,20 @@ HORS_CABINETS_CHME = [
     "Documents médicaux",
 ]
 
-# Lits CHME par unité tels que paramétrés dans les logiciels (lits fictifs inclus) : répartition indicative.
-# La capacité réelle retenue est PARAMETRES["lits_reels_chme"].
+# Lits réels du CHME par unité (104 au total, septembre 2026 ; ordre d'affichage conservé).
+# Les lits paramétrés dans GPS et Evolucare comprennent des lits fictifs : ils ne servent pas de capacité.
 LITS = [
-    ("Hospi CHIR", 16),
-    ("Hospi GO", 54),
-    ("Hospi MI", 19),
-    ("Hospi Néonat", 19),
+    ("Hospi CHIR", 13),
+    ("Hospi GO", 27),
+    ("Hospi MI", 15),
+    ("Hospi Néonat", 12),
     ("Hospi PED", 13),
-    ("Hospi URG", 8),
-    ("Hospi SIP", 15),
-    ("Hospi REA", 8),
+    ("Hospi URG", 5),
+    ("Hospi SIP", 12),
+    ("Hospi REA", 7),
 ]
+# Ancienne répartition (lits des logiciels, fictifs inclus) : remplacée automatiquement si elle est lue dans le référentiel
+LITS_LOGICIELS = [16, 54, 19, 19, 13, 8, 15, 8]
 HORS_UNITES = "Hors unités / UF absente"
 
 # UF de CSMKL2 rattachées à MAISON ROSE (ancien libellé : activités secondaires)

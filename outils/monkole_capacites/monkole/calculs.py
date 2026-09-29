@@ -41,12 +41,12 @@ def calculer(donnees, ref, debut, fin):
     R.seuil = p["seuil_visites_cabinet"]
     R.cabinets_csmkl2 = p["cabinets_physiques_csmkl2"]
     R.cabinets_chme = p["cabinets_physiques_chme"]
-    R.lits_reels = p["lits_reels_chme"]
     R.seuil_bas = p["seuil_utilisation_basse"]
     R.seuil_haut = p["seuil_utilisation_haute"]
     R.hors_cabinets = set(ref["HORS_CABINETS_CHME"])
     R.lits = ref["LITS"]
     R.total_lits = sum(n for _, n in R.lits)
+    R.lits_reels = R.total_lits
 
     visites_toutes, R.rapprochements, R.uf_inconnues = V.classer_visites(donnees, ref)
     R.visites_hors_periode = [v for v in visites_toutes if v["jour"] is None or not (debut <= v["jour"] <= fin)]
@@ -202,6 +202,8 @@ def _hospitalisation(R):
         ds = [d for d in chme if d["unite"] == x["unite"]]
         x["moy"] = (x["jours_gps"] + x["jours_evo"]) / R.ndays
         x["dernier"] = sum(d["par_jour"][der] for d in ds)
+        x["taux"] = x["moy"] / x["lits"] if x["lits"] else None
+        x["taux_dernier"] = x["dernier"] / x["lits"] if x["lits"] else None
     occ = [sum(d["par_jour"][i] for d in chme) for i in range(R.ndays)]
     ipic = max(range(R.ndays), key=lambda i: (occ[i], -i))
     R.lits_occ = {

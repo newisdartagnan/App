@@ -41,7 +41,7 @@ def parametres(wb, R):
     ecrire(ws, "A2", "Hypothèses, pas normes cliniques ni inventaire validé à cette date", fond=CLAIR)
     lignes = [("Début", R.debut), ("Fin", R.fin), ("Jours", R.ndays), ("Visites / intervenant / jour", R.cap_jour),
               ("Seuil de visites pour compter un cabinet", R.seuil), ("Cabinets physiques CSMKL2", R.cabinets_csmkl2),
-              ("Cabinets physiques CHME (spécialistes)", R.cabinets_chme), ("Lits réels CHME", R.lits_reels),
+              ("Cabinets physiques CHME (spécialistes)", R.cabinets_chme),
               ("Alerte : utilisation basse sous", R.seuil_bas), ("Alerte : utilisation haute à partir de", R.seuil_haut)]
     r = 5
     for k, v in lignes:
@@ -57,7 +57,7 @@ def parametres(wb, R):
         ws.cell(row=r, column=1, value=u)
         ws.cell(row=r, column=2, value=n)
         r += 1
-    ws.cell(row=r, column=1, value="Total lits paramétrés dans les logiciels (indicatif)")
+    ws.cell(row=r, column=1, value="Total lits réels CHME")
     ws.cell(row=r, column=2, value=R.total_lits)
     ws.column_dimensions["A"].width = 42
     ws.column_dimensions["B"].width = 14
