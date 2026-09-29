@@ -299,8 +299,8 @@ def feuille_chme(wb, R, onglet):
                       f"({L['sans_entree']} dossiers) : les premiers jours sont sous-estimés. Les dates de sortie Evolucare sont "
                       "provisoires (proposées à l’admission).", 1, der, alerte=True, hauteur=34)
     section(ws, 29, "HOSPITALISATION / RÉPARTITION PAR UNITÉ", 1, der)
-    cols = ["Unité", "Lits\nlogiciel", "Dossiers\nGPS", "Dossiers\nEvolucare", "Sans entrée\nGPS", "Sans entrée\nEvolucare",
-            "Jours\nGPS", "Jours\nEvolucare", "Lits occupés\nmoy. / jour", "Lits occupés\ndernier jour", "Sorties\nGPS",
+    cols = ["Unité", "Lits réels", "Dossiers\nGPS", "Dossiers\nEvolucare", "Sans entrée\nGPS", "Sans entrée\nEvolucare",
+            "Lits occupés\nmoy. / jour", "Occupation\nmoyenne", "Lits occupés\ndernier jour", "Occupation\ndernier jour", "Sorties\nGPS",
             "Sorties\nEvolucare"]
     entete_tableau(ws, 30, [(i, i, x) for i, x in enumerate(cols, start=1)])
     r = 31
@@ -309,24 +309,26 @@ def feuille_chme(wb, R, onglet):
         cellule(ws, r, 2, u["lits"] if u["lits"] else "–")
         for c, v in enumerate([u["dos_gps"], u["dos_evo"], u["sans_gps"], u["sans_evo"]], start=3):
             cellule(ws, r, c, v)
-        cellule(ws, r, 7, u["jours_gps"], fmt=DEC)
-        cellule(ws, r, 8, u["jours_evo"], fmt=DEC)
-        cellule(ws, r, 9, u["moy"], fmt="0.0")
-        cellule(ws, r, 10, u["dernier"], fmt="0.0")
+        cellule(ws, r, 7, u["moy"], fmt="0.0")
+        cellule(ws, r, 8, u["taux"] if u["lits"] else "–", fmt=PCT)
+        cellule(ws, r, 9, u["dernier"], fmt="0.0")
+        cellule(ws, r, 10, u["taux_dernier"] if u["lits"] else "–", fmt=PCT)
+        colorer(ws, r, 8, u["taux"], R)
+        colorer(ws, r, 10, u["taux_dernier"], R)
         cellule(ws, r, 11, u["sorties_gps"])
         cellule(ws, r, 12, u["sorties_evo"])
         ws.row_dimensions[r].height = 28
         r += 1
     r += 1
-    ecrire(ws, (r, 1), f"TOTAL CHME / {R.lits_reels} LITS RÉELS", gras=True, couleur=BLANC, fond=TEAL)
+    ecrire(ws, (r, 1), "TOTAL CHME", gras=True, couleur=BLANC, fond=TEAL)
     for c, (v, f) in enumerate([(t["lits"], NB), (t["dos_gps"], NB), (t["dos_evo"], NB), (t["sans_gps"], NB), (t["sans_evo"], NB),
-                                (t["jours_gps"], DEC), (t["jours_evo"], DEC), (L["moy"], "0.0"), (L["dernier"], "0.0"),
+                                (L["moy"], "0.0"), (L["taux"], PCT), (L["dernier"], "0.0"), (L["taux_dernier"], PCT),
                                 (t["sorties_gps"], NB), (t["sorties_evo"], NB)], start=2):
         ecrire(ws, (r, c), v, gras=True, couleur=BLANC, fond=TEAL, fmt=f, h="right")
     ws.row_dimensions[r].height = 28
     r += 1
-    note_bloc(ws, r, f"Lits logiciel = lits paramétrés dans GPS / Evolucare (lits fictifs inclus, total {t['lits']}) : répartition "
-                     f"indicative. Le taux d’occupation se calcule sur les {R.lits_reels} lits réels.", 1, der, hauteur=30)
+    note_bloc(ws, r, "Les séjours sans unité renseignée comptent dans le total du CHME, sans taux d’unité. Journées GPS et Evolucare "
+                     "détaillées dans « Dossiers hospitaliers ».", 1, der, hauteur=30)
     r += 1
     fusion(ws, r, 1, der)
     lien(ws, (r, 1), "Ouvrir la liste des dossiers hospitaliers, dates et durées", "'CHME jours'!A1")
@@ -456,7 +458,6 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
     mr = indicateurs(R, "CSMKL2", V.SECONDAIRE)
     amb = indicateurs(R, "CHME", V.AMBULATOIRE)
     urg = indicateurs(R, "CHME", V.URGENCES)
-    t = R.unites_total
     L = R.lits_occ
     seuils = (R.seuil_bas, R.seuil_haut)
 
@@ -539,27 +540,23 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
 
     # Hospitalisation par unité (droite, colonnes 15-20)
     _titre_bloc(ws, 6, f"HOSPITALISATION CHME / {R.lits_reels} LITS RÉELS", 15, 20)
-    _entete(ws, 7, [(15, 16, "Unité"), (17, 17, "Dossiers\nGPS"), (18, 18, "Dossiers\nEvolucare"),
-                    (19, 19, "Lits occupés\nmoy. / jour"), (20, 20, "Lits occupés\ndernier jour")])
+    _entete(ws, 7, [(15, 16, "Unité"), (17, 17, "Lits\nréels"), (18, 18, "Lits occupés\nmoy. / jour"),
+                    (19, 19, "Occupation\nmoyenne"), (20, 20, "Occupation\ndernier jour")])
     r = 8
     for u in R.unites:
         _val(ws, r, 15, u["unite"].replace("Hors unités / UF absente", "Sans unité"), fmt=None, c2=16, h="left")
-        _val(ws, r, 17, u["dos_gps"])
-        _val(ws, r, 18, u["dos_evo"])
-        _val(ws, r, 19, u["moy"], fmt="0.0")
-        _val(ws, r, 20, u["dernier"], fmt="0.0")
+        _val(ws, r, 17, u["lits"] if u["lits"] else "–", h="right")
+        _val(ws, r, 18, u["moy"], fmt="0.0")
+        _val(ws, r, 19, u["taux"] if u["lits"] else "–", fmt=PCT, h="right")
+        _val(ws, r, 20, u["taux_dernier"] if u["lits"] else "–", fmt=PCT, h="right")
+        colorer(ws, r, 19, u["taux"], R)
+        colorer(ws, r, 20, u["taux_dernier"], R)
         r += 1
     _total(ws, r, 15, "Total CHME", c2=16, h="left")
-    _total(ws, r, 17, t["dos_gps"])
-    _total(ws, r, 18, t["dos_evo"])
-    _total(ws, r, 19, L["moy"], fmt="0.0")
-    _total(ws, r, 20, L["dernier"], fmt="0.0")
-    r += 1
-    _val(ws, r, 15, f"Occupation / {R.lits_reels} lits", fmt=None, c2=18, h="left", gras=True)
-    _val(ws, r, 19, L["taux"], fmt=PCT, gras=True)
-    colorer(ws, r, 19, L["taux"], R)
-    _val(ws, r, 20, L["taux_dernier"], fmt=PCT, gras=True)
-    colorer(ws, r, 20, L["taux_dernier"], R)
+    _total(ws, r, 17, R.lits_reels)
+    _total(ws, r, 18, L["moy"], fmt="0.0")
+    _total(ws, r, 19, L["taux"], fmt=PCT)
+    _total(ws, r, 20, L["taux_dernier"], fmt=PCT)
     r += 1
     _val(ws, r, 15, f"Sans date d’entrée (non comptés dans les lits) : {L['sans_entree']} dossiers", fmt=None, c2=20, h="left")
     ws.cell(row=r, column=15).font = Font(name="Calibri", size=8, italic=True, color=GRIS)

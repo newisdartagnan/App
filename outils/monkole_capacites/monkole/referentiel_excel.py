@@ -39,7 +39,7 @@ def ecrire_modele(chemin, ref):
         if isinstance(c.value, float):
             c.number_format = "0%"
     _feuille(wb, "Lits CHME", ["Unité", "Lits"], ref["LITS"], [25, 10],
-             "Lits par unité tels que paramétrés dans les logiciels (indicatif). La capacité réelle est dans Paramètres.")
+             "Lits réels par unité (libellés Hospi CHIR, Hospi GO...). Leur total est la capacité du CHME.")
     _feuille(wb, "Hors cabinets CHME", ["Spécialité non comptée dans les cabinets CHME"], [(x,) for x in ref["HORS_CABINETS_CHME"]],
              [50], "Spécialités (libellé affiché) qui n'occupent pas un cabinet de spécialiste.")
     _feuille(wb, "MAISON ROSE", ["UF rattachée à MAISON ROSE (CSMKL2)"], [(u,) for u in ref["MAISON_ROSE_UF"]], [45],
@@ -97,7 +97,10 @@ def charger(chemin):
     if "Lits CHME" in noms:
         lits = [(str(r[0]).strip(), int(r[1])) for r in _lignes(wb["Lits CHME"]) if isinstance(r[1], (int, float))]
         if lits:
-            ref["LITS"] = lits
+            if [n for _, n in lits] == D.LITS_LOGICIELS:     # lits des logiciels (fictifs inclus) -> lits réels
+                manquants = True
+            else:
+                ref["LITS"] = lits
     if "MAISON ROSE" in noms:
         ref["MAISON_ROSE_UF"] = [str(r[0]).strip() for r in _lignes(wb["MAISON ROSE"])]
     if "UF visites" in noms:

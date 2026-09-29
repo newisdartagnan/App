@@ -38,6 +38,9 @@ def ecrire_resume(R, chemin, nom_classeur):
         f"Hospitalisation CHME : {t['dos_gps']} dossiers GPS / {t['dos_evo']} Evolucare ; {t['sans_gps'] + t['sans_evo']} sans date "
         f"d'entrée ; lits occupés GPS + Evolucare : {fr_dec(R.lits_occ['moy'])} en moyenne sur {R.lits_reels} lits réels "
         f"(occupation {pct(R.lits_occ['taux'])}), {fr_dec(R.lits_occ['dernier'])} le dernier jour ({pct(R.lits_occ['taux_dernier'])}).",
+        "Occupation par unité (moyenne / dernier jour) : " + " ; ".join(
+            f"{u['unite'].replace('Hospi ', '')} {u['lits']} lits {pct(u['taux'])} / {pct(u['taux_dernier'])}"
+            for u in R.unites if u["lits"]) + ".",
         f"Cabinets de spécialistes CHME : maximum {max(R.cab_chme_spec.values(), default=0)} par jour pour {R.cabinets_chme} "
         f"cabinets physiques ; {sum(1 for n in R.cab_chme_spec.values() if n > R.cabinets_chme)} jour(s) au-delà.",
         "",
