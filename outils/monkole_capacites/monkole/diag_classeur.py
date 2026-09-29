@@ -173,7 +173,7 @@ def synthese(wb, R, nom, P, titre, onglet, lignes_source, pos_compo, pos_dico):
     """Synthèse lisible sur un écran (zoom 85 %) : indicateurs, familles, 12 diagnostics, âge et sexe, sources."""
     ws = wb.create_sheet(nom)
     mise_en_page(ws, onglet, zoom=78)
-    ws.page_setup.fitToHeight = 0
+    ws.page_setup.fitToHeight = 1
     for c in range(1, 17):
         ws.column_dimensions[L(c)].width = 10.5
     ws.column_dimensions["I"].width = 2
@@ -297,16 +297,6 @@ def synthese(wb, R, nom, P, titre, onglet, lignes_source, pos_compo, pos_dico):
     for x in range(6, max(r, r_fin_droite) + 1):
         if ws.row_dimensions[x].height is None:
             ws.row_dimensions[x].height = 17
-    # Lexique sous l'écran (les mêmes explications s'affichent au survol des titres)
-    r = max(r, r_fin_droite) + 3
-    bloc(ws, r, 1, r, 16, "LEXIQUE / EXPLICATION DES TERMES (aussi au survol des titres marqués d’un petit triangle rouge)",
-         taille=10, gras=True, couleur=BLANC, fond=NAVY)
-    ws.row_dimensions[r].height = 20
-    for i, (terme, texte) in enumerate(T.items()):
-        rr = r + 1 + i
-        bloc(ws, rr, 1, rr, 3, terme, taille=10, gras=True, couleur=TEAL, fond=zebre(rr))
-        bloc(ws, rr, 4, rr, 16, texte, taille=10, couleur=TXT, fond=zebre(rr))
-        ws.row_dimensions[rr].height = 30 if len(texte) > 150 else 17
     return ws
 
 

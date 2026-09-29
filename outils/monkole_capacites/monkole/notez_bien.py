@@ -8,7 +8,7 @@ from openpyxl.styles import PatternFill
 
 from . import visites as V
 from .feuilles_detail import libelle_periode
-from .feuilles_synthese import entete_tableau, fusion, section, zebre
+from .feuilles_synthese import entete_tableau, fusion, section, termes_capacites, zebre
 from .styles import ALERTE_F, ALERTE_T, BLANC, CLAIR, DATE, GRIS, NB, ORANGE, ZEBRE, bandeau, ecrire, lien, mise_en_page
 from .texte import MOIS, fr_nombre_espace as fr, fr_pct
 
@@ -347,8 +347,8 @@ def feuille_notez_bien(wb, R, positions, onglet):
 
     # Lexique
     r = rr + 3
-    section(ws, r, "PETIT LEXIQUE POUR LIRE LE DASHBOARD", 1, DER)
-    lex = [("N/D", "Non disponible ou non calculable; ce n’est pas zéro."),
+    section(ws, r, "LEXIQUE / EXPLICATION DES TERMES DU DASHBOARD", 1, DER)
+    lex = [(k.replace("\n", " "), v) for k, v in termes_capacites(R).items()] + [("N/D", "Non disponible ou non calculable; ce n’est pas zéro."),
            ("Jours actifs", "Jours avec au moins une visite enregistrée, pas nombre de jours de présence réelle au travail."),
            ("Enregistrements d’actes", "Lignes d’activité conservées; ne pas confondre avec doses, séances ou patients."),
            ("Dossiers concernés", "Num_Dossier distincts dans chaque logiciel et site; pas de patients uniques interlogiciels."),
@@ -360,9 +360,6 @@ def feuille_notez_bien(wb, R, positions, onglet):
                                    "d’entrée n’y sont pas comptés. Un taux d’unité au-delà de 100 % signale des patients enregistrés "
                                    "dans une unité mais couchés ailleurs (admission par les urgences puis transfert) ou des séjours "
                                    "sans date de sortie restés ouverts."),
-           ("Cabinets physiques", f"{R.cabinets_csmkl2} à CSMKL2 et {R.cabinets_chme} de spécialistes au CHME. Cabinets comptés = "
-                                  f"médecins ayant au moins {R.seuil} visites dans la journée (CHME : hors {', '.join(sorted(R.hors_cabinets))}). "
-                                  "Certaines spécialités se relaient dans un même cabinet : le nombre compté est un maximum."),
            ("Couleurs d’alerte", f"Orange sous {fr_pct(R.seuil_bas, 0)}, vert entre les deux, rouge à partir de {fr_pct(R.seuil_haut, 0)} ; "
                                  "rouge aussi quand les cabinets comptés dépassent les cabinets physiques.")]
     for i, (a, b) in enumerate(lex):

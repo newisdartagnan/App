@@ -2,7 +2,6 @@
 from collections import defaultdict
 
 from openpyxl.chart import LineChart, Reference, Series
-from openpyxl.chart.axis import ChartLines
 from openpyxl.comments import Comment
 from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, TwoCellAnchor
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -100,10 +99,6 @@ def graphique(ws, ancre, source, premiere_ligne, n, series, col_etiquette, titre
     ch.height = hauteur
     ch.width = largeur
     ch.legend.position = "b"
-    ch.x_axis.delete = False        # axes visibles dans Excel (masqués par défaut sinon)
-    ch.y_axis.delete = False
-    ch.y_axis.number_format = "#,##0"
-    ch.y_axis.majorGridlines = ChartLines()
     if zone:
         c1, r1, c2, r2 = zone
         ancre = TwoCellAnchor(_from=AnchorMarker(col=c1 - 1, row=r1 - 1, colOff=38100, rowOff=19050),
@@ -458,7 +453,7 @@ def _titre_bloc(ws, r, texte, c1, c2, aide=None):
 
 def _entete(ws, r, colonnes, aides=None):
     """colonnes : (col1, col2, texte) ; aides : {texte: explication}."""
-    entete_tableau(ws, r, colonnes, hauteur=30, taille=9)
+    entete_tableau(ws, r, colonnes, hauteur=34, taille=9)
     for c1, _, t in colonnes:
         if aides and t in aides:
             expliquer(ws, r, c1, aides[t])
@@ -475,23 +470,6 @@ def _total(ws, r, c, v, fmt=NB, c2=None, h="right"):
             ecrire(ws, (r, x), fond=TEAL)
     return ecrire(ws, (r, c), v, taille=TAILLE, gras=True, couleur=BLANC, fond=TEAL, fmt=fmt if not isinstance(v, str) else None,
                   h=h)
-
-
-def lexique_dashboard(ws, r, termes, der):
-    """Lexique placé sous l'écran du Dashboard (les mêmes explications s'affichent au survol des titres)."""
-    section(ws, r, "LEXIQUE / EXPLICATION DES TERMES (aussi au survol des titres marqués d’un petit triangle rouge)", 1, der,
-            taille=10, hauteur=20)
-    for i, (terme, texte) in enumerate(termes):
-        rr = r + 1 + i
-        fond = zebre(rr)
-        fusion(ws, rr, 1, 3)
-        for c in range(1, 4):
-            ecrire(ws, (rr, c), terme if c == 1 else None, taille=TAILLE, gras=True, couleur=TEAL, fond=fond)
-        fusion(ws, rr, 4, der)
-        for c in range(4, der + 1):
-            ecrire(ws, (rr, c), texte if c == 4 else None, taille=TAILLE, couleur=TEXTE, fond=fond)
-        ws.row_dimensions[rr].height = 30 if len(texte) > 150 else 17
-    return r + 1 + len(termes)
 
 
 def termes_capacites(R):
@@ -536,11 +514,11 @@ def termes_capacites(R):
 def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
     ws = wb.create_sheet("Dashboard", 0)
     mise_en_page(ws, onglet, zoom=78)
-    ws.page_setup.fitToHeight = 0
+    ws.page_setup.fitToHeight = 1
     der = 20
     for i in range(1, der + 1):
-        ws.column_dimensions[chr(64 + i)].width = 9.8
-    ws.column_dimensions["A"].width = 11
+        ws.column_dimensions[chr(64 + i)].width = 11
+    ws.column_dimensions["A"].width = 12
     ws.column_dimensions["N"].width = 2
     cs = indicateurs(R, "CSMKL2", V.PRINCIPALE)
     mr = indicateurs(R, "CSMKL2", V.SECONDAIRE)
@@ -557,7 +535,7 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
         fusion(ws, 1, c1, c1 + 1)
         ecrire(ws, (1, c1 + 1), fond=CLAIR)
         lien(ws, (1, c1), texte, cible, fond=CLAIR, taille=10).alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 27
+    ws.row_dimensions[1].height = 28
 
     # Indicateurs clés
     act = lambda site, lg: sum(1 for a in R.actes if a["site"] == site and (a["logiciel"] == "GPS") == (lg == "GPS"))
@@ -569,21 +547,21 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
                  aide="Consultations ambulatoires du CHME. " + T["Utilisation"] + " " + T["Capacité"])
     _kpi_compact(ws, 9, 12, "URGENCES CHME · VISITES", urg["total"], f"dont {fr(urg['sans'])} sans médecin renseigné",
                  aide=T["Urgences"])
-    _kpi_compact(ws, 13, 16, f"LITS CHME · OCCUPATION / {R.lits_reels}", L["taux"],
+    _kpi_compact(ws, 13, 16, "OCCUPATION DES LITS CHME", L["taux"],
                  f"{fr_dec(L['moy'])} lits / jour ; dernier jour {fr_dec(L['dernier'])} ({fr_pct(L['taux_dernier'] or 0, 0)})",
                  fmt=PCT, couleur=alerte(L["taux"], *seuils),
                  aide=f"Lits occupés en moyenne (GPS + Evolucare) ÷ {R.lits_reels} lits réels. " + T["Occupation\ndernier jour"])
-    _kpi_compact(ws, 17, 20, "ACTES · GPS / EVOLUCARE", f"{fr(act('CSMKL2', 'GPS') + act('CHME', 'GPS'))} / "
+    _kpi_compact(ws, 17, 20, "ACTES GPS / EVOLUCARE", f"{fr(act('CSMKL2', 'GPS') + act('CHME', 'GPS'))} / "
                  f"{fr(act('CSMKL2', 'Evo') + act('CHME', 'Evo'))}",
                  f"CSMKL2 {fr(act('CSMKL2', 'GPS'))} / {fr(act('CSMKL2', 'Evo'))} • CHME {fr(act('CHME', 'GPS'))} / {fr(act('CHME', 'Evo'))}",
                  taille=17, aide=T["Actes"])
-    for r, h in ((2, 17), (3, 30), (4, 15)):
+    for r, h in ((2, 19), (3, 32), (4, 16), (5, 8)):
         ws.row_dimensions[r].height = h
 
     # Consultations (gauche, colonnes 1-13)
-    _titre_bloc(ws, 5, f"CONSULTATIONS / VISITES ET CAPACITÉ ({R.cap_jour} VISITES PAR MÉDECIN EN CABINET ET PAR JOUR)", 1, 13,
+    _titre_bloc(ws, 6, f"CONSULTATIONS / VISITES ET CAPACITÉ ({R.cap_jour} VISITES PAR MÉDECIN EN CABINET ET PAR JOUR)", 1, 13,
                 aide=T["Capacité"])
-    _entete(ws, 6, [(1, 2, "Site / activité"), (3, 3, "Visites"), (4, 4, "GPS"), (5, 5, "Evolucare"), (6, 6, "Capacité"),
+    _entete(ws, 7, [(1, 2, "Site / activité"), (3, 3, "Visites"), (4, 4, "GPS"), (5, 5, "Evolucare"), (6, 6, "Capacité"),
                     (7, 7, "Utilisation"), (8, 8, f"Journées\nmédecin >{R.cap_jour}"), (9, 9, "Pic par\nmédecin"),
                     (10, 10, "Cabinets\nmoy. / jour"), (11, 11, "Cabinets\nmax / jour"), (12, 12, "Cabinets\nphysiques"),
                     (13, 13, "Jours >\ncabinets")], T)
@@ -591,16 +569,16 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
     cab_ch = [R.cab_chme_spec[j] for j in R.jours]
     cab_urg = [l["cab"] for l in R.jours_act[("CHME", V.URGENCES)]]
     moy = lambda xs: (sum(x for x in xs if x) / sum(1 for x in xs if x)) if any(xs) else 0
-    lignes = [("CSMKL2 / principale", cs, cab_cs, R.cabinets_csmkl2), ("CSMKL2 / MAISON ROSE", mr, None, None),
-              ("CHME / ambulatoire", amb, cab_ch, R.cabinets_chme), ("CHME / urgences", urg, cab_urg, None)]
+    lignes = [("CSMKL2 principale", cs, cab_cs, R.cabinets_csmkl2), ("MAISON ROSE", mr, None, None),
+              ("CHME ambulatoire", amb, cab_ch, R.cabinets_chme), ("CHME urgences", urg, cab_urg, None)]
     for i, (nom, d, cab, phys) in enumerate(lignes):
-        r = 7 + i
+        r = 8 + i
         _val(ws, r, 1, nom, fmt=None, c2=2, h="left")
         for c, v in ((3, d["total"]), (4, d["gps"]), (5, d["evo"])):
             _val(ws, r, c, v)
         if cab is None:
             for c in range(6, 14):
-                _val(ws, r, c, "Hors repère" if c == 6 else "–", fmt=None, h="center")
+                _val(ws, r, c, "–", fmt=None, h="center")
             expliquer(ws, r, 1, T["MAISON ROSE"])
         else:
             _val(ws, r, 6, d["cap"])
@@ -620,28 +598,28 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
                 colorer(ws, r, 8, 1, R, force=True)
         if nom.endswith("urgences"):
             expliquer(ws, r, 1, T["Urgences"])
-        ws.row_dimensions[r].height = H_LIGNE + 2
+        ws.row_dimensions[r].height = 19
 
     # Graphiques quotidiens (gauche) : chacun dans ses cellules, sans recouvrir les tableaux
-    _titre_bloc(ws, 12, "CSMKL2 / VISITES ET CAPACITÉ PAR JOUR", 1, 6,
+    _titre_bloc(ws, 13, "CSMKL2 / VISITES ET CAPACITÉ PAR JOUR", 1, 6,
                 aide="Courbe bleue : visites de l’activité principale par jour. Courbe rouge : capacité du jour "
                      f"({R.cap_jour} × cabinets comptés).")
-    _titre_bloc(ws, 12, "CHME AMBULATOIRE / VISITES ET CAPACITÉ PAR JOUR", 7, 13,
+    _titre_bloc(ws, 13, "CHME AMBULATOIRE / VISITES ET CAPACITÉ PAR JOUR", 7, 13,
                 aide="Courbe bleue : visites ambulatoires du CHME par jour. Courbe rouge : capacité du jour "
                      f"({R.cap_jour} × cabinets comptés).")
-    r_g1, r_g2 = 13, 23
+    r_g1, r_g2 = 14, 24
     for r in range(r_g1, r_g2 + 1):
         ws.row_dimensions[r].height = 14
-    graphique(ws, "A13", wb["_Jours"], R.lignes_jours[("CSMKL2", V.PRINCIPALE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 21,
+    graphique(ws, "A14", wb["_Jours"], R.lignes_jours[("CSMKL2", V.PRINCIPALE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 21,
               None, axe=None, zone=(1, r_g1, 6, r_g2))
-    graphique(ws, "G13", wb["_Jours"], R.lignes_jours[("CHME", V.AMBULATOIRE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 21,
+    graphique(ws, "G14", wb["_Jours"], R.lignes_jours[("CHME", V.AMBULATOIRE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 21,
               None, axe=None, zone=(7, r_g1, 13, r_g2))
 
     # Hospitalisation par unité (droite, colonnes 15-20)
-    _titre_bloc(ws, 5, f"HOSPITALISATION CHME / {R.lits_reels} LITS RÉELS", 15, 20, aide=T["Lits réels"])
-    _entete(ws, 6, [(15, 16, "Unité"), (17, 17, "Lits réels"), (18, 18, "Lits occupés\nmoy. / jour"),
+    _titre_bloc(ws, 6, f"HOSPITALISATION CHME / {R.lits_reels} LITS RÉELS", 15, 20, aide=T["Lits réels"])
+    _entete(ws, 7, [(15, 16, "Unité"), (17, 17, "Lits réels"), (18, 18, "Lits occupés\nmoy. / jour"),
                     (19, 19, "Occupation\nmoyenne"), (20, 20, "Occupation\ndernier jour")], T)
-    r = 7
+    r = 8
     for u in R.unites:
         _val(ws, r, 15, u["unite"].replace("Hors unités / UF absente", "Sans unité"), fmt=None, c2=16, h="left")
         _val(ws, r, 17, u["lits"] if u["lits"] else "–", h="right")
@@ -666,7 +644,7 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
 
     # Lecture par semaine (gauche)
     r = r_g2 + 2
-    ws.row_dimensions[r - 1].height = 6
+    ws.row_dimensions[r - 1].height = 10
     _titre_bloc(ws, r, "PAR SEMAINE (LUNDI-DIMANCHE)", 1, 13, aide=T["Semaine"])
     aides_sem = {"Jours": "Nombre de jours de la semaine compris dans la période.",
                  "CSMKL2\nvisites": "Visites de l’activité principale de CSMKL2 dans la semaine.",
@@ -696,7 +674,7 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
             colorer(ws, r, 6, 1, R, force=True)
         if s["cab_chme_max"] > R.cabinets_chme:
             colorer(ws, r, 9, 1, R, force=True)
-        ws.row_dimensions[r].height = H_LIGNE + 1
+        ws.row_dimensions[r].height = 17
         r += 1
     _total(ws, r, 1, "Période", c2=2, h="left")
     for c, v, f in ((3, R.ndays, NB), (4, cs["total"], NB), (5, cs["util"], PCT), (6, max(cab_cs, default=0), NB),
@@ -704,7 +682,7 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
                     (11, L["moy"], "0.0")):
         _total(ws, r, c, v if v is not None else "N/D", fmt=f)
     _total(ws, r, 12, L["taux"], fmt=PCT, c2=13)
-    ws.row_dimensions[r].height = H_LIGNE + 1
+    ws.row_dimensions[r].height = 17
     r_fin = r
 
     # Lits occupés par jour (droite), jusqu'au bas du tableau hebdomadaire
@@ -715,13 +693,10 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
     r = max(r_fin, r_lits + 10) + 1
     fusion(ws, r, 1, der)
     ecrire(ws, (r, 1), f"Couleurs : orange < {fr_pct(R.seuil_bas, 0)} ≤ vert < {fr_pct(R.seuil_haut, 0)} ≤ rouge ; rouge aussi quand "
-                       "les cabinets comptés dépassent les cabinets physiques. Survoler un titre (triangle rouge) pour son explication ; "
-                       "lexique complet ci-dessous.", taille=9, couleur=TEXTE, fond=CLAIR)
+                       "les cabinets comptés dépassent les cabinets physiques. Explication des termes : survol des titres ou "
+                       "« Notez bien ».", taille=9, couleur=TEXTE, fond=CLAIR)
     ws.row_dimensions[r].height = 16
-    for x in range(5, r):
+    for x in range(6, r):
         if ws.row_dimensions[x].height is None:
             ws.row_dimensions[x].height = H_LIGNE
-    # Lexique sous l'écran
-    termes = [(k.replace("\n", " "), v) for k, v in T.items()]
-    lexique_dashboard(ws, r + 3, termes, der)
     return ws
