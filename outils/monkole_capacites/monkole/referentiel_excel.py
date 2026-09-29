@@ -42,6 +42,9 @@ def ecrire_modele(chemin, ref):
              "Lits réels par unité (libellés Hospi CHIR, Hospi GO...). Leur total est la capacité du CHME.")
     _feuille(wb, "Hors cabinets CHME", ["Spécialité non comptée dans les cabinets CHME"], [(x,) for x in ref["HORS_CABINETS_CHME"]],
              [50], "Spécialités (libellé affiché) qui n'occupent pas un cabinet de spécialiste.")
+    _feuille(wb, "Capacité horaire", ["Médecin", "Type de consultation", "Durée (min)", "Plage (h)", "Créneaux par jour",
+                                      "Jours avec RDV"], ref["CAPACITE_HORAIRE"], [38, 34, 12, 11, 17, 15],
+             "Rempli à partir du fichier RDV_Horaire_* déposé dans entrees. « Créneaux par jour » = capacité du médecin.")
     _feuille(wb, "MAISON ROSE", ["UF rattachée à MAISON ROSE (CSMKL2)"], [(u,) for u in ref["MAISON_ROSE_UF"]], [45],
              "Les autres UF de CSMKL2 restent en activité principale.")
     _feuille(wb, "UF visites", ["UF (export visites)", "Spécialité affichée"], sorted(ref["UF_SPECIALITE"].items()), [45, 35],
@@ -101,6 +104,9 @@ def charger(chemin):
                 manquants = True
             else:
                 ref["LITS"] = lits
+    if "Capacité horaire" in noms:
+        ref["CAPACITE_HORAIRE"] = [list(r[:6]) for r in _lignes(wb["Capacité horaire"])
+                                   if len(r) >= 5 and isinstance(r[4], (int, float)) and r[4] > 0]
     if "MAISON ROSE" in noms:
         ref["MAISON_ROSE_UF"] = [str(r[0]).strip() for r in _lignes(wb["MAISON ROSE"])]
     if "UF visites" in noms:

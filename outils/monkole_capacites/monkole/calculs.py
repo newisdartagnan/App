@@ -1,9 +1,11 @@
 """Agrégations communes aux feuilles : journées-intervenants, jours, cabinets, actes, hospitalisation."""
 import datetime as dt
+import statistics as st
 from collections import Counter, defaultdict
 
 from . import actes as A
 from . import hospi as H
+from . import rdv
 from . import visites as V
 from .texte import cle
 
@@ -94,8 +96,60 @@ def calculer(donnees, ref, debut, fin):
     return R
 
 
+# Les rendez-vous décrivent les consultations de spécialistes du CHME ; CSMKL2 (surtout sans rendez-vous) et les urgences
+# gardent le repère de 24 visites.
+SITES_HORAIRE = (("CHME", V.AMBULATOIRE),)
+
+
+def _capacites(R):
+    """Capacité de chaque médecin par journée de cabinet : créneaux de ses rendez-vous (Capacité horaire du référentiel),
+    sinon médiane des médecins connus de sa spécialité, sinon le repère (24). CHME ambulatoire seulement."""
+    tableau = R.ref.get("CAPACITE_HORAIRE") or []
+    R.horaire = bool(R.ref["PARAMETRES"].get("capacite_horaire_rdv", 1)) and bool(tableau)
+    R.cap_detail = {}
+    R.rdv_lien = {}
+    if not R.horaire:
+        return
+    noms_visites = {v["medecin"] for v in R.visites if v["medecin"]}
+    par_nom = {str(l[0]): l for l in tableau}
+    lien = rdv.associer(list(par_nom), noms_visites, R.ref["ALIAS_MEDECINS"])
+    creneaux = {}
+    for n, m in lien.items():
+        creneaux[m] = int(par_nom[n][4])
+    R.rdv_lien = lien
+    for site, act in SITES_HORAIRE:
+        spec = defaultdict(Counter)
+        for v in R.visites:
+            if v["site"] == site and v["activite"] == act and v["medecin"]:
+                spec[v["medecin"]][v["specialite"]] += 1
+        dominante = {m: c.most_common(1)[0][0] for m, c in spec.items()}
+        connus = defaultdict(list)
+        for m, sp in dominante.items():
+            if m in creneaux:
+                connus[sp].append(creneaux[m])
+        for m, sp in dominante.items():
+            if m in creneaux:
+                R.cap_detail[(site, act, m)] = (creneaux[m], "Rendez-vous du médecin", sp)
+            elif connus.get(sp):
+                R.cap_detail[(site, act, m)] = (int(round(st.median(connus[sp]))), "Médiane de la spécialité", sp)
+            else:
+                R.cap_detail[(site, act, m)] = (R.cap_jour, f"Repère de {R.cap_jour}", sp)
+
+
+def cap_ind(R, site, act, medecin):
+    """Capacité d'un médecin pour une journée de cabinet."""
+    x = R.cap_detail.get((site, act, medecin))
+    return x[0] if x else R.cap_jour
+
+
+def lib_cap(R):
+    """Libellé court du seuil individuel : « capacité » (horaires) ou « 24 » (repère)."""
+    return "capacité" if R.horaire else str(R.cap_jour)
+
+
 def _visites_par_activite(R):
-    seuil, cap = R.seuil, R.cap_jour
+    seuil = R.seuil
+    _capacites(R)
     # Journées-intervenants par site / activité (identités absentes exclues des cabinets)
     R.medjour = {}
     R.jours_act = {}
@@ -110,11 +164,13 @@ def _visites_par_activite(R):
                 _ajouter(md[(v["jour"], v["medecin"])], v)
             else:
                 sans[v["jour"]] += 1
-        for c in md.values():
+        for (_, m), c in md.items():
+            cap = cap_ind(R, site, act, m)
+            c["cap_ind"] = cap
             c["cab"] = 1 if c["total"] >= seuil else 0
             c["cap"] = c["cab"] * cap
             c["marge"] = max(cap - c["total"], 0) if c["cab"] else 0
-            c["audela"] = 1 if c["total"] > cap else 0
+            c["audela"] = 1 if (c["cab"] and c["total"] > cap) else 0
             c["isolee"] = 1 if c["total"] == 1 else 0
         R.medjour[(site, act)] = md
         lignes = []

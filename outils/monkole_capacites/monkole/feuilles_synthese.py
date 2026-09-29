@@ -7,7 +7,7 @@ from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, TwoCellAnchor
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from . import visites as V
-from .calculs import indicateurs
+from .calculs import cap_ind, indicateurs
 from .feuilles_detail import libelle_periode
 from .styles import (ALERTE_F, ALERTE_T, BLANC, CLAIR, DATE, DEC, GRIS, NAVY, NB, PCT, ROUGE_F, ROUGE_T, TEAL, TEXTE, ZEBRE,
                      alerte, bandeau, ecrire, lien, mise_en_page)
@@ -374,7 +374,7 @@ def feuille_chme(wb, R, onglet):
     section(ws, r, "CONSULTATIONS PAR SPÉCIALITÉ / ACTIVITÉ ET ACTES DES DOSSIERS VUS", 1, der)
     r += 1
     cols = ["Spécialité / activité", "Consultation", "Avant 1 sem.", "Après 1 sem.", "Visites", "GPS", "Evolucare",
-            f"Journées intervenants ≥{R.seuil}", "Repère visites", "Utilisation repère", "Actes liés GPS", "Actes liés Evo"]
+            f"Journées intervenants ≥{R.seuil}", "Capacité", "Utilisation", "Actes liés GPS", "Actes liés Evo"]
     entete_tableau(ws, r, [(i, i, x) for i, x in enumerate(cols, start=1)])
     r += 1
     specs = defaultdict(list)
@@ -391,7 +391,7 @@ def feuille_chme(wb, R, onglet):
             if v["medecin"]:
                 cnt[(v["jour"], v["medecin"])] += 1
         jint = sum(1 for n in cnt.values() if n >= R.seuil)
-        rep = jint * R.cap_jour
+        rep = sum(cap_ind(R, "CHME", act, m) for (_, m), n in cnt.items() if n >= R.seuil)
         g, e = actes_lies(R, sp, act)
         vals = [sum(1 for v in vs if v["classe"] == V.CONSULTATION), sum(1 for v in vs if v["classe"] == V.AVANT),
                 sum(1 for v in vs if v["classe"] == V.APRES), len(vs), sum(1 for v in vs if v["logiciel"] == "GPS"),
@@ -479,11 +479,15 @@ def termes_capacites(R):
         "GPS": "Visites enregistrées dans l’ancien logiciel GPS.",
         "Evolucare": "Visites enregistrées dans le nouveau logiciel Evolucare (migration en cours ; un patient est dans l’un ou "
                      "l’autre le jour de sa consultation).",
-        "Capacité": f"{R.cap_jour} visites × cabinets comptés. Un cabinet est compté quand un médecin a au moins {R.seuil} visites "
+        "Capacité": ("CHME ambulatoire : somme des créneaux de rendez-vous des médecins présents (horaires des rendez-vous ; "
+                     "médiane de la spécialité pour un médecin sans rendez-vous connu). CSMKL2 et urgences : " if R.horaire else "")
+                    + f"{R.cap_jour} visites × cabinets comptés. Un cabinet est compté quand un médecin a au moins {R.seuil} visites "
                     "dans la journée.",
         "Utilisation": f"Visites ÷ capacité. Orange sous {fr_pct(R.seuil_bas, 0)}, vert entre les deux, rouge à partir de "
                        f"{fr_pct(R.seuil_haut, 0)}.",
-        f"Journées\nmédecin >{R.cap_jour}": f"Nombre de fois où un médecin a fait plus de {R.cap_jour} visites dans une journée.",
+        "Journées au-\ndelà capacité": "Nombre de fois où un médecin a reçu plus de patients que sa capacité du jour "
+                                         f"(CSMKL2 et urgences : {R.cap_jour} visites"
+                                         + ("; CHME ambulatoire : ses créneaux de rendez-vous" if R.horaire else "") + ").",
         "Pic par\nmédecin": "Le plus grand nombre de visites faites par un seul médecin en un jour.",
         "Cabinets\nmoy. / jour": "Moyenne des cabinets comptés par jour, sur les jours où le site a eu de l’activité.",
         "Cabinets\nmax / jour": "Le plus grand nombre de cabinets comptés un même jour. En rouge s’il dépasse les cabinets physiques.",
@@ -559,10 +563,11 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
         ws.row_dimensions[r].height = h
 
     # Consultations (gauche, colonnes 1-13)
-    _titre_bloc(ws, 6, f"CONSULTATIONS / VISITES ET CAPACITÉ ({R.cap_jour} VISITES PAR MÉDECIN EN CABINET ET PAR JOUR)", 1, 13,
+    _titre_bloc(ws, 6, "CONSULTATIONS / VISITES ET CAPACITÉ" + (" (CHME : HORAIRES DES RENDEZ-VOUS)" if R.horaire else
+                                                                  f" ({R.cap_jour} VISITES PAR MÉDECIN ET PAR JOUR)"), 1, 13,
                 aide=T["Capacité"])
     _entete(ws, 7, [(1, 2, "Site / activité"), (3, 3, "Visites"), (4, 4, "GPS"), (5, 5, "Evolucare"), (6, 6, "Capacité"),
-                    (7, 7, "Utilisation"), (8, 8, f"Journées\nmédecin >{R.cap_jour}"), (9, 9, "Pic par\nmédecin"),
+                    (7, 7, "Utilisation"), (8, 8, "Journées au-\ndelà capacité"), (9, 9, "Pic par\nmédecin"),
                     (10, 10, "Cabinets\nmoy. / jour"), (11, 11, "Cabinets\nmax / jour"), (12, 12, "Cabinets\nphysiques"),
                     (13, 13, "Jours >\ncabinets")], T)
     cab_cs = [l["cab"] for l in R.jours_act[("CSMKL2", V.PRINCIPALE)]]
@@ -606,7 +611,7 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
                      f"({R.cap_jour} × cabinets comptés).")
     _titre_bloc(ws, 13, "CHME AMBULATOIRE / VISITES ET CAPACITÉ PAR JOUR", 7, 13,
                 aide="Courbe bleue : visites ambulatoires du CHME par jour. Courbe rouge : capacité du jour "
-                     f"({R.cap_jour} × cabinets comptés).")
+                     + ("(créneaux de rendez-vous des médecins présents)." if R.horaire else f"({R.cap_jour} × cabinets comptés)."))
     r_g1, r_g2 = 14, 24
     for r in range(r_g1, r_g2 + 1):
         ws.row_dimensions[r].height = 14

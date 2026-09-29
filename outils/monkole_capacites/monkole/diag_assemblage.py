@@ -1,12 +1,14 @@
 """Assemblage du classeur des diagnostics dans l'ordre de la version retenue."""
 import openpyxl
 
+from . import diag_analyses as DA
 from . import diag_classeur as DC
 from . import diag_notez as DN
 from .diag_calculs import SANS_SITE
 
-ORDRE = ["Dashboard", "Composition familles", "Âge et sexe", "CSMKL2", "CSMKL2 diagnostics", "CHME", "CHME diagnostics", "Dictionnaire",
-         "À classer", "Notez bien", "Groupes globaux", "Base sources", "Base mentions", "Dossiers source", "Calculs"]
+ORDRE = ["Dashboard", "Composition familles", "Âge et sexe", "Évolution hebdo", "Par spécialité", "CSMKL2", "CSMKL2 diagnostics",
+         "CHME", "CHME diagnostics", "Dictionnaire", "À classer", "Historique", "Notez bien", "Groupes globaux", "Base sources",
+         "Base mentions", "Dossiers source", "Calculs"]
 
 
 def construire(R, chemin):
@@ -19,6 +21,8 @@ def construire(R, chemin):
     DC.synthese(wb, R, "Dashboard", G, "MONKOLE / DIAGNOSTICS REGROUPÉS PAR SITE", DC.TEAL,
                 [(s, len(R.sites[s].dossiers), R.sites[s].total) for s in ("CSMKL2", "CHME", SANS_SITE)], pos_compo, pos_dico)
     DC.feuille_age_sexe(wb, R, DC.TEAL)
+    DA.feuille_evolution(wb, R)
+    DA.feuille_specialites(wb, R)
     for site, onglet in (("CSMKL2", "3D91CC"), ("CHME", "264E70")):
         P = R.sites[site]
         par_lg = [(lg, len(R.tableau[(site, lg)].dossiers), R.tableau[(site, lg)].total) for lg in ("GPS", "Evolucare")]
@@ -26,6 +30,7 @@ def construire(R, chemin):
         DC.diagnostics_site(wb, R, f"{site} diagnostics", P, f"{site} / DIAGNOSTICS REGROUPÉS", onglet, pos_dico)
     DC.diagnostics_site(wb, R, "Groupes globaux", G, "MONKOLE / DIAGNOSTICS REGROUPÉS", DC.TEAL, pos_dico, masquer=True)
     DN.a_classer(wb, R)
+    DA.feuille_historique(wb, R, getattr(R, "historique", None))
     DN.notez_bien(wb, R)
     DN.bases(wb, R)
     wb._sheets = [wb[n] for n in ORDRE if n in wb.sheetnames]

@@ -6,7 +6,7 @@ from collections import defaultdict
 from openpyxl.utils import get_column_letter as L
 
 from . import visites as V
-from .calculs import SANS_MEDECIN, arbre_actes
+from .calculs import SANS_MEDECIN, arbre_actes, cap_ind
 from .styles import (ALERTE_F, ALERTE_T, BLANC, BLOC, CLAIR, DATE, DEC, DIM, DIM_TETE, FILET, HORS, NAVY, NB, NB_TIRET, NUIT,
                      ORANGE, TEAL, TEAL2, TETE, TEXTE, ZEBRE, ecrire, lien, mise_en_page, note, style)
 from .texte import JOURS_COURTS, MOIS, nom_jour
@@ -384,8 +384,8 @@ def feuille_jours_chme(wb, R, onglet):
     ws = wb.create_sheet(f"{site} jours")
     mise_en_page(ws, onglet, zoom=80, figer="D6", resume_dessous=True)
     cols = ["Date", "Jour", "Médecin", "Activité", "Spécialités du jour", "Consultation", "Résultats avant\nune semaine",
-            "Résultats après\nune semaine", "Total visites", "Cabinet\ncompté", "Capacité\nthéorique", f"Marge avant {R.cap_jour}",
-            "Situation", "GPS", "Evolucare", f"Dépassement\n> {R.cap_jour}", "Visite isolée"]
+            "Résultats après\nune semaine", "Total visites", "Cabinet\ncompté", "Capacité\ndu jour", "Marge avant\ncapacité",
+            "Situation", "GPS", "Evolucare", "Au-delà de la\ncapacité", "Visite isolée"]
     _entete_jours(ws, R, site, cols, [15, 14, 33, 17, 37, 15, 19, 19, 16, 15, 16, 17, 31, 12, 13, 17, 15])
     grp = defaultdict(list)
     for v in R.visites:
@@ -401,13 +401,14 @@ def feuille_jours_chme(wb, R, onglet):
         tot = len(l)
         sans = m == SANS_MEDECIN
         cab = 1 if (tot >= R.seuil and not sans) else 0
-        cap = cab * R.cap_jour
-        marge = max(R.cap_jour - tot, 0) if cab else 0
-        sit = "Sans médecin renseigné" if sans else _situation(tot, R.cap_jour, R.seuil)
+        ci = cap_ind(R, site, act, m)
+        cap = cab * ci
+        marge = max(ci - tot, 0) if cab else 0
+        sit = "Sans médecin renseigné" if sans else _situation(tot, ci, R.seuil)
         specs = " / ".join(sorted({v["specialite"] for v in l}))
         vals = [j, nom_jour(j), m, act, specs, c, a, p, tot, cab, cap, marge, sit,
                 sum(1 for v in l if v["logiciel"] == "GPS"), sum(1 for v in l if v["logiciel"] != "GPS"),
-                1 if (cab and tot > R.cap_jour) else 0, 1 if (tot == 1 and not sans) else 0]
+                1 if (cab and tot > ci) else 0, 1 if (tot == 1 and not sans) else 0]
         _ligne_jour(ws, r, vals, j != precedent, {9}, {2, 3, 4, 5, 13}, 13, sit == "Au-dessus de la limite")
         precedent = j
         r += 1

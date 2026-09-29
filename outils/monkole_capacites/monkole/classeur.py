@@ -1,6 +1,7 @@
 """Assemblage du classeur « Activités et capacités » dans l'ordre retenu."""
 import openpyxl
 
+from . import feuilles_analyses as FA
 from . import feuilles_bases as FB
 from . import feuilles_detail as FD
 from . import feuilles_synthese as FS
@@ -14,7 +15,8 @@ ONGLET_CHME_DETAIL = "123047"
 ONGLET_REGLES = "657A88"
 
 ORDRE = ["Dashboard", "CSMKL2", "CSMKL2 médecins", "CSMKL2 jours", "CSMKL2 actes", "CHME", "CHME médecins", "CHME jours",
-         "CHME actes", "Notez bien", "_Paramètres", "Base visites", "Base hospitalisations", "Dossiers hospitaliers", "Base actes",
+         "CHME actes", "Capacité horaire", "Plannings", "Séjours", "Prises en charge", "Origine patients", "Qualité saisie",
+         "Historique", "Notez bien", "_Paramètres", "Base visites", "Base hospitalisations", "Dossiers hospitaliers", "Base actes",
          "_Médecins jour", "_Jours", "_Hospi jour"]
 
 
@@ -41,8 +43,16 @@ def construire(R, chemin):
     FS.feuille_csmkl2(wb, R, pos_cs, arbre_cs, ONGLET_CSMKL2)
     FS.feuille_chme(wb, R, ONGLET_CHME)
     FS.feuille_dashboard(wb, R, pos_ch, arbre_ch, arbre_cs, ONGLET_DASH)
+    # Analyses complémentaires (hors Dashboard)
+    FA.feuille_capacite_horaire(wb, R)
+    FA.feuille_plannings(wb, R)
+    FA.feuille_sejours(wb, R)
+    FA.feuille_prises_en_charge(wb, R)
+    FA.feuille_origine(wb, R)
+    FA.feuille_qualite(wb, R)
+    FA.feuille_historique(wb, R, getattr(R, "historique", None))
     feuille_notez_bien(wb, R, {"arbres": {"CSMKL2": arbre_cs, "CHME": arbre_ch}}, ONGLET_REGLES)
-    wb._sheets = [wb[n] for n in ORDRE]
+    wb._sheets = [wb[n] for n in ORDRE if n in wb.sheetnames]
     wb.active = 0
     for ws in wb.worksheets:
         ws.sheet_view.tabSelected = ws.title == "Dashboard"

@@ -12,6 +12,7 @@ PARAMETRES = {
     "cabinets_physiques_chme": 15,
     "seuil_utilisation_basse": 0.50,
     "seuil_utilisation_haute": 0.85,
+    "capacite_horaire_rdv": 1,
 }
 
 # Libellés des paramètres dans Referentiel_Monkole.xlsx (feuille Paramètres), dans l'ordre d'affichage
@@ -22,7 +23,12 @@ LIBELLES_PARAMETRES = [
     ("cabinets_physiques_chme", "Cabinets physiques CHME (spécialistes)"),
     ("seuil_utilisation_basse", "Alerte : utilisation basse sous (ex. 0,50 = 50 %)"),
     ("seuil_utilisation_haute", "Alerte : utilisation haute à partir de (ex. 0,85 = 85 %)"),
+    ("capacite_horaire_rdv", "Capacité : horaires des rendez-vous (1 = oui, 0 = repère de 24 visites)"),
 ]
+
+# Capacité horaire par médecin, tirée du dernier fichier RDV_Horaire_* (rempli automatiquement, modifiable) :
+# [médecin (nom nettoyé), type de consultation, durée (min), plage (h), créneaux par jour, jours avec RDV]
+CAPACITE_HORAIRE = []
 
 # Spécialités CHME qui n'occupent pas un des cabinets de spécialistes (nutritionniste, soins, plateaux techniques)
 HORS_CABINETS_CHME = [

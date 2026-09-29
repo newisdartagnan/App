@@ -12,7 +12,7 @@ EXPORTS = {
     "GPS": (r"^diagnostic_gps", ["Date", "Num_Dossier", "Diagnostic", "Nature", "Etablissement"]),
     "Evolucare": (r"^diagnostic_evolucare", ["Date", "Num_Dossier", "Diagnostic", "Nature", "Etablissement"]),
 }
-OPTIONNELLES = ["Sexe", "DOB"]      # lues si présentes (analyse par âge et par sexe)
+OPTIONNELLES = ["Sexe", "DOB", "Unité Médicale", "UF"]      # lues si présentes (âge, sexe, spécialité)
 SANS_SITE = "Site non renseigné"
 SITES = ["CSMKL2", "CHME"]
 UN_JOUR = dt.timedelta(days=1)
@@ -183,7 +183,8 @@ def calculer(chemins, d, debut=None, fin=None):
             R.sources.append({"id": f"{lg}-{r['_ligne']}", "ligne": r["_ligne"], "logiciel": lg, "jour": j, "site": site,
                               "dossier": num, "cle": f"{lg}|{site}|{num}", "texte": _texte_source(r["Diagnostic"]),
                               "nature": r["Nature"], "fichier": os.path.basename(chemin),
-                              "sexe": _sexe(r.get("Sexe")), "naissance": _naissance(r.get("DOB"))})
+                              "sexe": _sexe(r.get("Sexe")), "naissance": _naissance(r.get("DOB")),
+                              "uf": r.get("Unité Médicale") if r.get("Unité Médicale") is not None else r.get("UF")})
     jours = [s["jour"] for s in R.sources if s["jour"]]
     R.debut = debut or min(jours)
     R.fin = fin or max(jours)

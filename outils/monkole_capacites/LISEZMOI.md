@@ -32,6 +32,8 @@ Il fonctionne sans Internet et sans Claude, et donne toujours le même résultat
    - `ActesND_Evolucare_AAAAMMJJ-AAAAMMJJ.xlsx`
    - `Hospi_AAAAMMJJ-AAAAMMJJ.xlsx` (GPS)
    - `Hospi_Evolucare_AAAAMMJJ-AAAAMMJJ.xlsx`
+   - facultatif : `RDV_Horaire_….xlsx` (créneaux de rendez-vous des médecins : Date, TYPE, Médecin), pour la capacité horaire.
+     Sans ce fichier, la dernière capacité horaire enregistrée dans le référentiel est réutilisée.
 2. Double-cliquer sur **`LANCER_MONKOLE.bat`**.
 3. Le classeur apparaît dans `sorties`, par exemple `Monkole_Activites_Capacites_01-21_Septembre_2026.xlsx`,
    avec un court résumé texte `..._resume.txt`.
@@ -41,7 +43,7 @@ et signalées dans « Notez bien ».
 
 ## Ce que contient le classeur
 
-Dashboard → toutes les feuilles CSMKL2 → toutes les feuilles CHME → « Notez bien » (+ bases masquées).
+Dashboard → toutes les feuilles CSMKL2 → toutes les feuilles CHME → analyses complémentaires → « Notez bien » (+ bases masquées).
 
 | Feuille | Contenu |
 |---|---|
@@ -51,6 +53,13 @@ Dashboard → toutes les feuilles CSMKL2 → toutes les feuilles CHME → « Not
 | … médecins | Médecins en lignes, jours du mois en colonnes (dimanches en violet), 4 lignes par médecin |
 | … jours | Date → Jour → Médecin, filtre sur la date pour voir qui a consulté un jour donné |
 | … actes | Spécialité → sous-spécialité → acte (groupes « + »), GPS sur Date_V, Evolucare sur DATEHEURE |
+| Capacité horaire | CHME ambulatoire : capacité de chaque médecin (créneaux de rendez-vous par jour, durée d'une consultation, plage horaire), comparée au repère de 24 ; par spécialité et par médecin, remplissage des créneaux |
+| Plannings | Moyennes par jour de la semaine (visites, cabinets, médecins programmés), visites par heure d'enregistrement, **spécialistes présents par jour de la semaine** et écart aux 15 cabinets (base des rotations de salles) |
+| Séjours | Par unité : entrées, sorties, durée moyenne de séjour (GPS ; Evolucare provisoire), séjours sans sortie dont ceux entrés depuis plus de 7 jours |
+| Prises en charge | Visites par organisme (MONKOLE AMO, privé, conventions…) et détail des libellés PEC |
+| Origine patients | Dossiers par commune de Kinshasa (adresse des exports) |
+| Qualité saisie | Par utilisateur : visites sans médecin, sans UF, sans motif, sans date de naissance, sans sexe (pour cibler la formation) |
+| Historique | Une ligne par période traitée sur l'ordinateur (valeurs par jour) et évolution par rapport à la période précédente |
 | Notez bien | Règles, contrôles quantitatifs (écarts attendus : 0), sources, rapprochements de noms, lexique des termes du Dashboard |
 
 Règles conservées : repère de 24 visites par médecin en cabinet et par jour (cabinet compté à partir de 2 visites),
@@ -70,13 +79,19 @@ Règles fixées avec le directeur des opérations (septembre 2026) :
   soins infirmiers, laboratoire, imagerie, pharmacie, documents médicaux (liste modifiable). Certaines spécialités se relaient
   dans un même cabinet : le nombre de cabinets comptés est un maximum ;
 - **Couleurs d'alerte** : orange sous 50 %, vert de 50 à 85 %, rouge à partir de 85 % ; rouge aussi quand les cabinets
-  comptés un jour dépassent les cabinets physiques.
+  comptés un jour dépassent les cabinets physiques ;
+- **Capacité horaire (CHME ambulatoire)** : le repère de 24 visites est une estimation théorique. Quand le fichier des
+  rendez-vous est fourni, la capacité d'un médecin devient son nombre de créneaux par jour (médiane) ; un médecin sans
+  rendez-vous connu reçoit la médiane de sa spécialité, à défaut 24. CSMKL2 (surtout sans rendez-vous) et les urgences
+  gardent le repère de 24. Un médecin peut recevoir plus (patients sans rendez-vous) ou moins (absences) que ses créneaux.
 
 ## Adapter les règles sans toucher au code : `Referentiel_Monkole.xlsx`
 
 Créé au premier lancement à côté du programme. On peut y modifier :
 
-- **Paramètres** : 24 visites par jour, seuil de 2 visites, 6 cabinets CSMKL2, 15 cabinets CHME, seuils d'alerte (50 % et 85 %) ;
+- **Paramètres** : 24 visites par jour, seuil de 2 visites, 6 cabinets CSMKL2, 15 cabinets CHME, seuils d'alerte (50 % et 85 %),
+  capacité horaire des rendez-vous (1 = oui, 0 = repère de 24) ;
+- **Capacité horaire** : créneaux par jour de chaque médecin, remplis automatiquement à partir du fichier des rendez-vous ;
 - **Lits CHME** : lits réels par unité (leur total, 104, est la capacité du CHME) ;
 - **Hors cabinets CHME** : spécialités qui n'occupent pas un des cabinets de spécialistes ;
 - **MAISON ROSE** : UF rattachées ;
@@ -108,8 +123,10 @@ retenue : médecins et jours CSMKL2 et toutes les lignes d'actes sont **identiqu
 12 diagnostics les plus fréquents, tranches d'âge et sexe, sources ; explication de chaque terme au survol ; lexique
 complet dans « Notez bien »), Composition des familles (chaque famille à 100 %,
 global et par site), **Âge et sexe** (dossiers et diagnostics par tranche d'âge et par sexe, trois diagnostics les plus
-fréquents par tranche, familles par âge, dix premiers diagnostics chez les femmes et chez les hommes), CSMKL2,
-CSMKL2 diagnostics, CHME, CHME diagnostics, Dictionnaire, Notez bien.
+fréquents par tranche, familles par âge, dix premiers diagnostics chez les femmes et chez les hommes), **Évolution hebdo**
+(surveillance du paludisme, du syndrome paludo-grippal, de la grippe et de la typhoïde avec leurs hypothèses seules ; 15
+diagnostics les plus fréquents et familles, semaine par semaine), **Par spécialité** (diagnostics par UF), CSMKL2,
+CSMKL2 diagnostics, CHME, CHME diagnostics, Dictionnaire, **Historique** (une ligne par période traitée), Notez bien.
 
 Tranches d'âge : moins d'un an, 1-4, 5-14, 15-24, 25-49, 50-64, 65 ans et plus (âge au premier jour du dossier dans la
 période, calculé avec la date de naissance de l'export).

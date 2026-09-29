@@ -117,7 +117,7 @@ def base_actes(wb, R):
 def medecins_jour(wb, R):
     ws = _feuille(wb, "_Médecins jour", ["Site", "Activité", "Jour", "Intervenant", "Consultation", "Résultats avant une semaine",
                                           "Résultats après une semaine", "Total visites", "GPS", "Evolucare", "Cabinet compté",
-                                          "Capacité", "Marge cumulable", f"Au-delà de {R.cap_jour}", "Visite isolée"])
+                                          "Capacité (cabinet compté)", "Marge cumulable", "Au-delà de la capacité", "Visite isolée"])
     lignes = []
     for (site, act), md in R.medjour.items():
         for (j, m) in sorted(md, key=lambda k: (k[0], k[1])):
