@@ -18,7 +18,7 @@ except ImportError:
     print("Le module openpyxl manque. Installez-le avec :  py -m pip install openpyxl")
     sys.exit(1)
 
-from monkole import calculs, classeur, classeur_brut, lecture, referentiel_excel  # noqa: E402
+from monkole import calculs, classeur, classeur_brut, historique, lecture, rdv, referentiel_excel  # noqa: E402
 from monkole.resume import ecrire_resume  # noqa: E402
 from monkole.texte import MOIS  # noqa: E402
 
@@ -57,7 +57,22 @@ def main(argv):
     os.makedirs(sorties, exist_ok=True)
     print(f"Monkole — Activités et capacités (v{VERSION})")
     print(f"Lecture des exports dans : {entrees}")
-    ref = referentiel_excel.charger(os.path.join(ICI, "Referentiel_Monkole.xlsx"))
+    chemin_ref = os.path.join(ICI, "Referentiel_Monkole.xlsx")
+    ref = referentiel_excel.charger(chemin_ref)
+    creneaux = []
+    chemin_rdv = rdv.trouver(entrees)
+    if chemin_rdv:
+        creneaux = rdv.lire(chemin_rdv)
+        if creneaux:
+            ref["CAPACITE_HORAIRE"] = rdv.capacites(creneaux)
+            print(f"   Rendez-vous                    {len(creneaux):>7} créneaux  {os.path.basename(chemin_rdv)}"
+                  f"  ({len(ref['CAPACITE_HORAIRE'])} médecins)")
+            try:
+                referentiel_excel.ecrire_modele(chemin_ref, ref)
+            except OSError:
+                print("   NOTE : Referentiel_Monkole.xlsx est ouvert : capacité horaire utilisée sans être enregistrée.")
+        else:
+            print(f"   NOTE : {os.path.basename(chemin_rdv)} ne contient pas les colonnes Date / TYPE / Médecin : ignoré.")
     try:
         chemins, donnees = lecture.lire_tout(entrees)
     except lecture.ErreurExport as e:
@@ -72,8 +87,11 @@ def main(argv):
     print(f"Période : du {debut:%d/%m/%Y} au {fin:%d/%m/%Y}")
     R = calculs.calculer(donnees, ref, debut, fin)
     R.chemins = chemins
+    R.creneaux = creneaux
     nom = nom_sortie(debut, fin)
     chemin = os.path.join(sorties, nom)
+    R.historique = historique.mettre_a_jour(os.path.join(ICI, "historique", "Historique_activites.xlsx"),
+                                            f"{debut:%Y%m%d}-{fin:%Y%m%d}", historique.ligne_capacites(R))
     try:
         classeur.construire(R, chemin)
     except PermissionError:

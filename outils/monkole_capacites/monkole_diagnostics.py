@@ -17,7 +17,8 @@ except ImportError:
     print("Le module openpyxl manque. Installez-le avec :  py -m pip install openpyxl")
     sys.exit(1)
 
-from monkole import classeur_brut, diag_assemblage, diag_calculs, diag_dictionnaire, lecture  # noqa: E402
+from monkole import (classeur_brut, diag_analyses, diag_assemblage, diag_calculs, diag_dictionnaire, historique,  # noqa: E402
+                     lecture)
 from monkole.diag_notez import fichier_a_classer  # noqa: E402
 from monkole.texte import MOIS  # noqa: E402
 
@@ -65,6 +66,8 @@ def main(argv):
     per = nom_periode(R.debut, R.fin)
     nom = f"Monkole_Diagnostics_Composition_Familles_{per}.xlsx"
     chemin = os.path.join(sorties, nom)
+    R.historique = historique.mettre_a_jour(os.path.join(ICI, "historique", "Historique_diagnostics.xlsx"),
+                                            f"{R.debut:%Y%m%d}-{R.fin:%Y%m%d}", diag_analyses.ligne_historique(R))
     try:
         diag_assemblage.construire(R, chemin)
         nom_ac = f"Diagnostics_a_classer_{per}.xlsx"

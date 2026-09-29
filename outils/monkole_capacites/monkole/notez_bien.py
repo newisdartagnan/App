@@ -92,7 +92,10 @@ def feuille_notez_bien(wb, R, positions, onglet):
         ("7 / Journées de cabinet et capacité",
          "Une journée de cabinet = un cabinet compté pendant une journée. Exemple de définition : 3 cabinets pendant 2 jours = 6 "
          f"journées de cabinet. Capacité de période = {cap} × somme des cabinets comptés chaque jour. On ne multiplie pas une deuxième "
-         f"fois par {R.ndays}."),
+         f"fois par {R.ndays}."
+         + (" CHME ambulatoire : chaque cabinet compté vaut la capacité horaire de son médecin (créneaux par jour tirés du fichier "
+            "des rendez-vous, feuille « Capacité horaire » ; médiane de la spécialité pour un médecin sans rendez-vous connu). Un "
+            "médecin peut recevoir plus (patients sans rendez-vous) ou moins (absences) que ses créneaux." if R.horaire else "")),
         ("8 / Utilisation et marge",
          "Utilisation du modèle = toutes les visites du périmètre / capacité comptée. Visites isolées et sans médecin restent au "
          f"numérateur. Marge individuelle cumulée = somme de MAX({cap} - visites, 0), uniquement pour les cabinets comptés. Cette "
