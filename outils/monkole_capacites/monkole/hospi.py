@@ -21,6 +21,9 @@ def _fusionner(intervalles):
 def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
     """Renvoie (base_hospi, dossiers). debut / fin_excl : bornes de période [debut, fin_excl[."""
     hors = ref["HORS_UNITES"]
+    # Evolucare propose une sortie à J + N dès l'admission (N = 4) : une sortie à exactement N jours est une proposition,
+    # les autres dates ont été saisies par le service (sortie réelle).
+    n_prop = ref["PARAMETRES"].get("sortie_proposee_evo_jours", 4)
     ndays = (fin_excl - debut).days
     jours = [debut + UN_JOUR * i for i in range(ndays)]
 
@@ -55,6 +58,8 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
         fin = s if s is not None else fin_excl
         b["dans_periode"] = 1 if (e is not None and not b["invalide"] and e < fin_excl and fin > debut) else 0
         b["sortie_apres"] = 1 if (s is not None and s >= fin_excl) else 0
+        b["sortie_proposee"] = 1 if (b["logiciel"] == "Evolucare" and e is not None and s is not None and n_prop
+                                     and abs((s - e).total_seconds() / 86400 - n_prop) < 0.01) else 0
 
     # Dossiers : union des séjours couvrant la période et des dossiers hospitaliers des visites
     dossiers = {}
@@ -88,6 +93,7 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
             d["entree"] = min(l["entree"] for l in lignes)
             ouvertes = [l for l in lignes if l["sortie"] is None]
             d["sortie"] = None if ouvertes else max(l["sortie"] for l in lignes)
+            d["sortie_proposee"] = 0 if ouvertes else max(lignes, key=lambda l: l["sortie"])["sortie_proposee"]
             ints = _fusionner([(max(l["entree"], debut), min(l["sortie"] or fin_excl, fin_excl)) for l in lignes])
             d["intervalles"] = ints
             d["date_connue"] = 1
@@ -96,11 +102,13 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
             d["origine_unite"] = "Visites hospitalières sans entrée"
             d["uf_contradictoires"] = 1 if len(d["unites_traces"]) > 1 else 0
             d["entree"] = d["sortie"] = None
+            d["sortie_proposee"] = 0
             d["intervalles"] = []
             d["date_connue"] = 0
         e, s = d["entree"], d["sortie"]
         d["entree_periode"] = 1 if (e is not None and debut <= e < fin_excl) else 0
-        d["sortie_periode"] = 1 if (s is not None and debut <= s < fin_excl) else 0
+        d["sortie_proposee_periode"] = 1 if (s is not None and debut <= s < fin_excl and d["sortie_proposee"]) else 0
+        d["sortie_periode"] = 1 if (s is not None and debut <= s < fin_excl and not d["sortie_proposee"]) else 0
         d["en_cours"] = 1 if (e is not None and (s is None or s >= fin_excl)) else 0
         d["par_jour"] = []
         for j in jours:

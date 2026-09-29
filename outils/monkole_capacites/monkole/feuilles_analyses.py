@@ -248,7 +248,8 @@ def feuille_plannings(wb, R):
 def feuille_sejours(wb, R):
     ws, der = _feuille(wb, "Séjours", "CHME / DURÉE DES SÉJOURS ET SÉJOURS OUVERTS",
                        "Durée moyenne de séjour (DMS) = sortie - entrée, sur les séjours dont l’entrée et la sortie sont connues et la "
-                       "sortie dans la période. Les sorties Evolucare sont des dates provisoires proposées à l’admission.",
+                       "sortie dans la période. Evolucare : une sortie à exactement 4 jours de l’entrée est la date proposée à "
+                       "l’admission (non confirmée) ; les autres dates sont des sorties réelles.",
                        [30, 12, 12, 12, 12, 12, 12, 12, 13, 13])
     chme = [d for d in R.dossiers if d["site"] == "CHME"]
     lignes = []
@@ -257,7 +258,8 @@ def feuille_sejours(wb, R):
 
         def dms(lg):
             durees = [(d["sortie"] - d["entree"]).total_seconds() / 86400 for d in ds
-                      if d["logiciel"] == lg and d["entree"] and d["sortie"] and d["sortie"] < R.fin_excl and d["sortie"] >= R.debut]
+                      if d["logiciel"] == lg and d["entree"] and d["sortie"] and d["sortie"] < R.fin_excl and d["sortie"] >= R.debut
+                      and not d["sortie_proposee"]]
             return len(durees), (st.mean(durees) if durees else None), (st.median(durees) if durees else None)
         ng, mg, medg = dms("GPS")
         ne, me, _ = dms("Evolucare")
@@ -268,7 +270,7 @@ def feuille_sejours(wb, R):
     f = [None, NB, NB, NB, "0.0", "0.0", NB, "0.0", NB, NB]
     r, d0 = _tableau(ws, 4, "PAR UNITÉ", der,
                      ["Unité", "Entrées dans\nla période", "Sorties dans\nla période", "Séjours clos\nGPS", "DMS GPS\n(jours)",
-                      "Médiane GPS\n(jours)", "Séjours clos\nEvolucare", "DMS Evo\n(provisoire)", "Séjours sans\nsortie", "dont entrés\n> 7 jours"],
+                      "Médiane GPS\n(jours)", "Séjours clos\nEvolucare", "DMS Evo\n(sorties réelles)", "Séjours sans\nsortie", "dont entrés\n> 7 jours"],
                      lignes, f)
     ng = sum(l[3] for l in lignes)
     mg = (sum(l[3] * l[4] for l in lignes if l[4] is not None) / ng) if ng else None

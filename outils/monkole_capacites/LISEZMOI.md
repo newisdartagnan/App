@@ -55,7 +55,7 @@ Dashboard → toutes les feuilles CSMKL2 → toutes les feuilles CHME → analys
 | … actes | Spécialité → sous-spécialité → acte (groupes « + »), GPS sur Date_V, Evolucare sur DATEHEURE |
 | Capacité horaire | CHME ambulatoire : capacité de chaque médecin (créneaux de rendez-vous par jour, durée d'une consultation, plage horaire), comparée au repère de 24 ; par spécialité et par médecin, remplissage des créneaux |
 | Plannings | Moyennes par jour de la semaine (visites, cabinets, médecins programmés), visites par heure d'enregistrement, **spécialistes présents par jour de la semaine** et écart aux 15 cabinets (base des rotations de salles) |
-| Séjours | Par unité : entrées, sorties, durée moyenne de séjour (GPS ; Evolucare provisoire), séjours sans sortie dont ceux entrés depuis plus de 7 jours |
+| Séjours | Par unité : entrées, sorties, durée moyenne de séjour (GPS ; Evolucare sur sorties réelles), séjours sans sortie dont ceux entrés depuis plus de 7 jours |
 | Prises en charge | Visites par organisme (MONKOLE AMO, privé, conventions…) et détail des libellés PEC |
 | Origine patients | Dossiers par commune de Kinshasa (adresse des exports) |
 | Qualité saisie | Par utilisateur : visites sans médecin, sans UF, sans motif, sans date de naissance, sans sexe (pour cibler la formation) |
@@ -73,7 +73,9 @@ Règles fixées avec le directeur des opérations (septembre 2026) :
   urgences 5, soins intensifs pédiatriques 12, réanimation 7 — d'où un taux d'occupation par unité (les lits paramétrés dans
   GPS et Evolucare comprennent des lits fictifs et ne sont pas utilisés). Les journées GPS
   et Evolucare sont additionnées : un patient n'est suivi que dans un des deux logiciels (migration en cours). Les dates de
-  sortie Evolucare sont provisoires. Les séjours entrés avant le début de la période n'ont pas de date d'entrée dans les
+  sortie Evolucare : le logiciel propose une sortie à 4 jours dès l'admission, puis le service la corrige ; une sortie à
+  exactement 4 jours est une proposition (non comptée comme sortie réalisée ni dans la durée de séjour), les autres dates
+  sont réelles (durée modifiable dans le référentiel). Les séjours entrés avant le début de la période n'ont pas de date d'entrée dans les
   exports : les premiers jours sont sous-estimés, le chiffre du **dernier jour** est le plus représentatif ;
 - **Cabinets physiques** : 6 à CSMKL2, 15 de spécialistes au CHME. Ne sont pas comptés dans les 15 : nutrition, kinésithérapie,
   soins infirmiers, laboratoire, imagerie, pharmacie, documents médicaux (liste modifiable). Certaines spécialités se relaient
@@ -137,7 +139,8 @@ exploitable, sigles à clarifier et textes GPS de 50 caractères signalés.
 
 ### Le dictionnaire : `Dictionnaire_Diagnostics.xlsx`
 
-Il contient les 1 557 formulations déjà classées dans la version retenue (texte d'origine → diagnostic regroupé →
+Il contient les 1 557 formulations de la version retenue et les 1 170 formulations nouvelles du 01 au 28 septembre 2026
+(2 727 au total, 437 diagnostics regroupés), déjà classées (texte d'origine → diagnostic regroupé →
 famille, avec le statut : sans marqueur de doute, hypothèse, contexte, à clarifier…).
 
 - **Feuille Formulations** : une ligne par formulation et par diagnostic regroupé (une phrase composite occupe

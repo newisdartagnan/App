@@ -58,6 +58,7 @@ def feuille_notez_bien(wb, R, positions, onglet):
     dos_chme_gps = sum(1 for x in R.dossiers if x["logiciel"] == "GPS" and x["site"] == "CHME")
     sorties_evo = [b for b in evo_b if b["sortie"] is not None and b["dans_periode"]]
     toutes_apres = sorties_evo and all(b["sortie"] >= fx for b in sorties_evo)
+    n_prop = sum(b["sortie_proposee"] for b in evo_b if b["dans_periode"])
     alias = "; ".join(f"{a} / {b}" for a, b in R.ref["ALIAS_MEDECINS"].items())
     vides = f"{f.day + 1:02d}-{_fin_mois(R):02d}" if f.day < _fin_mois(R) else "hors période"
     hors_txt = ""
@@ -148,15 +149,16 @@ def feuille_notez_bien(wb, R, positions, onglet):
         ("20 / Durées et sorties",
          f"Intervalles [entrée, sortie[ limités à la période; répétitions/chevauchements neutralisés avant somme. Une sortie vide ou "
          f"postérieure au {fin_j} laisse le dossier en cours au {fin_j}. Une date après le {fin_j} n’est pas une sortie réalisée dans la "
-         "période. Les dates Evo ne portent pas d’heures : début/fin à minuit selon l’export, précision à confirmer. "
-         + (f"Toutes les sorties Evo fournies sont postérieures au {fin_j} : zéro sortie dans cet export ne prouve pas zéro sortie "
-            "réelle. " if toutes_apres else "")
-         + "Nature prévisionnelle des dates à confirmer."),
+         "période. Les dates Evo ne portent pas d’heures : début/fin à minuit selon l’export. "
+         f"Evolucare propose une sortie à {R.ref['PARAMETRES'].get('sortie_proposee_evo_jours', 4)} jours dès l’admission, puis le "
+         "service la corrige avec la vraie date : une sortie à exactement cette durée est une proposition (non comptée comme sortie "
+         f"réalisée ni dans la DMS ; {n_prop} séjour(s) concernés), les autres dates sont des sorties réelles. "
+         + (f"Toutes les sorties Evo fournies sont postérieures au {fin_j}. " if toutes_apres else "")),
         ("21 / Occupation des lits",
          f"Lits occupés = journées GPS + journées Evolucare des dossiers CHME datés (toutes unités), divisées par {R.ndays} jours. "
          f"Taux = lits occupés / {R.lits_reels} lits réels (somme des lits par unité du référentiel). Les deux séries sont additionnées car un patient "
-         "hospitalisé n’est suivi que dans un des deux logiciels (migration en cours). Les dates de sortie Evolucare sont provisoires "
-         "(proposées dès l’admission). Le graphique « dont GPS / dont Evo » reste disponible dans CHME."),
+         "hospitalisé n’est suivi que dans un des deux logiciels (migration en cours). Une sortie Evolucare proposée (non confirmée) "
+         "sert de fin de séjour faute de mieux. Le graphique « dont GPS / dont Evo » reste disponible dans CHME."),
         ("22 / Occupation incomplète",
          "Aucun jour de séjour n’est inventé pour un dossier sans entrée. Les actes ne servent pas à lui attribuer des jours. Les séjours "
          f"antérieurs au {d:%d/%m} sont intégrés seulement si leurs dates sont effectivement fournies. Le complément d’un taux à 100 % "
