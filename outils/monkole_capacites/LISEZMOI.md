@@ -75,7 +75,7 @@ Règles fixées avec le directeur des opérations (septembre 2026) :
   et Evolucare sont additionnées : un patient n'est suivi que dans un des deux logiciels (migration en cours). Les dates de
   sortie Evolucare : le logiciel propose une sortie à 4 jours dès l'admission, puis le service la corrige ; une sortie à
   exactement 4 jours est une proposition (non comptée comme sortie réalisée ni dans la durée de séjour), les autres dates
-  sont réelles (durée modifiable dans le référentiel). Les séjours entrés avant le début de la période n'ont pas de date d'entrée dans les
+  (plus courtes ou plus longues) sont réelles (durée modifiable dans le référentiel). Les séjours entrés avant le début de la période n'ont pas de date d'entrée dans les
   exports : les premiers jours sont sous-estimés, le chiffre du **dernier jour** est le plus représentatif ;
 - **Cabinets physiques** : 6 à CSMKL2, 15 de spécialistes au CHME. Ne sont pas comptés dans les 15 : nutrition, kinésithérapie,
   soins infirmiers, laboratoire, imagerie, pharmacie, documents médicaux (liste modifiable). Certaines spécialités se relaient

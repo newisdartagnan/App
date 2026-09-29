@@ -403,7 +403,7 @@ def _top(compteur, n):
 # ----------------------------------------------------------------------------------------------
 def composition(wb, R, pos_dico):
     ws = wb.create_sheet("Composition familles")
-    mise_en_page(ws, TEAL, zoom=80, figer="G18")
+    mise_en_page(ws, TEAL, zoom=80)      # aucune ligne ni colonne figée (feuille longue, à faire défiler librement)
     G = R.global_
     entete_commun(ws, R, "MONKOLE / COMPOSITION DES FAMILLES CLINIQUES",
                   f"{periode_txt(R)} | Diagnostics différents, volumes et répartition dans les 100 % de chaque famille",
