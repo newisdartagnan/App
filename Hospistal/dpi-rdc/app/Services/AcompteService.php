@@ -74,26 +74,32 @@ class AcompteService
      * pour autre chose. Le guichet peut en revanche mobiliser tous les
      * acomptes du patient, à la demande, via $toutLePatient.
      *
+     * Avec $source, seule cette avance est mobilisée : le crédit laissé par
+     * un avoir va d'abord à la facture qui remplace celle qu'il annule.
+     *
      * @return float Montant imputé, dans la devise de la facture.
      */
-    public function imputer(Facture $facture, bool $toutLePatient = false): float
+    public function imputer(Facture $facture, bool $toutLePatient = false, ?Caution $source = null): float
     {
-        if (! $facture->visit_id && ! $toutLePatient) {
+        if (! $facture->visit_id && ! $toutLePatient && ! $source) {
             return 0.0;
         }
 
-        return DB::transaction(function () use ($facture, $toutLePatient) {
+        return DB::transaction(function () use ($facture, $toutLePatient, $source) {
             $facture->refresh();
 
             $deviseFacture = $facture->devise ?: $this->devises->pivot();
             $tauxFacture = (float) ($facture->taux_change ?: $this->devises->taux($deviseFacture));
 
+            if ($facture->estAnnulee()) {
+                return 0.0;
+            }
+
             // Tout le raisonnement se fait en monnaie de compte : c'est la
             // seule façon d'additionner des avances en dollars et en francs.
+            // Ce qui reste dû tient compte des avoirs passés sur la facture.
             $restantCdf = $this->devises->versCdf(
-                (float) $facture->patient_part
-                    - (float) $facture->acompte_impute
-                    - $facture->montantPaye(),
+                $facture->soldeRestant(),
                 $deviseFacture,
                 $tauxFacture
             );
@@ -104,9 +110,14 @@ class AcompteService
 
             $totalCdf = 0.0;
 
-            $mobilisables = $toutLePatient
-                ? $this->disponiblesPourPatient($facture->patient_id)
-                : $this->disponibles($facture->visit_id);
+            $mobilisables = match (true) {
+                $source !== null => collect([$source->fresh()])
+                    ->filter(fn (Caution $a) => $a->patient_id === $facture->patient_id
+                        && in_array($a->statut, ['versee', 'remboursee_partiel'], true)
+                        && $a->resteDisponibleCdf() > 0),
+                $toutLePatient => $this->disponiblesPourPatient($facture->patient_id),
+                default => $this->disponibles($facture->visit_id),
+            };
 
             foreach ($mobilisables as $acompte) {
                 if ($restantCdf <= 0) {

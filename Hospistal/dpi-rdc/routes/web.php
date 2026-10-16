@@ -6,6 +6,7 @@ use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\ApparenceController;
 use App\Http\Controllers\AssuranceController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\AvoirController;
 use App\Http\Controllers\BanqueSangController;
 use App\Http\Controllers\BilanHydriqueController;
 use App\Http\Controllers\BlocOperatoireController;
@@ -395,4 +396,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/caisse/{facture}/encaisser', [CaisseController::class, 'encaisser'])->name('caisse.encaisser');
     Route::post('/caisse/{facture}/utiliser-acompte', [CaisseController::class, 'utiliserAcompte'])->name('caisse.acompte');
     Route::post('/caisse/facturer/{prescription}', [CaisseController::class, 'facturer'])->name('caisse.facturer');
+
+    // Avoirs et journal des pièces de caisse — une facture émise ne se
+    // modifie plus : elle se corrige par un avoir.
+    Route::get('/caisse/{facture}/journal', [AvoirController::class, 'journal'])->name('caisse.journal');
+    Route::get('/caisse/{facture}/avoir', [AvoirController::class, 'create'])->name('avoirs.create');
+    Route::post('/caisse/{facture}/avoir', [AvoirController::class, 'store'])->name('avoirs.store');
+    Route::get('/avoirs', [AvoirController::class, 'index'])->name('avoirs.index');
+    Route::get('/avoirs/{avoir}', [AvoirController::class, 'show'])->name('avoirs.show');
+    Route::post('/avoirs/{avoir}/refacturer', [AvoirController::class, 'refacturer'])->name('avoirs.refacturer');
+    Route::post('/avoirs/{avoir}/rembourser', [AvoirController::class, 'rembourser'])->name('avoirs.rembourser');
 });

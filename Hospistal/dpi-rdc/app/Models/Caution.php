@@ -21,7 +21,7 @@ class Caution extends Model
     protected $table = 'cautions';
 
     protected $fillable = [
-        'visit_id', 'patient_id', 'type', 'caissier_id', 'montant', 'devise',
+        'visit_id', 'patient_id', 'avoir_id', 'type', 'caissier_id', 'montant', 'devise',
         'taux_change', 'montant_cdf', 'mode_paiement', 'motif', 'statut',
         'montant_impute', 'montant_impute_cdf',
         'montant_rembourse', 'montant_rembourse_cdf',
@@ -46,6 +46,12 @@ class Caution extends Model
         'caution' => 'Caution d\'admission',
         'garantie' => 'Garantie (société / famille)',
     ];
+
+    /**
+     * Le trop-perçu rendu par un avoir. Il ne se saisit pas au guichet :
+     * seul un avoir le fait naître.
+     */
+    public const TYPE_AVOIR = 'avoir';
 
     public const MODES_PAIEMENT = [
         'especes' => 'Espèces',
@@ -74,6 +80,12 @@ class Caution extends Model
     public function caissier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'caissier_id');
+    }
+
+    /** L'avoir dont ce crédit est né. */
+    public function avoir(): BelongsTo
+    {
+        return $this->belongsTo(Avoir::class);
     }
 
     public function imputations(): HasMany
@@ -123,7 +135,20 @@ class Caution extends Model
 
     public function libelleType(): string
     {
+        if ($this->type === self::TYPE_AVOIR) {
+            return 'Crédit sur avoir';
+        }
+
         return self::TYPES[$this->type] ?? $this->type;
+    }
+
+    public function libelleMode(): string
+    {
+        if ($this->mode_paiement === self::TYPE_AVOIR) {
+            return 'Avoir';
+        }
+
+        return self::MODES_PAIEMENT[$this->mode_paiement] ?? (string) $this->mode_paiement;
     }
 
     public function libelleStatut(): string

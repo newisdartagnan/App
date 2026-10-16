@@ -16,7 +16,7 @@ class AuditLog extends Model
 
     protected $fillable = [
         'user_id', 'establishment_id', 'action', 'table_name', 'record_id',
-        'ip_address', 'user_agent', 'old_values', 'new_values', 'created_at',
+        'facture_id', 'ip_address', 'user_agent', 'old_values', 'new_values', 'created_at',
     ];
 
     protected function casts(): array

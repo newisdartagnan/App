@@ -27,13 +27,38 @@ class ConventionService
             ->where('fc.statut', '!=', 'annulee')
             ->pluck('lignes_facture_convention.facture_id');
 
-        return Facture::with(['patient', 'lignesTiersPayant', 'visit'])
+        // Une facture annulée ne se réclame plus ; une facture réduite par
+        // un avoir ne se réclame que pour ce qu'il en reste.
+        return Facture::with(['patient', 'lignesTiersPayant', 'visit', 'avoirs'])
             ->whereBetween('date_facture', [$debut.' 00:00:00', $fin.' 23:59:59'])
             ->where('assurance_part', '>', 0)
+            ->where('statut', '!=', 'annulee')
             ->whereNotIn('id', $dejaFacturees)
             ->whereHas('lignesTiersPayant', fn ($q) => $q->where('assurance_id', $assurance->id))
             ->orderBy('date_facture')
-            ->get();
+            ->get()
+            ->filter(fn (Facture $f) => $this->partConvention($f, $assurance) > 0)
+            ->values();
+    }
+
+    /**
+     * Part d'une facture à réclamer à cette convention, nette des avoirs.
+     * Une facture ne relève en pratique que d'un assureur ; si elle en
+     * avait plusieurs, l'avoir se répartirait entre eux au prorata.
+     */
+    public function partConvention(Facture $facture, Assurance $assurance): float
+    {
+        $tiers = $facture->lignesTiersPayant;
+        $part = (float) $tiers->where('assurance_id', $assurance->id)->sum('part_assurance');
+        $totalAssurance = (float) $tiers->sum('part_assurance');
+
+        if ($part <= 0 || $totalAssurance <= 0) {
+            return 0.0;
+        }
+
+        $avoirs = (float) $facture->avoirs->sum('montant_assurance');
+
+        return max(0, round($part - $avoirs * $part / $totalAssurance, 2));
     }
 
     /**
@@ -76,9 +101,7 @@ class ConventionService
             $total = 0.0;
             foreach ($factures as $f) {
                 // Ne retenir que la part couverte par CETTE convention
-                $part = (float) $f->lignesTiersPayant
-                    ->where('assurance_id', $assurance->id)
-                    ->sum('part_assurance');
+                $part = $this->partConvention($f, $assurance);
 
                 if ($part <= 0) {
                     continue;
@@ -120,13 +143,14 @@ class ConventionService
                 'date_reglement' => now(),
             ]);
 
+            // Ce que l'assureur doit, c'est le bordereau moins les avoirs
+            // passés depuis sur les factures qu'il reprend.
             $regle = (float) $facture->reglements()->sum('montant');
+            $solde = $regle >= $facture->montantNet() - 0.01;
             $facture->update([
                 'montant_regle' => $regle,
-                'statut' => $regle >= (float) $facture->montant_total - 0.01
-                    ? 'reglee'
-                    : 'partiellement_reglee',
-                'date_reglement' => $regle >= (float) $facture->montant_total - 0.01 ? now() : null,
+                'statut' => $solde ? 'reglee' : 'partiellement_reglee',
+                'date_reglement' => $solde ? now() : null,
             ]);
 
             return $reglement;
