@@ -30,6 +30,10 @@
         <div><strong>Dossier :</strong> {{ $facture->patient->dossier_number }}</div>
         <div><strong>Date facture :</strong> {{ $facture->date_facture->format('d/m/Y H:i') }}</div>
         <div><strong>Prise en charge :</strong> {{ $facture->libellePriseEnCharge() }}</div>
+        @if($facture->bonPriseEnCharge)
+        <div><strong>Bon de prise en charge :</strong> n° {{ $facture->bonPriseEnCharge->numero }}
+            (valable jusqu'au {{ $facture->bonPriseEnCharge->date_expiration->format('d/m/Y') }})</div>
+        @endif
         <div><strong>Devise :</strong> {{ $dev->libelle($devFact) }}@if($devFact !== $dev->pivot()) — 1 {{ $devFact }} = {{ number_format($facture->tauxApplique(), 2, ',', ' ') }} CDF @endif</div>
     </div>
 </div>

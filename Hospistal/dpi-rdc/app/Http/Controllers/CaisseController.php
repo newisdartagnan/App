@@ -31,7 +31,7 @@ class CaisseController extends Controller
         $facture->load([
             'patient', 'lignes', 'lignesTiersPayant.assurance',
             'prescription.lignes.medicament', 'paiements', 'bonsSortie',
-            'imputations.acompte', 'avoirs.auteur', 'avoirs.credit', 'avoirOrigine.facture',
+            'imputations.acompte', 'avoirs.auteur', 'avoirs.credit', 'avoirOrigine.facture', 'bonPriseEnCharge.assurance',
         ]);
 
         // Acompte encore disponible pour ce patient, tous séjours confondus :
@@ -46,9 +46,14 @@ class CaisseController extends Controller
         $lignesRemisables = $avoirs->lignesCreditables($facture)->filter(fn ($l) => $l['reste_patient'] > 0)->values();
         $plafondRemise = $peutRemettre ? $avoirs->plafondRemise() : null;
 
+        // Pourquoi l'assureur n'a pas été facturé, dit en clair au guichet.
+        $motifSansTiersPayant = $facture->type_prise_en_charge === 'assurance' && $facture->lignesTiersPayant->isEmpty()
+            ? app(FacturationService::class)->priseEnCharge($facture->patient, $facture->date_facture)['motif']
+            : null;
+
         return view('caisse.show', compact(
             'facture', 'acompteDisponible', 'acompteParDevise', 'peutAnnuler',
-            'peutRemettre', 'lignesRemisables', 'plafondRemise'
+            'peutRemettre', 'lignesRemisables', 'plafondRemise', 'motifSansTiersPayant'
         ));
     }
 

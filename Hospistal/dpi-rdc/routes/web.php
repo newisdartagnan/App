@@ -10,6 +10,7 @@ use App\Http\Controllers\AvoirController;
 use App\Http\Controllers\BanqueSangController;
 use App\Http\Controllers\BilanHydriqueController;
 use App\Http\Controllers\BlocOperatoireController;
+use App\Http\Controllers\BonPriseEnChargeController;
 use App\Http\Controllers\CaisseController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConventionController;
@@ -228,6 +229,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/assurances/{assurance}/basculer', [AssuranceController::class, 'basculer'])->name('assurances.basculer');
     Route::post('/assurances/{assurance}/couvertures', [AssuranceController::class, 'ajouterCouverture'])->name('assurances.couvertures');
     Route::delete('/couvertures/{couverture}', [AssuranceController::class, 'supprimerCouverture'])->name('assurances.couvertures.destroy');
+    Route::post('/assurances/{assurance}/tarifs', [AssuranceController::class, 'ajouterTarif'])->name('assurances.tarifs');
+    Route::delete('/tarifs-convention/{tarif}', [AssuranceController::class, 'supprimerTarif'])->name('assurances.tarifs.destroy');
+
+    // Bons de prise en charge : saisis avant la facture, ils ouvrent le tiers payant.
+    Route::get('/patients/{patient}/bons-prise-en-charge', [BonPriseEnChargeController::class, 'index'])->name('bpc.index');
+    Route::post('/patients/{patient}/bons-prise-en-charge', [BonPriseEnChargeController::class, 'store'])->name('bpc.store');
+    Route::post('/bons-prise-en-charge/{bon}/annuler', [BonPriseEnChargeController::class, 'annuler'])->name('bpc.annuler');
 
     // Transfert d'un service à un autre, sans clore le séjour
     Route::post('/visites/{visit}/transfert-service', [TransfertServiceController::class, 'store'])->name('transferts.store');

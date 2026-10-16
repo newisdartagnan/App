@@ -223,12 +223,14 @@ class BanqueSangService
             return;
         }
 
-        $facture = app(FacturationService::class)->creerFactureAmbulatoire(
+        $facturation = app(FacturationService::class);
+
+        $facture = $facturation->creerFactureAmbulatoire(
             $demande->patient,
             $visite,
             'transfusion',
             $poche->libelleProduit().' — poche '.$poche->numero.' ('.$poche->groupe_sanguin.')',
-            $tarif,
+            $facturation->prixConvention($demande->patient, 'transfusion', null, $tarif, false),
             'CDF',
             $transfusion->id
         );

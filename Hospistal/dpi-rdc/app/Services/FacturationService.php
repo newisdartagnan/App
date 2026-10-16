@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ActeClinique;
 use App\Models\Assurance;
+use App\Models\BonPriseEnCharge;
 use App\Models\BonSortie;
 use App\Models\ExamenLaboratoire;
 use App\Models\Facture;
@@ -15,6 +16,7 @@ use App\Models\PatientAssurance;
 use App\Models\Prescription;
 use App\Models\PrescriptionDiete;
 use App\Models\Visit;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -101,7 +103,12 @@ class FacturationService
             // interne : l'hôpital ne l'a ni en stock ni à délivrer.
             $lignes = $prescription->lignes->where('est_externe', false);
 
-            $prixUnitaire = fn ($ligne) => $this->prixOfficine($ligne, $prescription->officine_id);
+            // Le prix de l'officine, ou celui que la convention du patient a
+            // négocié pour ce produit.
+            $prixUnitaire = fn ($ligne) => $this->prixConvention(
+                $patient, 'medicament', $ligne->medicament_id,
+                $this->prixOfficine($ligne, $prescription->officine_id), false
+            );
 
             // On facture ce qui sortira du tiroir : quinze comprimés se
             // servent en deux plaquettes de dix, soit vingt comprimés.
@@ -213,12 +220,90 @@ class FacturationService
             return [];
         }
 
-        $lien = $this->resolvePatientAssurance($patient);
+        $contexte = $this->priseEnCharge($patient);
+        $lien = $contexte['lien'];
 
         return [
             'assurance_nom' => $lien?->assurance?->nom ?: $patient->assurance_nom,
             'assurance_numero' => $lien?->numero_police ?: $patient->assurance_numero,
+            'bon_prise_en_charge_id' => $contexte['bon']?->id,
         ];
+    }
+
+    /**
+     * Le tiers payant s'applique-t-il à ce patient, à cette date ?
+     *
+     * Il faut un contrat lié au dossier, une convention en cours, un
+     * bénéficiaire encore couvert et — si la convention l'exige — un bon de
+     * prise en charge valide. Quand il manque quelque chose, le motif le dit
+     * en clair : c'est ce que le guichet lit pour savoir quoi demander.
+     *
+     * @return array{lien: ?PatientAssurance, bon: ?BonPriseEnCharge, motif: ?string}
+     */
+    public function priseEnCharge(Patient $patient, ?Carbon $date = null): array
+    {
+        $date ??= now();
+        $vide = ['lien' => null, 'bon' => null, 'motif' => null];
+
+        if ($patient->type_prise_en_charge !== 'assurance') {
+            return $vide;
+        }
+
+        $lien = $this->resolvePatientAssurance($patient);
+
+        if (! $lien || ! $lien->assurance) {
+            return [...$vide, 'motif' => 'aucune assurance n\'est liée au dossier du patient'];
+        }
+
+        $assurance = $lien->assurance;
+
+        if ($motif = $assurance->horsContrat($date) ?? $lien->horsCouverture($date)) {
+            return [...$vide, 'lien' => $lien, 'motif' => $motif];
+        }
+
+        if (! $assurance->exige_bon_prise_en_charge) {
+            return [...$vide, 'lien' => $lien];
+        }
+
+        $bon = BonPriseEnCharge::where('patient_id', $patient->id)
+            ->where('assurance_id', $assurance->id)
+            ->validesLe($date)
+            ->get()
+            ->first(fn (BonPriseEnCharge $b) => $b->estUtilisableLe($date));
+
+        if (! $bon) {
+            return [...$vide, 'lien' => $lien, 'motif' => 'la convention « '.$assurance->nom
+                .' » exige un bon de prise en charge, et aucun bon valide n\'est enregistré pour ce patient'];
+        }
+
+        return ['lien' => $lien, 'bon' => $bon, 'motif' => null];
+    }
+
+    /**
+     * Prix d'une prestation pour ce patient : celui que sa convention a
+     * négocié quand le tiers payant s'applique, le prix public sinon.
+     *
+     * $prixDeCategorie autorise un prix fixé pour toute la catégorie — il a
+     * un sens pour la journée d'hospitalisation, pas pour un examen.
+     */
+    public function prixConvention(
+        Patient $patient,
+        string $type,
+        ?string $referenceId,
+        float $prixPublic,
+        bool $prixDeCategorie = true
+    ): float {
+        if ($patient->type_prise_en_charge !== 'assurance') {
+            return $prixPublic;
+        }
+
+        $contexte = $this->priseEnCharge($patient);
+
+        if ($contexte['motif'] !== null || ! $contexte['lien']) {
+            return $prixPublic;
+        }
+
+        return $contexte['lien']->assurance->prixPour($type, $referenceId, $prixPublic, $prixDeCategorie);
     }
 
     /**
@@ -232,12 +317,16 @@ class FacturationService
         string $typeActe = 'consultation',
         ?string $referenceId = null
     ): void {
-        $patientAssurance = $this->resolvePatientAssurance($patient);
+        // Contrat échu, bénéficiaire radié, bon manquant : pas de tiers
+        // payant. Le patient paie tout, et la caisse lit pourquoi.
+        $contexte = $this->priseEnCharge($patient);
 
-        if (! $patientAssurance || ! $patientAssurance->assurance->est_actif) {
+        if ($contexte['motif'] !== null || ! $contexte['lien']) {
             return;
         }
 
+        $patientAssurance = $contexte['lien'];
+        $bon = $contexte['bon'];
         $assurance = $patientAssurance->assurance;
 
         // Vérification 1 : acte couvert ?
@@ -263,6 +352,18 @@ class FacturationService
                 $plafondAtteint = true;
             }
 
+            // Le bon fixe parfois un montant : au-delà, l'employeur ne paie pas.
+            $resteBon = $bon?->resteAutorise();
+
+            if ($resteBon !== null) {
+                $resteBon = app(DeviseService::class)->convertir($resteBon, $bon->devise ?: 'CDF', $devise);
+
+                if ($montantCouvert > $resteBon) {
+                    $montantCouvert = $resteBon;
+                    $plafondAtteint = true;
+                }
+            }
+
             $partAssurance = $montantCouvert;
             $partPatient = $ligne->total_ligne - $partAssurance;
 
@@ -271,6 +372,11 @@ class FacturationService
                 $patientAssurance->increment('consomme_annuel_usd', $partAssurance);
             } else {
                 $patientAssurance->increment('consomme_annuel_cdf', $partAssurance);
+            }
+
+            if ($bon && $partAssurance > 0) {
+                $bon->increment('montant_consomme',
+                    app(DeviseService::class)->convertir($partAssurance, $devise, $bon->devise ?: 'CDF'));
             }
         }
 
@@ -359,6 +465,19 @@ class FacturationService
             $libelle = $visit->type === 'urgence' ? 'Consultation urgences' : 'Consultation ambulatoire';
         }
 
+        // Le tarif de la convention remplace le prix public : le libellé ne
+        // doit plus annoncer un prix en dollars qui n'est pas celui facturé.
+        $prix = $this->prixConvention(
+            $visit->patient, 'consultation',
+            $visit->type !== 'urgence' ? $visit->typeConsultation?->id : null,
+            (float) $montant
+        );
+
+        if (abs($prix - (float) $montant) > 0.009) {
+            $montant = $prix;
+            $libelle = preg_replace('/\s*\([^)]*\$\)$/u', '', $libelle).' — tarif convention';
+        }
+
         $facture = $this->creerFactureAmbulatoire(
             $visit->patient,
             $visit,
@@ -401,12 +520,15 @@ class FacturationService
                 $retenus = $resultats->count();
                 $partiel = $totalParametres > 1 && $retenus < $totalParametres;
 
+                $typeLigne = $examen->domaine === 'imagerie' ? 'imagerie' : 'examen_labo';
+                $prixPanel = $this->prixConvention($patient, $typeLigne, $type->id, (float) ($type->prix ?? 0), false);
+
                 $prix = $partiel
-                    ? round((float) $type->prix * $retenus / $totalParametres, 2)
-                    : (float) ($type->prix ?? 0);
+                    ? round($prixPanel * $retenus / $totalParametres, 2)
+                    : $prixPanel;
 
                 $lignes[] = [
-                    'type' => $examen->domaine === 'imagerie' ? 'imagerie' : 'examen_labo',
+                    'type' => $typeLigne,
                     'libelle' => $type->libelle.($partiel ? " ({$retenus}/{$totalParametres} sous-examens)" : ''),
                     'reference_id' => $type->id,
                     'prix' => $prix,
@@ -476,7 +598,10 @@ class FacturationService
     {
         return DB::transaction(function () use ($visit) {
             $visit->refresh()->load('patient');
-            $tarifJour = config('dpi.tarifs_cdf.hospitalisation_jour', 35000);
+            $tarifJour = $this->prixConvention(
+                $visit->patient, 'hospitalisation', null,
+                (float) config('dpi.tarifs_cdf.hospitalisation_jour', 35000)
+            );
 
             // Seules les journées écoulées depuis la dernière facture sont
             // réclamées : réémettre une facture ne refacture pas le séjour.
@@ -506,7 +631,10 @@ class FacturationService
                         .' ('.$prescription->joursServis().' jour(s))',
                     'reference_id' => $prescription->id,
                     'quantite' => $prescription->joursServis(),
-                    'prix_unitaire' => (float) $prescription->typeDiete->prix_journalier,
+                    'prix_unitaire' => $this->prixConvention(
+                        $visit->patient, 'diete', $prescription->type_diete_id,
+                        (float) $prescription->typeDiete->prix_journalier
+                    ),
                 ];
             }
 
@@ -713,7 +841,7 @@ class FacturationService
                 $acte->visit,
                 $typeLigne,
                 $acte->libelle,
-                $acte->montantTotal(),
+                $this->prixConvention($acte->patient, $typeLigne, null, (float) $acte->montantTotal(), false),
                 'CDF',
                 $acte->id
             );

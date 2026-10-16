@@ -77,10 +77,27 @@
     </div>
     @endif
 
-    @if($facture->type_prise_en_charge === 'assurance' && $facture->lignesTiersPayant->isEmpty())
+    @if($facture->type_prise_en_charge === 'assurance' && $facture->lignesTiersPayant->isEmpty() && ! $facture->estAnnulee())
     <div class="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
-        ⚠️ Patient déclaré « assurance » mais aucune assurance active n'est liée à son dossier — la part patient est de 100 %.
-        <a href="{{ route('patients.show', $facture->patient) }}" class="text-blue-700 underline font-medium">Renseigner l'assurance sur la fiche patient →</a>
+        @if($motifSansTiersPayant)
+        ⚠️ Le tiers payant ne s'applique pas à cette facture : {{ $motifSansTiersPayant }}. La part patient est de 100 %.
+        @else
+        ⚠️ Cette facture a été émise sans tiers payant, mais le patient est aujourd'hui couvert.
+        @endif
+        <span class="block mt-1">
+            <a href="{{ route('bpc.index', $facture->patient) }}" class="text-blue-700 underline font-medium">Saisir le bon de prise en charge</a>
+            · <a href="{{ route('patients.show', $facture->patient) }}" class="text-blue-700 underline font-medium">Fiche du patient</a>
+            @if($peutAnnuler)
+            · une fois la situation régularisée, établissez un avoir en libérant les prestations puis refacturez.
+            @endif
+        </span>
+    </div>
+    @endif
+
+    @if($facture->bonPriseEnCharge)
+    <div class="bg-white border border-green-200 rounded-xl px-4 py-3 mb-4 text-sm text-green-800">
+        ✓ Bon de prise en charge n° <strong>{{ $facture->bonPriseEnCharge->numero }}</strong>
+        ({{ $facture->bonPriseEnCharge->assurance?->nom }}, valable jusqu'au {{ $facture->bonPriseEnCharge->date_expiration->format('d/m/Y') }})
     </div>
     @endif
 

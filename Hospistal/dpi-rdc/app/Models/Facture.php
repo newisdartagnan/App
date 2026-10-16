@@ -17,7 +17,7 @@ class Facture extends Model
     protected $fillable = [
         'patient_id', 'visit_id', 'prescription_id', 'avoir_origine_id', 'establishment_id', 'numero_facture',
         'date_facture', 'statut', 'type_prise_en_charge',
-        'devise', 'taux_change', 'assurance_nom', 'assurance_numero',
+        'devise', 'taux_change', 'assurance_nom', 'assurance_numero', 'bon_prise_en_charge_id',
         'assurance_part', 'patient_part', 'remise', 'acompte_impute',
         'total_ht', 'total_ttc', 'observations', 'sync_status',
     ];
@@ -48,7 +48,7 @@ class Facture extends Model
     public const CHAMPS_SCELLES = [
         'patient_id', 'visit_id', 'prescription_id', 'establishment_id',
         'numero_facture', 'date_facture', 'type_prise_en_charge',
-        'devise', 'taux_change', 'assurance_nom', 'assurance_numero',
+        'devise', 'taux_change', 'assurance_nom', 'assurance_numero', 'bon_prise_en_charge_id',
         'assurance_part', 'patient_part', 'remise', 'total_ht', 'total_ttc',
     ];
 
@@ -149,6 +149,12 @@ class Facture extends Model
     public function imputations(): HasMany
     {
         return $this->hasMany(ImputationAcompte::class);
+    }
+
+    /** Le bon de prise en charge sur lequel l'assureur a été facturé. */
+    public function bonPriseEnCharge(): BelongsTo
+    {
+        return $this->belongsTo(BonPriseEnCharge::class);
     }
 
     public function avoirs(): HasMany

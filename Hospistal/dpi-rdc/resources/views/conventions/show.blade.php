@@ -10,11 +10,6 @@
            class="ml-auto bg-white border border-blue-300 text-blue-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50">🖨 Imprimer</a>
     </div>
 
-    @foreach(['success','error'] as $t)
-        @if(session($t))
-        <div class="mb-4 rounded-lg px-4 py-3 text-sm border {{ $t==='success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800' }}">{{ session($t) }}</div>
-        @endif
-    @endforeach
 
     <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
         <div><span class="text-gray-500 text-xs">Période</span><p class="font-semibold">{{ $facture->periode_debut->format('d/m/Y') }} → {{ $facture->periode_fin->format('d/m/Y') }}</p></div>

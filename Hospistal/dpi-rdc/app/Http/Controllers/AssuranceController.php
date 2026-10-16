@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Assurance;
 use App\Models\AssuranceCouverture;
 use App\Models\Forfait;
+use App\Models\TarifConvention;
+use App\Models\TypeConsultation;
+use App\Models\TypeDiete;
+use App\Models\TypeExamen;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -36,10 +40,14 @@ class AssuranceController extends Controller
     {
         $this->autoriser();
 
-        $assurance->load(['couvertures' => fn ($q) => $q->orderBy('type')]);
+        $assurance->load([
+            'couvertures' => fn ($q) => $q->orderBy('type'),
+            'tarifs' => fn ($q) => $q->orderBy('type')->orderBy('reference_libelle'),
+        ]);
 
         return view('assurances.show', [
             'assurance' => $assurance,
+            'prestations' => $this->prestationsTarifables(),
             'modes' => Assurance::MODES_REGLEMENT,
             'periodicites' => Assurance::PERIODICITES,
             'categories' => Forfait::CATEGORIES,
@@ -137,6 +145,79 @@ class AssuranceController extends Controller
             : 'Règle enregistrée : '.$libelle.' exclu de la prise en charge.');
     }
 
+    /**
+     * Fixe le prix négocié d'une prestation — ou de toute une catégorie,
+     * pour la journée d'hospitalisation et la diète.
+     */
+    public function ajouterTarif(Request $request, Assurance $assurance): RedirectResponse
+    {
+        $this->autoriser();
+
+        $prestations = $this->prestationsTarifables();
+
+        $donnees = $request->validate([
+            'prestation' => ['required', Rule::in(array_keys($prestations))],
+            'prix' => 'required|numeric|min:0',
+        ], [
+            'prestation.in' => 'Choisissez une prestation de la liste.',
+            'prix.required' => 'Indiquez le prix négocié.',
+        ]);
+
+        [$type, $reference] = explode(':', $donnees['prestation']) + [1 => ''];
+        $libelle = $prestations[$donnees['prestation']];
+
+        // PostgreSQL tient deux NULL pour différents : la règle de catégorie
+        // se retrouve à la main plutôt que par l'index unique.
+        $tarif = TarifConvention::where('assurance_id', $assurance->id)
+            ->where('type', $type)
+            ->when($reference === '', fn ($q) => $q->whereNull('reference_id'), fn ($q) => $q->where('reference_id', $reference))
+            ->first() ?? new TarifConvention(['assurance_id' => $assurance->id, 'type' => $type, 'reference_id' => $reference ?: null]);
+
+        $tarif->fill(['reference_libelle' => $libelle, 'prix' => $donnees['prix']])->save();
+
+        return back()->with('success', $libelle.' : '.number_format((float) $donnees['prix'], 0, ',', ' ')
+            .' CDF pour les bénéficiaires de « '.$assurance->nom.' ».');
+    }
+
+    public function supprimerTarif(TarifConvention $tarif): RedirectResponse
+    {
+        $this->autoriser();
+
+        $tarif->delete();
+
+        return back()->with('success', 'Prix négocié retiré : la prestation revient au tarif de la convention.');
+    }
+
+    /**
+     * Ce qui peut recevoir un prix négocié : les catégories facturées à la
+     * journée, et chaque consultation, examen ou diète du catalogue. Les
+     * médicaments suivent le coefficient du contrat.
+     *
+     * @return array<string, string> « type:référence » → libellé
+     */
+    private function prestationsTarifables(): array
+    {
+        $liste = [
+            'hospitalisation:' => 'Journée d\'hospitalisation (toutes)',
+            'consultation:' => 'Consultation (toutes)',
+        ];
+
+        foreach (TypeConsultation::orderBy('libelle')->get() as $t) {
+            $liste['consultation:'.$t->id] = 'Consultation — '.$t->libelle;
+        }
+
+        foreach (TypeExamen::where('est_actif', true)->orderBy('domaine')->orderBy('libelle')->get() as $t) {
+            $type = $t->domaine === 'imagerie' ? 'imagerie' : 'examen_labo';
+            $liste[$type.':'.$t->id] = ($t->domaine === 'imagerie' ? 'Imagerie — ' : 'Examen — ').$t->libelle;
+        }
+
+        foreach (TypeDiete::orderBy('libelle')->get() as $t) {
+            $liste['diete:'.$t->id] = 'Diète — '.$t->libelle;
+        }
+
+        return $liste;
+    }
+
     public function supprimerCouverture(AssuranceCouverture $couverture): RedirectResponse
     {
         $this->autoriser();
@@ -149,7 +230,7 @@ class AssuranceController extends Controller
     /** @return array<string, mixed> */
     private function valider(Request $request, ?Assurance $assurance = null): array
     {
-        return $request->validate([
+        $donnees = $request->validate([
             'nom' => 'required|string|max:150',
             'code' => [
                 'required', 'string', 'max:30',
@@ -166,10 +247,22 @@ class AssuranceController extends Controller
             'contact_telephone' => 'nullable|string|max:50',
             'contact_email' => 'nullable|email|max:150',
             'notes' => 'nullable|string|max:2000',
+            'contrat_debut' => 'nullable|date',
+            'contrat_fin' => 'nullable|date|after_or_equal:contrat_debut',
+            'exige_bon_prise_en_charge' => 'nullable|boolean',
+            'coefficient_pct' => 'nullable|numeric|min:-90|max:500',
         ], [
+            'contrat_fin.after_or_equal' => 'Le contrat ne peut finir avant d\'avoir commencé.',
             'code.unique' => 'Ce code est déjà attribué à une autre convention.',
             'taux_couverture.max' => 'Le taux de couverture ne peut pas dépasser 100 %.',
         ]);
+
+        // Le coefficient se saisit comme on le dit : « public + 20 % ».
+        $donnees['exige_bon_prise_en_charge'] = $request->boolean('exige_bon_prise_en_charge');
+        $donnees['coefficient_tarif'] = round(1 + (float) ($donnees['coefficient_pct'] ?? 0) / 100, 4);
+        unset($donnees['coefficient_pct']);
+
+        return $donnees;
     }
 
     private function autoriser(): void

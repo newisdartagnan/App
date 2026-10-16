@@ -13,19 +13,23 @@
     <p class="text-sm text-gray-500 mb-5">
         Code <span class="font-mono">{{ $assurance->code }}</span> ·
         {{ $assurance->modalites() }}
-    </p>
-
-    @foreach(['success','error'] as $t)
-        @if(session($t))
-        <div class="mb-4 rounded-lg px-4 py-3 text-sm border {{ $t==='success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800' }}">{{ session($t) }}</div>
+        @if($assurance->contrat_debut || $assurance->contrat_fin)
+        · contrat {{ $assurance->contrat_debut ? 'du '.$assurance->contrat_debut->format('d/m/Y') : '' }}
+        {{ $assurance->contrat_fin ? 'au '.$assurance->contrat_fin->format('d/m/Y') : 'sans échéance' }}
         @endif
-    @endforeach
-
-    @if ($errors->any())
-    <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 mb-4 text-sm">
-        @foreach ($errors->all() as $err)<p>{{ $err }}</p>@endforeach
+        · {{ $assurance->libelleCoefficient() }}
+        @if($assurance->exige_bon_prise_en_charge) · <strong>bon de prise en charge exigé</strong> @endif
+    </p>
+    @if($horsContrat = $assurance->horsContrat())
+    <div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-sm text-red-800">
+        ⚠️ Aujourd'hui {{ $horsContrat }} : ses bénéficiaires paient tout, l'assureur n'est pas facturé.
+    </div>
+    @elseif($assurance->expireBientot())
+    <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-900">
+        Le contrat arrive à échéance le {{ $assurance->contrat_fin->format('d/m/Y') }} : à renouveler avec la société.
     </div>
     @endif
+
 
     {{-- Contrat --}}
     <div class="bg-white rounded-xl shadow p-5 mb-5">
@@ -159,6 +163,50 @@
             </div>
             @endif
         </div>
+        {{-- Tarif négocié --}}
+        <div class="bg-white rounded-xl shadow p-5 lg:col-span-2">
+            <h3 class="font-semibold text-gray-700 mb-1">Tarif de la convention</h3>
+            <p class="text-xs text-gray-500 mb-4 pb-3 border-b">
+                Les bénéficiaires sont facturés au prix négocié s'il existe, sinon au
+                <strong>{{ mb_strtolower($assurance->libelleCoefficient()) }}</strong> (réglé dans le contrat ci-dessus).
+                Sans tiers payant — contrat échu, bon manquant — le patient paie le prix public.
+            </p>
+            <form method="POST" action="{{ route('assurances.tarifs', $assurance) }}" class="flex flex-wrap items-end gap-3 mb-4">
+                @csrf
+                <div class="flex-1 min-w-[14rem]">
+                    <label for="t-prestation" class="block text-xs font-semibold text-gray-600 mb-1">Prestation</label>
+                    <select id="t-prestation" name="prestation" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        @foreach($prestations as $cle => $libelle)
+                        <option value="{{ $cle }}" @selected(old('prestation') === $cle)>{{ $libelle }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="t-prix" class="block text-xs font-semibold text-gray-600 mb-1">Prix négocié (CDF)</label>
+                    <input id="t-prix" name="prix" type="number" step="1" min="0" required value="{{ old('prix') }}"
+                           class="w-40 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <button class="bg-blue-700 hover:bg-blue-800 text-white rounded-lg px-5 py-2 text-sm font-semibold">Enregistrer le prix</button>
+            </form>
+            <div class="divide-y divide-gray-100 border-t">
+                @forelse($assurance->tarifs as $tarif)
+                <div class="py-2 flex items-center justify-between gap-3">
+                    <span class="text-sm text-gray-800">{{ $tarif->reference_libelle ?? $tarif->type }}</span>
+                    <span class="flex items-center gap-4">
+                        <span class="text-sm font-semibold text-blue-800">{{ number_format((float) $tarif->prix, 0, ',', ' ') }} CDF</span>
+                        <form method="POST" action="{{ route('assurances.tarifs.destroy', $tarif) }}">
+                            @csrf
+                            @method('DELETE')
+                            <button class="text-xs text-red-700 hover:underline">Retirer</button>
+                        </form>
+                    </span>
+                </div>
+                @empty
+                <p class="py-4 text-center text-gray-400 text-sm">Aucun prix négocié : {{ mb_strtolower($assurance->libelleCoefficient()) }} pour tout.</p>
+                @endforelse
+            </div>
+        </div>
+
     </div>
 </div>
 @endsection
