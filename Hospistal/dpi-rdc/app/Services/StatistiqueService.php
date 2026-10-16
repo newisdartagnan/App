@@ -10,6 +10,7 @@ use App\Models\Service;
 use App\Models\Visit;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Indicateurs de pilotage. On privilégie les vues réellement exploitables au
@@ -56,10 +57,14 @@ class StatistiqueService
 
         $jours = max(1, Carbon::parse($debut)->diffInDays(Carbon::parse($fin)) + 1);
 
+        // Montants nets des avoirs et remises : une facture soldée par une
+        // remise n'a rien rapporté de ce qui a été remis.
+        $net = DB::raw('total_ttc - COALESCE((SELECT SUM(montant_total) FROM avoirs WHERE avoirs.facture_id = factures.id), 0)');
+
         $recettes = (float) Facture::whereBetween('date_facture', [$debut.' 00:00:00', $fin.' 23:59:59'])
-            ->where('statut', 'payee')->sum('total_ttc');
+            ->where('statut', 'payee')->sum($net);
         $impayes = (float) Facture::whereBetween('date_facture', [$debut.' 00:00:00', $fin.' 23:59:59'])
-            ->whereNotIn('statut', ['payee', 'annulee'])->sum('total_ttc');
+            ->whereNotIn('statut', ['payee', 'annulee'])->sum($net);
 
         return [
             'admissions' => $visites->count(),

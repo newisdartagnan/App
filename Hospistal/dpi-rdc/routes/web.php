@@ -36,6 +36,7 @@ use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\PreventionController;
 use App\Http\Controllers\RapportSnisController;
 use App\Http\Controllers\RechercheController;
+use App\Http\Controllers\RecouvrementController;
 use App\Http\Controllers\ServiceHospitalierController;
 use App\Http\Controllers\StatistiqueController;
 use App\Http\Controllers\TarifController;
@@ -323,6 +324,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/conventions/{facture}', [ConventionController::class, 'show'])->name('conventions.show');
     Route::get('/conventions/{facture}/imprimer', [ConventionController::class, 'imprimer'])->name('conventions.imprimer');
     Route::post('/conventions/{facture}/regler', [ConventionController::class, 'regler'])->name('conventions.regler');
+
+    // Recouvrement : tableau de bord, dépôt, rejets et relances des bordereaux
+    Route::get('/recouvrement', [RecouvrementController::class, 'index'])->name('recouvrement.index');
+    Route::post('/conventions/{facture}/depot', [RecouvrementController::class, 'depot'])->name('recouvrement.depot');
+    Route::post('/conventions/{facture}/rejets', [RecouvrementController::class, 'rejet'])->name('recouvrement.rejet');
+    Route::post('/rejets-convention/{rejet}/traiter', [RecouvrementController::class, 'traiterRejet'])->name('recouvrement.rejet.traiter');
+    Route::post('/conventions/{facture}/relances', [RecouvrementController::class, 'relance'])->name('recouvrement.relance');
     Route::get('/billetage', [ConventionController::class, 'billetage'])->name('caisse.billetage');
     Route::post('/billetage', [ConventionController::class, 'storeBilletage'])->name('caisse.billetage.store');
 
