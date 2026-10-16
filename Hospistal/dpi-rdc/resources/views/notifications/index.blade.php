@@ -47,7 +47,7 @@
                 'medicament_delivre' => '💊', 'poche_delivree' => '🩸',
                 'incident_transfusionnel' => '🚨', 'demande_refusee' => '🚫',
                 'transfert_service' => '🛏️', 'alerte_soins' => '⚠️',
-                'alerte' => '⚠️', default => '🔔',
+                'alerte' => '⚠️', 'demande_remise' => '💰', default => '🔔',
             };
         @endphp
         <div class="flex items-start gap-3 px-4 py-3 {{ $notif->lu ? 'bg-gray-50/60' : 'border-l-4 ' . $couleur }}">

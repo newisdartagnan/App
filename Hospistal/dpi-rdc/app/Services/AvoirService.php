@@ -105,17 +105,7 @@ class AvoirService
         }
 
         return DB::transaction(function () use ($facture, $categorie, $motif, $montants, $libererPrestations, $type) {
-            // Deux guichets qui annulent la même facture au même instant :
-            // le second attend le premier, puis trouve la facture annulée.
-            $facture = Facture::whereKey($facture->id)->lockForUpdate()->firstOrFail();
-
-            if ($facture->estAnnulee()) {
-                throw new RuntimeException("La facture {$facture->numero_facture} est déjà annulée.");
-            }
-
-            if ($facture->statut === 'brouillon') {
-                throw new RuntimeException('Un brouillon se corrige directement : il n\'a encore été remis à personne.');
-            }
+            $facture = $this->verrouiller($facture);
 
             $creditables = $this->lignesCreditables($facture);
             $totale = $montants === null;
@@ -153,66 +143,243 @@ class AvoirService
                 $total = round($partPatient + $partAssurance, 2);
             }
 
-            // Ce que le patient a déjà versé, face à ce qu'il devra encore :
-            // la différence, s'il y en a une, lui appartient.
-            $retenuAvant = $facture->montantRetenu();
-            $netApres = max(0, round($facture->partPatientNette() - $partPatient, 2));
-            $trop = round($retenuAvant - $netApres, 2);
-            $credit = $trop > 0.009 ? $trop : 0.0;
-
-            $liberees = $totale && $libererPrestations ? $this->liberer($facture) : null;
-
-            $avoir = Avoir::create([
-                'numero' => Avoir::genererNumero(),
-                'facture_id' => $facture->id,
-                'patient_id' => $facture->patient_id,
-                'establishment_id' => $facture->establishment_id,
-                'type' => $totale ? 'annulation' : $type,
-                'motif_categorie' => $categorie,
-                'motif' => trim($motif),
-                'devise' => $facture->deviseFacture(),
-                'taux_change' => $facture->tauxApplique(),
-                'montant_total' => $total,
-                'montant_patient' => $partPatient,
-                'montant_assurance' => $partAssurance,
-                'credit_patient' => $credit,
-                'liberer_prestations' => $liberees !== null,
-                'prestations_liberees' => $liberees,
-                'facture_convention_id' => $this->bordereau($facture),
-                'emis_par' => auth()->id(),
-                'date_avoir' => now(),
-            ]);
-
-            foreach ($reprises as $r) {
-                LigneAvoir::create([
-                    'avoir_id' => $avoir->id,
-                    'ligne_facture_id' => $r['ligne']->id,
-                    'libelle' => $r['ligne']->libelle,
-                    'montant' => $r['montant'],
-                    'montant_patient' => $r['patient'],
-                    'montant_assurance' => $r['assurance'],
-                ]);
-            }
-
-            $this->rendreAuPlafond($facture, $partAssurance);
-
-            if ($credit > 0) {
-                $avoir->update(['caution_id' => $this->crediter($facture, $avoir, $credit)->id]);
-            }
-
-            $this->mettreAJourStatut($facture, $retenuAvant > 0.009);
-
-            if ($totale) {
-                // Un bon encore en main ne doit plus ouvrir la pharmacie ni le
-                // laboratoire sur une facture qui n'existe plus.
-                BonSortie::where('facture_id', $facture->id)
-                    ->where('statut', 'emis')
-                    ->get()
-                    ->each(fn (BonSortie $bon) => $bon->update(['statut' => 'annule']));
-            }
-
-            return $avoir->fresh(['lignes', 'facture', 'credit']);
+            return $this->enregistrer(
+                $facture, $reprises, $totale ? 'annulation' : $type, $categorie, $motif,
+                $partPatient, $partAssurance, $total, $totale && $libererPrestations,
+            );
         });
+    }
+
+    /**
+     * Accorde une remise sur la part du patient.
+     *
+     * La remise est une décision, pas une correction : l'hôpital renonce à
+     * une part de sa recette, pour un cas social, un agent, un geste. Elle
+     * ne touche que ce que doit le patient — l'assureur paie ce que prévoit
+     * sa convention. Le chef de facturation l'accorde dans la limite que lui
+     * fixe la direction ; au-delà, c'est la direction qui décide.
+     *
+     * @param  array<int, string>|null  $ligneIds  lignes visées ; toutes par défaut.
+     */
+    public function accorderRemise(
+        Facture $facture,
+        string $categorie,
+        string $motif,
+        ?float $taux = null,
+        ?float $montant = null,
+        ?array $ligneIds = null,
+    ): Avoir {
+        if (trim($motif) === '') {
+            throw new RuntimeException('Une remise se motive : indiquez pourquoi l\'hôpital y renonce.');
+        }
+
+        if (! array_key_exists($categorie, Avoir::MOTIFS_REMISE)) {
+            throw new RuntimeException('Motif de remise inconnu.');
+        }
+
+        $taux = $taux !== null && $taux > 0 ? round($taux, 2) : null;
+        $montant = $montant !== null && $montant > 0 ? round($montant, 2) : null;
+
+        if (($taux === null) === ($montant === null)) {
+            throw new RuntimeException('Indiquez soit un pourcentage, soit un montant de remise.');
+        }
+
+        if ($taux !== null && $taux > 100) {
+            throw new RuntimeException('Une remise ne dépasse pas 100 %.');
+        }
+
+        return DB::transaction(function () use ($facture, $categorie, $motif, $taux, $montant, $ligneIds) {
+            $facture = $this->verrouiller($facture);
+
+            $lignes = $this->lignesCreditables($facture)
+                ->filter(fn ($c) => $c['reste_patient'] > 0)
+                ->when($ligneIds !== null, fn ($c) => $c->filter(fn ($l) => in_array($l['ligne']->id, $ligneIds, true)))
+                ->values();
+
+            if ($lignes->isEmpty()) {
+                throw new RuntimeException('Rien à remettre : la part du patient sur ces lignes est déjà nulle.');
+            }
+
+            $base = round($lignes->sum('reste_patient'), 2);
+
+            if ($montant !== null && $montant > $base + 0.009) {
+                throw new RuntimeException(
+                    'La remise ne peut dépasser ce que le patient doit encore sur ces lignes ('
+                    .$facture->formater($base).').'
+                );
+            }
+
+            // Un pourcentage s'applique ligne à ligne ; un montant se répartit
+            // au prorata, la dernière ligne absorbant l'arrondi.
+            $reste = $montant;
+            $reprises = $lignes->map(function ($l, $i) use ($lignes, $taux, $montant, $base, &$reste) {
+                $part = match (true) {
+                    $taux !== null => round($l['reste_patient'] * $taux / 100, 2),
+                    $i === $lignes->count() - 1 => round($reste, 2),
+                    default => round($montant * $l['reste_patient'] / $base, 2),
+                };
+
+                if ($taux === null) {
+                    $reste -= $part;
+                }
+
+                $part = min($part, $l['reste_patient']);
+
+                return [...$l, 'montant' => $part, 'patient' => $part, 'assurance' => 0.0];
+            })->filter(fn ($r) => $r['montant'] > 0)->values();
+
+            $total = round($reprises->sum('montant'), 2);
+
+            if ($total <= 0) {
+                throw new RuntimeException('La remise calculée est nulle.');
+            }
+
+            $this->verifierPlafond($facture, $total);
+
+            return $this->enregistrer(
+                $facture, $reprises, 'remise', $categorie, $motif,
+                $total, 0.0, $total, false, $taux,
+            );
+        });
+    }
+
+    /**
+     * Part de la facture que l'utilisateur peut encore remettre, en
+     * pourcentage de la part patient. Null : sans limite.
+     */
+    public function plafondRemise(): ?float
+    {
+        if (auth()->user()?->hasAnyRole(['super_admin', 'directeur'])) {
+            return null;
+        }
+
+        return (float) app(ParametreService::class)->lire(self::CLE_PLAFOND_REMISE, self::PLAFOND_REMISE_DEFAUT);
+    }
+
+    /** Pourcentage que la direction laisse au chef de facturation, faute de réglage. */
+    public const PLAFOND_REMISE_DEFAUT = 20;
+
+    public const CLE_PLAFOND_REMISE = 'facturation.remise_plafond_pct';
+
+    private function verifierPlafond(Facture $facture, float $total): void
+    {
+        $plafond = $this->plafondRemise();
+
+        if ($plafond === null) {
+            return;
+        }
+
+        $dejaRemis = (float) $facture->avoirs()->where('type', 'remise')->sum('montant_patient');
+        $limite = round((float) $facture->patient_part * $plafond / 100, 2);
+
+        if ($dejaRemis + $total > $limite + 0.009) {
+            throw new RuntimeException(
+                'Au-delà de '.rtrim(rtrim(number_format($plafond, 2, ',', ' '), '0'), ',')
+                .' % de la part du patient, la remise revient à la direction (encore possible : '
+                .$facture->formater(max(0, $limite - $dejaRemis)).').'
+            );
+        }
+    }
+
+    /**
+     * Facture verrouillée le temps de l'écriture : deux guichets qui la
+     * reprennent au même instant passent l'un après l'autre.
+     */
+    private function verrouiller(Facture $facture): Facture
+    {
+        $facture = Facture::whereKey($facture->id)->lockForUpdate()->firstOrFail();
+
+        if ($facture->estAnnulee()) {
+            throw new RuntimeException("La facture {$facture->numero_facture} est déjà annulée.");
+        }
+
+        if ($facture->statut === 'brouillon') {
+            throw new RuntimeException('Un brouillon se corrige directement : il n\'a encore été remis à personne.');
+        }
+
+        return $facture;
+    }
+
+    /**
+     * Écrit l'avoir, ses lignes et tout ce qu'il entraîne : le plafond de
+     * l'assuré, le crédit du patient, le statut de la facture, ses bons.
+     *
+     * @param  Collection<int, array<string, mixed>>  $reprises
+     */
+    private function enregistrer(
+        Facture $facture,
+        Collection $reprises,
+        string $type,
+        string $categorie,
+        string $motif,
+        float $partPatient,
+        float $partAssurance,
+        float $total,
+        bool $libererPrestations,
+        ?float $tauxRemise = null,
+    ): Avoir {
+        $totale = $type === 'annulation';
+
+        // Ce que le patient a déjà versé, face à ce qu'il devra encore :
+        // la différence, s'il y en a une, lui appartient.
+        $retenuAvant = $facture->montantRetenu();
+        $netApres = max(0, round($facture->partPatientNette() - $partPatient, 2));
+        $trop = round($retenuAvant - $netApres, 2);
+        $credit = $trop > 0.009 ? $trop : 0.0;
+
+        $liberees = $totale && $libererPrestations ? $this->liberer($facture) : null;
+
+        $avoir = Avoir::create([
+            'numero' => Avoir::genererNumero(),
+            'facture_id' => $facture->id,
+            'patient_id' => $facture->patient_id,
+            'establishment_id' => $facture->establishment_id,
+            'type' => $type,
+            'motif_categorie' => $categorie,
+            'motif' => trim($motif),
+            'devise' => $facture->deviseFacture(),
+            'taux_change' => $facture->tauxApplique(),
+            'montant_total' => $total,
+            'montant_patient' => $partPatient,
+            'montant_assurance' => $partAssurance,
+            'taux_remise' => $tauxRemise,
+            'credit_patient' => $credit,
+            'liberer_prestations' => $liberees !== null,
+            'prestations_liberees' => $liberees,
+            'facture_convention_id' => $this->bordereau($facture),
+            'emis_par' => auth()->id(),
+            'date_avoir' => now(),
+        ]);
+
+        foreach ($reprises as $r) {
+            LigneAvoir::create([
+                'avoir_id' => $avoir->id,
+                'ligne_facture_id' => $r['ligne']->id,
+                'libelle' => $r['ligne']->libelle,
+                'montant' => $r['montant'],
+                'montant_patient' => $r['patient'],
+                'montant_assurance' => $r['assurance'],
+            ]);
+        }
+
+        $this->rendreAuPlafond($facture, $partAssurance);
+
+        if ($credit > 0) {
+            $avoir->update(['caution_id' => $this->crediter($facture, $avoir, $credit)->id]);
+        }
+
+        $this->mettreAJourStatut($facture, $retenuAvant > 0.009, $type);
+
+        if ($totale) {
+            // Un bon encore en main ne doit plus ouvrir la pharmacie ni le
+            // laboratoire sur une facture qui n'existe plus.
+            BonSortie::where('facture_id', $facture->id)
+                ->where('statut', 'emis')
+                ->get()
+                ->each(fn (BonSortie $bon) => $bon->update(['statut' => 'annule']));
+        }
+
+        return $avoir->fresh(['lignes', 'facture', 'credit']);
     }
 
     /**
@@ -465,19 +632,29 @@ class AvoirService
         ]);
     }
 
-    private function mettreAJourStatut(Facture $facture, bool $aDejaRecu): void
+    private function mettreAJourStatut(Facture $facture, bool $aDejaRecu, string $type): void
     {
         $facture->refresh();
 
+        // Une remise de 100 % ne fait pas une facture annulée : la facture
+        // est due, l'hôpital a seulement renoncé à la part du patient.
+        $remise = $type === 'remise';
+
         $statut = match (true) {
-            $facture->totalNet() <= 0.009 => 'annulee',
-            $aDejaRecu && $facture->estSoldee() => 'payee',
+            ! $remise && $facture->totalNet() <= 0.009 => 'annulee',
+            ($aDejaRecu || $remise) && $facture->estSoldee() => 'payee',
             $aDejaRecu => 'partiellement_payee',
             default => $facture->statut,
         };
 
         if ($statut !== $facture->statut) {
             $facture->update(['statut' => $statut]);
+        }
+
+        // Soldée par la remise ou l'avoir : l'ordonnance, l'examen, la
+        // consultation partent comme après un paiement au guichet.
+        if ($statut === 'payee') {
+            app(FacturationService::class)->debloquerSiSoldee($facture);
         }
     }
 

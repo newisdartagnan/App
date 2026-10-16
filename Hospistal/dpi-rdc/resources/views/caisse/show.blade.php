@@ -2,8 +2,8 @@
 @section('title', 'Facture')
 @section('content')
 <div class="max-w-4xl mx-auto px-4 py-6">
-    <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <a href="{{ route('caisse.index') }}" class="text-blue-700 hover:underline text-sm">← Caisse</a>
             <h2 class="text-2xl font-bold text-gray-800">Facture {{ $facture->numero_facture }}</h2>
         </div>
@@ -84,8 +84,9 @@
     </div>
     @endif
 
-    {{-- Lignes --}}
+    {{-- Lignes : sur téléphone le tableau défile, la part patient ne doit pas disparaître. --}}
     <div class="bg-white rounded-xl shadow overflow-hidden mb-4">
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b">
                 <tr>
@@ -132,7 +133,7 @@
                 @foreach($facture->avoirs as $avoir)
                 <tr>
                     <td colspan="3" class="px-4 py-2 text-right text-sm text-red-700">
-                        Avoir <a href="{{ route('avoirs.show', $avoir) }}" class="underline">{{ $avoir->numero }}</a>
+                        {{ $avoir->libelleCourt() }} <a href="{{ route('avoirs.show', $avoir) }}" class="underline">{{ $avoir->numero }}</a>
                         du {{ $avoir->date_avoir->format('d/m/Y') }}
                     </td>
                     <td class="px-4 py-2 text-right text-sm text-red-700">− {{ $facture->formater((float) $avoir->montant_total) }}</td>
@@ -175,6 +176,7 @@
                 @endif
             </tfoot>
         </table>
+        </div>
     </div>
 
     {{-- Bons de sortie émis --}}
@@ -234,6 +236,99 @@
             @endforeach
         </ul>
     </div>
+    @endif
+
+    {{--
+        Remise. Elle se décide par le chef de facturation (dans sa limite) ou
+        la direction ; le caissier, lui, ne peut que la demander.
+    --}}
+    @if(! $facture->estAnnulee() && $lignesRemisables->isNotEmpty())
+    @if($peutRemettre)
+    <details class="bg-white rounded-xl shadow mb-4" @if($errors->has('valeur') || $errors->has('motif') || old('mode')) open @endif>
+        <summary class="px-6 py-4 cursor-pointer font-semibold text-gray-700">Accorder une remise sur la part du patient</summary>
+        <form method="POST" action="{{ route('caisse.remise', $facture) }}" class="px-6 pb-6 space-y-4">
+            @csrf
+            <p class="text-xs text-gray-500">
+                La remise ne touche que ce que doit le patient : l'assureur paie ce que prévoit sa convention.
+                @if($plafondRemise !== null)
+                Vous pouvez remettre jusqu'à <strong>{{ rtrim(rtrim(number_format($plafondRemise, 2, ',', ' '), '0'), ',') }} %</strong>
+                de la part du patient ; au-delà, la remise revient à la direction.
+                @endif
+            </p>
+            <div class="grid gap-4 md:grid-cols-2">
+                <fieldset>
+                    <legend class="block text-sm font-medium text-gray-700 mb-1">Remise <span class="text-red-500">*</span></legend>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label class="inline-flex items-center gap-1 text-sm">
+                            <input type="radio" name="mode" value="taux" @checked(old('mode', 'taux') === 'taux')> en %
+                        </label>
+                        <label class="inline-flex items-center gap-1 text-sm">
+                            <input type="radio" name="mode" value="montant" @checked(old('mode') === 'montant')> en montant ({{ $facture->deviseFacture() }})
+                        </label>
+                    </div>
+                    <label for="r-valeur" class="sr-only">Valeur de la remise</label>
+                    <input id="r-valeur" name="valeur" type="number" step="0.01" min="0.01" required value="{{ old('valeur') }}"
+                           placeholder="Ex. : 10"
+                           class="mt-2 w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2">
+                </fieldset>
+                <div>
+                    <label for="r-categorie" class="block text-sm font-medium text-gray-700 mb-1">Motif <span class="text-red-500">*</span></label>
+                    <select id="r-categorie" name="motif_categorie" required class="w-full min-h-[44px] rounded-lg border border-gray-300 px-3 py-2">
+                        <option value="">— Choisir —</option>
+                        @foreach(\App\Models\Avoir::MOTIFS_REMISE as $code => $libelle)
+                        <option value="{{ $code }}" @selected(old('motif_categorie') === $code)>{{ $libelle }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <fieldset>
+                <legend class="block text-sm font-medium text-gray-700 mb-1">Sur les lignes</legend>
+                <div class="grid gap-1 sm:grid-cols-2">
+                    @foreach($lignesRemisables as $l)
+                    <label class="flex items-start gap-2 text-sm">
+                        <input type="checkbox" name="lignes[]" value="{{ $l['ligne']->id }}" class="mt-1"
+                               @checked(! old('mode') || in_array($l['ligne']->id, old('lignes', []), true))>
+                        <span>{{ $l['ligne']->libelle }}
+                            <span class="text-gray-500 text-xs">— part patient {{ $facture->formater($l['reste_patient']) }}</span></span>
+                    </label>
+                    @endforeach
+                </div>
+            </fieldset>
+            <div>
+                <label for="r-motif" class="block text-sm font-medium text-gray-700 mb-1">Justification <span class="text-red-500">*</span></label>
+                <textarea id="r-motif" name="motif" rows="2" required minlength="5" maxlength="1000"
+                          placeholder="Ex. : mère seule, enquête sociale du 12/10 ; accord du médecin chef."
+                          class="w-full rounded-lg border border-gray-300 px-3 py-2">{{ old('motif') }}</textarea>
+                <p class="text-xs text-gray-500 mt-1">La remise est un avoir : elle figure sur la facture et au journal, avec votre nom.</p>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="min-h-[44px] px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg">
+                    Accorder la remise
+                </button>
+            </div>
+        </form>
+    </details>
+    @else
+    <details class="bg-white rounded-xl shadow mb-4">
+        <summary class="px-6 py-4 cursor-pointer font-semibold text-gray-700">Le patient demande une remise ?</summary>
+        <form method="POST" action="{{ route('caisse.remise.demande', $facture) }}" class="px-6 pb-6 space-y-3">
+            @csrf
+            <p class="text-xs text-gray-500">
+                La caisse encaisse ; elle n'accorde pas de remise. Décrivez la demande : le chef de facturation
+                et la direction en sont prévenus et décident.
+            </p>
+            <label for="r-demande" class="sr-only">Demande de remise</label>
+            <textarea id="r-demande" name="demande" rows="2" required minlength="5" maxlength="500"
+                      placeholder="Ex. : la famille ne peut réunir que 60 000 CDF ; indigence signalée par le service social."
+                      class="w-full rounded-lg border border-gray-300 px-3 py-2">{{ old('demande') }}</textarea>
+            <div class="flex justify-end">
+                <button type="submit" class="min-h-[44px] px-5 py-2 border border-amber-600 text-amber-700 hover:bg-amber-50 font-semibold rounded-lg">
+                    Transmettre la demande
+                </button>
+            </div>
+        </form>
+    </details>
+    @endif
     @endif
 
     {{-- Encaissement — formulaire classique, aucune dépendance JavaScript --}}

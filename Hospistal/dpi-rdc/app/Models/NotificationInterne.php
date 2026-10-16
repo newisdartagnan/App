@@ -64,6 +64,8 @@ class NotificationInterne extends Model
         'pharmacie' => '💊 Pharmacie',
         'hospitalisation' => '🛏️ Hospitalisation',
         'banque_sang' => '🩸 Banque de sang',
+        // Les demandes de remise remontent du guichet à la facturation.
+        'caisse' => '💰 Caisse',
     ];
 
     /** Couleur d'accentuation de chaque service. */
@@ -73,6 +75,7 @@ class NotificationInterne extends Model
         'pharmacie' => ['border-green-600', 'bg-green-100 text-green-800'],
         'hospitalisation' => ['border-blue-500', 'bg-blue-100 text-blue-800'],
         'banque_sang' => ['border-red-500', 'bg-red-100 text-red-800'],
+        'caisse' => ['border-amber-500', 'bg-amber-100 text-amber-800'],
     ];
 
     public static function estUnService(?string $onglet): bool
@@ -146,6 +149,8 @@ class NotificationInterne extends Model
 
         return match ($this->reference_type) {
             'prescription' => route('pharmacie.prescription', $this->reference_id),
+            // Une demande de remise mène à la facture : c'est là qu'on l'accorde.
+            'facture' => route('caisse.show', $this->reference_id),
             // Une poche délivrée ou une demande refusée renvoie à la demande :
             // c'est là que le prescripteur clôture sa transfusion ou relance.
             'demande_sang' => route('banque-sang.demande', $this->reference_id),

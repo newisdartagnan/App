@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TauxChange;
+use App\Services\AvoirService;
 use App\Services\DeviseService;
 use App\Services\ParametreService;
 use Illuminate\Http\RedirectResponse;
@@ -30,7 +31,33 @@ class ParametreController extends Controller
                 ->orderByDesc('applique_a')
                 ->limit(30)
                 ->get(),
+            'plafondRemise' => (float) $this->parametres->lire(
+                AvoirService::CLE_PLAFOND_REMISE,
+                AvoirService::PLAFOND_REMISE_DEFAUT
+            ),
         ]);
+    }
+
+    /**
+     * Limite des remises que le chef de facturation accorde seul, en
+     * pourcentage de la part du patient. Au-delà, la direction décide.
+     */
+    public function plafondRemise(Request $request): RedirectResponse
+    {
+        $this->autoriser();
+
+        $donnees = $request->validate([
+            'plafond' => 'required|numeric|min:0|max:100',
+        ], [
+            'plafond.required' => 'Indiquez le pourcentage.',
+            'plafond.max' => 'Une remise ne dépasse pas 100 %.',
+        ]);
+
+        $this->parametres->ecrire(AvoirService::CLE_PLAFOND_REMISE, (float) $donnees['plafond']);
+
+        return back()->with('success', 'Le chef de facturation peut désormais remettre jusqu\'à '
+            .rtrim(rtrim(number_format((float) $donnees['plafond'], 2, ',', ' '), '0'), ',')
+            .' % de la part du patient ; au-delà, la remise revient à la direction.');
     }
 
     /**

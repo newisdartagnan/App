@@ -27,7 +27,7 @@ class Avoir extends Model
     protected $fillable = [
         'numero', 'facture_id', 'patient_id', 'establishment_id', 'type',
         'motif_categorie', 'motif', 'devise', 'taux_change',
-        'montant_total', 'montant_patient', 'montant_assurance', 'credit_patient',
+        'montant_total', 'montant_patient', 'montant_assurance', 'taux_remise', 'credit_patient',
         'caution_id', 'liberer_prestations', 'prestations_liberees',
         'facture_convention_id', 'emis_par', 'date_avoir', 'refacture_le', 'sync_status',
     ];
@@ -41,6 +41,7 @@ class Avoir extends Model
             'montant_total' => 'decimal:2',
             'montant_patient' => 'decimal:2',
             'montant_assurance' => 'decimal:2',
+            'taux_remise' => 'decimal:2',
             'credit_patient' => 'decimal:2',
             'liberer_prestations' => 'boolean',
             'prestations_liberees' => 'array',
@@ -62,6 +63,18 @@ class Avoir extends Model
         'erreur_patient' => 'Facture établie au mauvais patient',
         'geste_commercial' => 'Geste commercial ou social',
         'autre' => 'Autre motif',
+    ];
+
+    /**
+     * Pourquoi l'hôpital renonce à une part de sa recette. Distincts des
+     * motifs d'avoir : une remise n'est pas une erreur, c'est une décision.
+     */
+    public const MOTIFS_REMISE = [
+        'cas_social' => 'Cas social, indigence constatée',
+        'personnel' => 'Personnel de l\'hôpital ou ayant droit',
+        'geste_commercial' => 'Geste commercial',
+        'arrondi' => 'Arrondi de caisse',
+        'autre_remise' => 'Autre motif de remise',
     ];
 
     /** Seuls ces champs se complètent après l'émission. */
@@ -132,7 +145,26 @@ class Avoir extends Model
 
     public function libelleMotif(): string
     {
-        return self::MOTIFS[$this->motif_categorie] ?? $this->motif_categorie;
+        return self::MOTIFS[$this->motif_categorie]
+            ?? self::MOTIFS_REMISE[$this->motif_categorie]
+            ?? $this->motif_categorie;
+    }
+
+    public function estRemise(): bool
+    {
+        return $this->type === 'remise';
+    }
+
+    /** « Remise 10 % » ou « Avoir » : ce qu'on lit sur la ligne de la facture. */
+    public function libelleCourt(): string
+    {
+        if (! $this->estRemise()) {
+            return 'Avoir';
+        }
+
+        return $this->taux_remise !== null
+            ? 'Remise '.rtrim(rtrim(number_format((float) $this->taux_remise, 2, ',', ' '), '0'), ',').' %'
+            : 'Remise';
     }
 
     public function formater(float $montant): string

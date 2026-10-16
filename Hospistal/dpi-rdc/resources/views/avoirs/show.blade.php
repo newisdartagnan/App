@@ -15,7 +15,7 @@
     <div class="bg-white rounded-xl shadow p-6 mb-4">
         <div class="flex flex-wrap justify-between items-start gap-3">
             <div>
-                <p class="text-xs uppercase tracking-wide text-gray-500">{{ $avoir->libelleType() }}</p>
+                <p class="text-xs uppercase tracking-wide text-gray-500">{{ $avoir->estRemise() ? $avoir->libelleCourt() : $avoir->libelleType() }}</p>
                 <h2 class="text-2xl font-bold text-gray-800">Avoir {{ $avoir->numero }}</h2>
                 <p class="text-sm text-gray-500">
                     du {{ $avoir->date_avoir->format('d/m/Y à H:i') }}
