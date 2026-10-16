@@ -41,7 +41,7 @@
 
     $navCaisse = request()->routeIs('caisse.*') || request()->routeIs('conventions.*')
         || request()->routeIs('acomptes.*') || request()->routeIs('forfaits.*')
-        || request()->routeIs('avoirs.*');
+        || request()->routeIs('avoirs.*') || request()->routeIs('recouvrement.*');
     $voitAvoirs = auth()->user()?->can('facture.annuler') || auth()->user()?->can('rapport.financier.view');
 
     $notifsNonLues = auth()->check()
@@ -108,6 +108,9 @@
                     : null,
                 ['Conventions & sociétés', route('conventions.index'), request()->routeIs('conventions.index')],
                 ['Dettes à recouvrer', route('conventions.dettes'), request()->routeIs('conventions.dettes')],
+                $voitAvoirs
+                    ? ['Tableau de recouvrement', route('recouvrement.index'), request()->routeIs('recouvrement.*')]
+                    : null,
             ])),
         ],
     ];

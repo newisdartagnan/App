@@ -72,14 +72,19 @@ class ConventionController extends Controller
 
     public function show(FactureConvention $facture): View
     {
-        $facture->load(['assurance', 'lignes.patient', 'lignes.facture', 'reglements.encaissePar', 'emisePar']);
+        $facture->load([
+            'assurance', 'lignes.patient', 'lignes.facture', 'reglements.encaissePar', 'emisePar',
+            'rejets.facture.patient', 'relances.auteur',
+        ]);
 
-        return view('conventions.show', compact('facture'));
+        $peutRecouvrer = (bool) (auth()->user()?->can('rapport.financier.view') || auth()->user()?->can('facture.annuler'));
+
+        return view('conventions.show', compact('facture', 'peutRecouvrer'));
     }
 
     public function imprimer(FactureConvention $facture): View
     {
-        $facture->load(['assurance', 'lignes.patient', 'lignes.facture', 'emisePar']);
+        $facture->load(['assurance', 'lignes.patient', 'lignes.facture.bonPriseEnCharge', 'emisePar']);
 
         return view('conventions.imprimer', compact('facture'));
     }

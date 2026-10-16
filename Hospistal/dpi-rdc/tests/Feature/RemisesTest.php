@@ -314,6 +314,11 @@ class RemisesTest extends TestCase
 
         $this->assertSame('payee', $facture->fresh()->statut);
         $this->assertSame(1, BonSortie::where('facture_id', $facture->id)->where('type', 'labo')->where('statut', 'emis')->count());
+
+        // Payée, mais rien n'a été encaissé : elle ne compte pas en recette.
+        $synthese = app(\App\Services\StatistiqueService::class)
+            ->synthese(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString());
+        $this->assertEquals(0.0, $synthese['recettes']);
     }
 
     // ═══════════════════════════════════════════════════════════
