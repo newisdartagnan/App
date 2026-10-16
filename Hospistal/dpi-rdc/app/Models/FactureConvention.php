@@ -58,9 +58,33 @@ class FactureConvention extends Model
         return $this->hasMany(ReglementConvention::class, 'facture_convention_id');
     }
 
+    /** Avoirs passés sur des factures que ce bordereau réclamait. */
+    public function avoirs(): HasMany
+    {
+        return $this->hasMany(Avoir::class, 'facture_convention_id');
+    }
+
+    /**
+     * Part assureur reprise par ces avoirs, dans la devise du bordereau.
+     * Les avoirs sont en francs comme les factures qu'ils corrigent ; le
+     * taux du bordereau les convertit, comme il a converti son total.
+     */
+    public function montantAvoirs(): float
+    {
+        $cdf = (float) $this->avoirs()->sum('montant_assurance');
+
+        return round($cdf / max((float) $this->taux_change, 0.0001), 2);
+    }
+
+    /** Ce que l'assureur doit vraiment : le bordereau, moins les avoirs. */
+    public function montantNet(): float
+    {
+        return max(0, round((float) $this->montant_total - $this->montantAvoirs(), 2));
+    }
+
     public function resteDu(): float
     {
-        return max(0, (float) $this->montant_total - (float) $this->montant_regle);
+        return max(0, round($this->montantNet() - (float) $this->montant_regle, 2));
     }
 
     public function estSoldee(): bool
@@ -70,10 +94,10 @@ class FactureConvention extends Model
 
     public static function genererNumero(): string
     {
-        $prefix = 'FCV-' . now()->format('Y') . '-';
-        $last = static::where('numero', 'like', $prefix . '%')
+        $prefix = 'FCV-'.now()->format('Y').'-';
+        $last = static::where('numero', 'like', $prefix.'%')
             ->orderByDesc('numero')->value('numero');
 
-        return $prefix . str_pad((string) ($last ? (int) substr($last, -6) + 1 : 1), 6, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) ($last ? (int) substr($last, -6) + 1 : 1), 6, '0', STR_PAD_LEFT);
     }
 }

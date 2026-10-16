@@ -73,6 +73,7 @@ class User extends Authenticatable
         'radiologue' => 'Radiologue',
         'pharmacien' => 'Pharmacien',
         'caissier' => 'Caissier',
+        'chef_facturation' => 'Chef de facturation',
         'agent_admin' => 'Agent administratif',
     ];
 

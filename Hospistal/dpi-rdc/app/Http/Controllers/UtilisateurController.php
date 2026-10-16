@@ -38,6 +38,7 @@ class UtilisateurController extends Controller
         'radiologue' => 'Radiologue — imagerie et comptes rendus',
         'pharmacien' => 'Pharmacien — stock et dispensation',
         'caissier' => 'Caissier — guichet, encaissements, billetage',
+        'chef_facturation' => 'Chef de facturation et recouvrement — avoirs, conventions, relances',
         'agent_admin' => 'Agent administratif — accueil et dossiers',
     ];
 

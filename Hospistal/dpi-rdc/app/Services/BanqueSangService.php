@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DemandeSang;
 use App\Models\DonneurSang;
 use App\Models\Establishment;
+use App\Models\Facture;
 use App\Models\Parametre;
 use App\Models\Patient;
 use App\Models\PocheSang;
@@ -180,6 +181,25 @@ class BanqueSangService
         $this->prevenirLeDemandeur($demande, $poche);
 
         return ['transfusion' => $transfusion->fresh(), 'erreur' => null];
+    }
+
+    /**
+     * Refacture une transfusion dont la facture a été annulée par un avoir
+     * qui l'a libérée.
+     */
+    public function facturerTransfusion(Transfusion $transfusion): ?Facture
+    {
+        $transfusion->loadMissing(['demande.patient', 'demande.visit', 'poche']);
+
+        if ($transfusion->facture_id || ! $transfusion->demande || ! $transfusion->poche) {
+            return null;
+        }
+
+        $this->facturerPoche($transfusion, $transfusion->demande, $transfusion->poche);
+
+        $id = $transfusion->fresh()->facture_id;
+
+        return $id ? Facture::find($id) : null;
     }
 
     /**

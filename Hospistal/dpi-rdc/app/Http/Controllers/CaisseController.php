@@ -30,7 +30,7 @@ class CaisseController extends Controller
         $facture->load([
             'patient', 'lignes', 'lignesTiersPayant.assurance',
             'prescription.lignes.medicament', 'paiements', 'bonsSortie',
-            'imputations.acompte',
+            'imputations.acompte', 'avoirs.auteur', 'avoirs.credit', 'avoirOrigine.facture',
         ]);
 
         // Acompte encore disponible pour ce patient, tous séjours confondus :
@@ -39,8 +39,9 @@ class CaisseController extends Controller
         $acomptes = app(AcompteService::class);
         $acompteDisponible = $acomptes->soldePatient($facture->patient_id);
         $acompteParDevise = $acomptes->soldeParDevise($facture->patient_id);
+        $peutAnnuler = (bool) auth()->user()?->can('facture.annuler');
 
-        return view('caisse.show', compact('facture', 'acompteDisponible', 'acompteParDevise'));
+        return view('caisse.show', compact('facture', 'acompteDisponible', 'acompteParDevise', 'peutAnnuler'));
     }
 
     /**
@@ -50,6 +51,10 @@ class CaisseController extends Controller
      */
     public function utiliserAcompte(Facture $facture): RedirectResponse
     {
+        if ($facture->estAnnulee()) {
+            return back()->with('error', 'Cette facture est annulée : rien n\'y est plus dû.');
+        }
+
         if ($facture->statut === 'payee') {
             return back()->with('info', 'Cette facture est déjà soldée.');
         }
@@ -85,6 +90,11 @@ class CaisseController extends Controller
             'montant.min' => 'Le montant doit être positif.',
         ]);
 
+        if ($facture->estAnnulee()) {
+            return redirect()->route('caisse.show', $facture)
+                ->with('error', 'Cette facture est annulée par un avoir : elle ne s\'encaisse plus.');
+        }
+
         if ($facture->statut === 'payee') {
             return redirect()->route('caisse.show', $facture)->with('info', 'Cette facture est déjà payée.');
         }
@@ -115,7 +125,7 @@ class CaisseController extends Controller
      */
     public function imprimer(Facture $facture): View
     {
-        $facture->load(['patient', 'visit', 'lignes', 'paiements.caissier', 'lignesTiersPayant.assurance', 'bonsSortie']);
+        $facture->load(['patient', 'visit', 'lignes', 'paiements.caissier', 'lignesTiersPayant.assurance', 'bonsSortie', 'avoirs', 'avoirOrigine.facture']);
 
         return view('caisse.imprimer', [
             'facture' => $facture,
@@ -188,6 +198,7 @@ class CaisseController extends Controller
     {
         $existante = Facture::where('visit_id', $visit->id)
             ->whereHas('lignes', fn ($q) => $q->where('type', 'consultation'))
+            ->where('statut', '!=', 'annulee')
             ->first();
 
         if ($existante) {

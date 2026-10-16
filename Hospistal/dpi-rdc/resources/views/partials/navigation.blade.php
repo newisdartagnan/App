@@ -40,7 +40,9 @@
     $peutSoigner = auth()->user()?->can('soin.execute');
 
     $navCaisse = request()->routeIs('caisse.*') || request()->routeIs('conventions.*')
-        || request()->routeIs('acomptes.*') || request()->routeIs('forfaits.*');
+        || request()->routeIs('acomptes.*') || request()->routeIs('forfaits.*')
+        || request()->routeIs('avoirs.*');
+    $voitAvoirs = auth()->user()?->can('facture.annuler') || auth()->user()?->can('rapport.financier.view');
 
     $notifsNonLues = auth()->check()
         ? app(\App\Services\NotificationService::class)->nonLuesPour(auth()->user())
@@ -96,14 +98,17 @@
         [
             'libelle' => 'Caisse',
             'actif' => $navCaisse,
-            'liens' => [
+            'liens' => array_values(array_filter([
                 ['Guichet & factures', route('caisse.index'), request()->routeIs('caisse.index') || request()->routeIs('caisse.show')],
                 ['Acomptes de soins', route('acomptes.index'), request()->routeIs('acomptes.*')],
                 ['Forfaits', route('forfaits.index'), request()->routeIs('forfaits.*')],
                 ['Billetage de caisse', route('caisse.billetage'), request()->routeIs('caisse.billetage*')],
+                $voitAvoirs
+                    ? ['Avoirs', route('avoirs.index'), request()->routeIs('avoirs.*')]
+                    : null,
                 ['Conventions & sociétés', route('conventions.index'), request()->routeIs('conventions.index')],
                 ['Dettes à recouvrer', route('conventions.dettes'), request()->routeIs('conventions.dettes')],
-            ],
+            ])),
         ],
     ];
 
@@ -135,7 +140,7 @@
            class="nav-lien {{ request()->routeIs('snis.*') ? 'est-actif' : '' }}">📋 SNIS</a>
         @endif
 
-        @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'caissier']))
+        @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'caissier', 'chef_facturation']))
         <a href="{{ route('parametres.index') }}" title="Paramétrage"
            class="nav-lien {{ request()->routeIs('parametres.*') || request()->routeIs('utilisateurs.*') || request()->routeIs('assurances.*') || request()->routeIs('forfaits.*') ? 'est-actif' : '' }}">⚙️ Paramétrage</a>
         @endif

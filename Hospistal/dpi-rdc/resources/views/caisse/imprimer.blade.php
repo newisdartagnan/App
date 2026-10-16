@@ -7,7 +7,21 @@
 
 @section('contenu')
 @php $dev = app(\App\Services\DeviseService::class); $devFact = $facture->deviseFacture(); @endphp
-<h2 class="titre-doc">{{ $facture->statut === 'payee' ? 'Reçu de paiement' : 'Facture' }}</h2>
+<h2 class="titre-doc">{{ $facture->estAnnulee() ? 'Facture annulée' : ($facture->statut === 'payee' ? 'Reçu de paiement' : 'Facture') }}</h2>
+
+@php $annulation = $facture->avoirs->firstWhere('type', 'annulation'); @endphp
+@if($annulation)
+<p style="border:2px solid #b91c1c;color:#b91c1c;padding:6px 8px;font-weight:bold;margin-bottom:8px;">
+    Annulée par l'avoir {{ $annulation->numero }} du {{ $annulation->date_avoir->format('d/m/Y') }} —
+    {{ $annulation->libelleMotif() }}. Cette facture n'est plus due.
+</p>
+@endif
+@if($facture->avoirOrigine)
+<p style="font-size:11px;margin-bottom:8px;">
+    Remplace la facture {{ $facture->avoirOrigine->facture?->numero_facture }},
+    annulée par l'avoir {{ $facture->avoirOrigine->numero }}.
+</p>
+@endif
 
 <div class="bloc">
     <div class="bloc-titre">Patient</div>
@@ -57,6 +71,18 @@
                 <td colspan="3">Part patient</td>
                 <td class="num">{{ number_format($facture->patient_part, 0, ',', '.') }}</td>
             </tr>
+            @foreach($facture->avoirs as $avoir)
+            <tr>
+                <td colspan="3">Avoir {{ $avoir->numero }} du {{ $avoir->date_avoir->format('d/m/Y') }} — part patient reprise</td>
+                <td class="num">− {{ number_format((float) $avoir->montant_patient, 0, ',', '.') }}</td>
+            </tr>
+            @endforeach
+            @if($facture->avoirs->isNotEmpty())
+            <tr class="total-row">
+                <td colspan="3">Part patient après avoirs</td>
+                <td class="num">{{ number_format($facture->partPatientNette(), 0, ',', '.') }}</td>
+            </tr>
+            @endif
             @if($facture->acompte_impute > 0)
             <tr>
                 <td colspan="3">Acompte déjà versé, imputé sur cette facture</td>
@@ -114,7 +140,7 @@
 <p style="font-weight: bold; font-size: 13px; margin-top: 8px;">
     Statut :
     <span class="{{ $facture->statut === 'payee' ? 'normal' : 'anormal' }}">
-        {{ $facture->statut === 'payee' ? '✓ PAYÉE' : mb_strtoupper(str_replace('_', ' ', $facture->statut)) }}
+        {{ $facture->statut === 'payee' ? '✓ PAYÉE' : ($facture->estAnnulee() ? 'ANNULÉE' : mb_strtoupper(str_replace('_', ' ', $facture->statut))) }}
     </span>
     @if($facture->soldeRestant() > 0)
     — Solde restant : {{ $facture->formater($facture->soldeRestant()) }}

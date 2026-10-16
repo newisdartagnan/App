@@ -132,7 +132,7 @@
                     </span>
                 </div>
                 <span class="text-xs text-gray-500">
-                    {{ \App\Models\Caution::MODES_PAIEMENT[$acompte->mode_paiement] ?? $acompte->mode_paiement }}
+                    {{ $acompte->libelleMode() }}
                     · {{ $acompte->created_at->format('d/m/Y H:i') }}
                     · {{ $acompte->caissier?->nom_complet }}
                 </span>

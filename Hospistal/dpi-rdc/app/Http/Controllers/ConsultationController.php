@@ -301,6 +301,7 @@ class ConsultationController extends Controller
         $consultation->load(['visit.patient', 'visit.factures', 'user']);
         $factureConsult = $consultation->visit->factures()
             ->whereHas('lignes', fn ($q) => $q->where('type', 'consultation'))
+            ->where('statut', '!=', 'annulee')
             ->first();
 
         return view('consultations.show', compact('consultation', 'factureConsult'));

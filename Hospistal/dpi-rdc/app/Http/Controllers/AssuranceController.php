@@ -175,9 +175,9 @@ class AssuranceController extends Controller
     private function autoriser(): void
     {
         abort_unless(
-            auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'caissier']),
+            auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'caissier', 'chef_facturation']),
             403,
-            'Gestion des conventions réservée à la direction et à la caisse.'
+            'Gestion des conventions réservée à la direction, à la facturation et à la caisse.'
         );
     }
 }

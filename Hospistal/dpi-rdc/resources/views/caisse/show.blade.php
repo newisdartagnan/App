@@ -7,20 +7,25 @@
             <a href="{{ route('caisse.index') }}" class="text-blue-700 hover:underline text-sm">← Caisse</a>
             <h2 class="text-2xl font-bold text-gray-800">Facture {{ $facture->numero_facture }}</h2>
         </div>
-        <a href="{{ route('caisse.imprimer', $facture) }}" target="_blank"
-           class="border border-blue-700 text-blue-700 hover:bg-blue-50 text-sm font-medium px-4 py-2 rounded-lg">
-            🖨️ Imprimer {{ $facture->statut === 'payee' ? 'le reçu' : 'la facture' }}
-        </a>
+        <div class="flex flex-wrap items-center gap-2">
+            @if($peutAnnuler || auth()->user()?->can('rapport.financier.view'))
+            <a href="{{ route('caisse.journal', $facture) }}"
+               class="border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-lg">
+                📜 Journal
+            </a>
+            @endif
+            @if($peutAnnuler && ! $facture->estAnnulee())
+            <a href="{{ route('avoirs.create', $facture) }}"
+               class="border border-red-700 text-red-700 hover:bg-red-50 text-sm font-medium px-4 py-2 rounded-lg">
+                Établir un avoir
+            </a>
+            @endif
+            <a href="{{ route('caisse.imprimer', $facture) }}" target="_blank"
+               class="border border-blue-700 text-blue-700 hover:bg-blue-50 text-sm font-medium px-4 py-2 rounded-lg">
+                🖨️ Imprimer {{ $facture->statut === 'payee' ? 'le reçu' : 'la facture' }}
+            </a>
+        </div>
     </div>
-
-    @if(session('success'))<div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 mb-4">{{ session('success') }}</div>@endif
-    @if(session('info'))<div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 mb-4">{{ session('info') }}</div>@endif
-    @if(session('error'))<div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 mb-4">{{ session('error') }}</div>@endif
-    @if ($errors->any())
-    <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 mb-4 text-sm">
-        @foreach ($errors->all() as $err)<p>{{ $err }}</p>@endforeach
-    </div>
-    @endif
 
 @php $dev = app(\App\Services\DeviseService::class); @endphp
     {{-- En-tête facture --}}
@@ -38,12 +43,39 @@
                     · Facture libellée en <span class="font-semibold text-gray-700">{{ $dev->libelle($facture->deviseFacture()) }}</span>
                 </p>
             </div>
-            <span class="px-3 py-1.5 rounded-full text-sm font-medium
-                {{ $facture->statut === 'payee' ? 'bg-green-100 text-green-700' : ($facture->statut === 'emise' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700') }}">
-                {{ $facture->statut === 'payee' ? '✅ Payée' : ($facture->statut === 'emise' ? '⏳ En attente' : ucfirst(str_replace('_', ' ', $facture->statut))) }}
-            </span>
+            @php
+                [$classeStatut, $libelleStatut] = match ($facture->statut) {
+                    'payee' => ['bg-green-100 text-green-700', '✅ Payée'],
+                    'emise' => ['bg-amber-100 text-amber-700', '⏳ En attente'],
+                    'annulee' => ['bg-red-100 text-red-700', '✕ Annulée'],
+                    default => ['bg-blue-100 text-blue-700', ucfirst(str_replace('_', ' ', $facture->statut))],
+                };
+            @endphp
+            <span class="px-3 py-1.5 rounded-full text-sm font-medium {{ $classeStatut }}">{{ $libelleStatut }}</span>
         </div>
     </div>
+
+    @php $annulation = $facture->avoirs->firstWhere('type', 'annulation'); @endphp
+    @if($annulation)
+    <div class="bg-red-50 border-2 border-red-300 rounded-xl px-5 py-4 mb-4 text-sm text-red-900">
+        <p class="font-bold">Facture annulée par l'avoir
+            <a href="{{ route('avoirs.show', $annulation) }}" class="underline">{{ $annulation->numero }}</a>
+            le {{ $annulation->date_avoir->format('d/m/Y') }}.</p>
+        <p class="mt-1">{{ $annulation->libelleMotif() }} — {{ $annulation->motif }}</p>
+        <p class="mt-1 text-xs">Plus rien n'y est dû ni encaissé.
+            @if($annulation->credit)Le patient dispose d'un crédit de {{ $annulation->credit->montantFormate() }}.@endif
+        </p>
+    </div>
+    @endif
+
+    @if($facture->avoirOrigine)
+    <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 text-sm text-blue-900">
+        Cette facture remplace la facture
+        <a href="{{ route('caisse.show', $facture->avoirOrigine->facture_id) }}" class="underline font-medium">{{ $facture->avoirOrigine->facture?->numero_facture }}</a>,
+        annulée par l'avoir
+        <a href="{{ route('avoirs.show', $facture->avoirOrigine) }}" class="underline">{{ $facture->avoirOrigine->numero }}</a>.
+    </div>
+    @endif
 
     @if($facture->type_prise_en_charge === 'assurance' && $facture->lignesTiersPayant->isEmpty())
     <div class="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
@@ -97,6 +129,25 @@
                     <td class="px-4 py-3 text-right font-bold text-green-600">{{ $facture->formater((float) $facture->assurance_part) }}</td>
                     <td class="px-4 py-3 text-right font-bold text-blue-700 text-base">{{ $facture->formater((float) $facture->patient_part) }}</td>
                 </tr>
+                @foreach($facture->avoirs as $avoir)
+                <tr>
+                    <td colspan="3" class="px-4 py-2 text-right text-sm text-red-700">
+                        Avoir <a href="{{ route('avoirs.show', $avoir) }}" class="underline">{{ $avoir->numero }}</a>
+                        du {{ $avoir->date_avoir->format('d/m/Y') }}
+                    </td>
+                    <td class="px-4 py-2 text-right text-sm text-red-700">− {{ $facture->formater((float) $avoir->montant_total) }}</td>
+                    <td class="px-4 py-2 text-right text-sm text-red-700">− {{ $facture->formater((float) $avoir->montant_assurance) }}</td>
+                    <td class="px-4 py-2 text-right text-sm text-red-700">− {{ $facture->formater((float) $avoir->montant_patient) }}</td>
+                </tr>
+                @endforeach
+                @if($facture->avoirs->isNotEmpty())
+                <tr>
+                    <td colspan="3" class="px-4 py-2 text-right font-semibold text-gray-700">Net après avoirs</td>
+                    <td class="px-4 py-2 text-right font-bold">{{ $facture->formater($facture->totalNet()) }}</td>
+                    <td class="px-4 py-2 text-right font-bold text-green-600">{{ $facture->formater($facture->partAssuranceNette()) }}</td>
+                    <td class="px-4 py-2 text-right font-bold text-blue-700">{{ $facture->formater($facture->partPatientNette()) }}</td>
+                </tr>
+                @endif
                 @if($facture->acompte_impute > 0)
                 <tr>
                     <td colspan="5" class="px-4 py-2 text-right text-sm text-purple-700">Acompte imputé</td>
@@ -110,6 +161,13 @@
                     <td colspan="5" class="px-4 py-2 text-right text-sm text-gray-500">Déjà payé au guichet</td>
                     <td class="px-4 py-2 text-right text-sm text-gray-500">{{ $facture->formater($facture->montantPaye()) }}</td>
                 </tr>
+                @php $credits = (float) $facture->avoirs->sum('credit_patient'); @endphp
+                @if($credits > 0)
+                <tr>
+                    <td colspan="5" class="px-4 py-2 text-right text-sm text-purple-700">Rendu au patient en crédit</td>
+                    <td class="px-4 py-2 text-right text-sm text-purple-700">{{ $facture->formater($credits) }}</td>
+                </tr>
+                @endif
                 <tr>
                     <td colspan="5" class="px-4 py-2 text-right font-bold text-red-600">Solde restant</td>
                     <td class="px-4 py-2 text-right font-bold text-red-600">{{ $facture->formater($facture->soldeRestant()) }}</td>
@@ -134,7 +192,7 @@
     @endforeach
 
     {{-- Acompte du patient mobilisable sur cette facture --}}
-    @if($facture->statut !== 'payee' && $acompteDisponible > 0)
+    @if(! in_array($facture->statut, ['payee', 'annulee'], true) && $acompteDisponible > 0)
     <div class="bg-purple-50 border-2 border-purple-300 rounded-xl p-5 mb-4">
         <div class="flex items-center justify-between flex-wrap gap-3">
             <div>
@@ -179,7 +237,7 @@
     @endif
 
     {{-- Encaissement — formulaire classique, aucune dépendance JavaScript --}}
-    @if($facture->statut !== 'payee')
+    @if(! in_array($facture->statut, ['payee', 'annulee'], true))
     <form method="POST" action="{{ route('caisse.encaisser', $facture) }}" class="bg-white rounded-xl shadow p-6">
         @csrf
         <h3 class="font-semibold text-gray-700 mb-4 pb-2 border-b">Encaissement</h3>
@@ -241,7 +299,7 @@
                 {{ ucfirst(str_replace('_', ' ', $paiement->mode_paiement)) }}
                 @if($paiement->reference_paiement)<span class="text-gray-400 text-xs">({{ $paiement->reference_paiement }})</span>@endif
             </span>
-            <span class="font-bold text-green-700">{{ number_format($paiement->montant, 0, ',', '.') }} CDF</span>
+            <span class="font-bold text-green-700">{{ $paiement->montantFormate() }}</span>
         </div>
         @endforeach
     </div>

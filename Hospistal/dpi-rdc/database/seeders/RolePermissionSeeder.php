@@ -8,31 +8,36 @@ use Spatie\Permission\Models\Role;
 
 class RolePermissionSeeder extends Seeder
 {
-    public function run(): void
+    public const PERMISSIONS = [
+        'patient.create', 'patient.view', 'patient.update', 'patient.merge',
+        'consultation.create', 'consultation.view', 'consultation.validate',
+        'prescription.create', 'dispensation.execute',
+        'stock.view', 'stock.adjust', 'stock.receive',
+        'facture.create', 'paiement.receive', 'rapport.financier.view',
+        // Annuler tout ou partie d'une facture émise, par un avoir. Ce n'est
+        // pas le droit d'encaisser : le caissier ne corrige pas sa caisse.
+        'facture.annuler',
+        'sync.manage', 'user.manage', 'settings.manage',
+        'labo.create', 'labo.view', 'labo.validate',
+        // Exécuter et tracer un soin : c'est le travail infirmier, et il
+        // ne se confond pas avec celui de prescrire.
+        'soin.execute',
+    ];
+
+    /**
+     * Droits de chaque rôle. Lue aussi par les migrations qui reportent sur
+     * une installation existante les droits ajoutés depuis.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function rolesEtDroits(): array
     {
-        $permissions = [
-            'patient.create', 'patient.view', 'patient.update', 'patient.merge',
-            'consultation.create', 'consultation.view', 'consultation.validate',
-            'prescription.create', 'dispensation.execute',
-            'stock.view', 'stock.adjust', 'stock.receive',
-            'facture.create', 'paiement.receive', 'rapport.financier.view',
-            'sync.manage', 'user.manage', 'settings.manage',
-            'labo.create', 'labo.view', 'labo.validate',
-            // Exécuter et tracer un soin : c'est le travail infirmier, et il
-            // ne se confond pas avec celui de prescrire.
-            'soin.execute',
-        ];
-
-        foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
-        }
-
-        $rolePermissions = [
-            'super_admin' => $permissions,
+        return [
+            'super_admin' => self::PERMISSIONS,
             'directeur' => [
                 'patient.view', 'consultation.view', 'consultation.validate',
                 'rapport.financier.view', 'settings.manage', 'sync.manage',
-                'labo.view', 'stock.view',
+                'labo.view', 'stock.view', 'facture.annuler',
             ],
             'medecin' => [
                 'patient.view', 'patient.create', 'patient.update',
@@ -60,12 +65,26 @@ class RolePermissionSeeder extends Seeder
                 'dispensation.execute', 'prescription.create', 'patient.view',
             ],
             'caissier' => ['facture.create', 'paiement.receive', 'patient.view'],
+            // Le chef de facturation et de recouvrement corrige les factures
+            // et suit ce que les assureurs doivent. Il n'encaisse pas : la
+            // main qui reçoit l'argent n'est pas celle qui annule la dette.
+            'chef_facturation' => [
+                'patient.view', 'facture.create', 'facture.annuler',
+                'rapport.financier.view',
+            ],
             'agent_admin' => [
                 'patient.create', 'patient.view', 'patient.update', 'settings.manage',
             ],
         ];
+    }
 
-        foreach ($rolePermissions as $roleName => $perms) {
+    public function run(): void
+    {
+        foreach (self::PERMISSIONS as $permission) {
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
+        }
+
+        foreach (self::rolesEtDroits() as $roleName => $perms) {
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
             $role->syncPermissions($perms);
         }
