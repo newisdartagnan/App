@@ -480,6 +480,12 @@ class AvoirsEtJournalTest extends TestCase
         $this->assertGreaterThan(0, (float) $avoir->montant_assurance);
         $this->assertEqualsWithDelta($du - (float) $avoir->montant_assurance, $bordereau->fresh()->resteDu(), 0.01);
 
+        // L'écran du bordereau dit ce qu'il déduit, et pourquoi.
+        $this->get(route('conventions.show', $bordereau))
+            ->assertOk()
+            ->assertSee('d\'avoirs', false)
+            ->assertSee($avoir->numero);
+
         // L'assureur qui paie le net solde le bordereau.
         $conventions->enregistrerReglement($bordereau->fresh(), $bordereau->fresh()->resteDu());
         $this->assertSame('reglee', $bordereau->fresh()->statut);

@@ -8,6 +8,7 @@ use App\Models\Facture;
 use App\Models\LigneFactureConvention;
 use App\Services\AvoirService;
 use App\Services\DeviseService;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -40,13 +41,24 @@ class AvoirController extends Controller
 
         $parMotif = $avoirs->groupBy('motif_categorie')
             ->map(fn ($groupe, $motif) => [
-                'libelle' => Avoir::MOTIFS[$motif] ?? $motif,
+                'libelle' => Avoir::MOTIFS[$motif] ?? Avoir::MOTIFS_REMISE[$motif] ?? $motif,
                 'nombre' => $groupe->count(),
                 'montant' => (float) $groupe->sum('montant_total'),
             ])
             ->sortByDesc('montant');
 
-        return view('avoirs.index', compact('avoirs', 'parMotif', 'mois'));
+        // Qui renonce à la recette, et pour combien : la direction relit ce
+        // tableau chaque mois.
+        $remisesParAuteur = $avoirs->where('type', 'remise')
+            ->groupBy('emis_par')
+            ->map(fn ($groupe) => [
+                'auteur' => $groupe->first()->auteur?->nom_complet ?? '—',
+                'nombre' => $groupe->count(),
+                'montant' => (float) $groupe->sum('montant_total'),
+            ])
+            ->sortByDesc('montant');
+
+        return view('avoirs.index', compact('avoirs', 'parMotif', 'mois', 'remisesParAuteur'));
     }
 
     public function create(Facture $facture): View|RedirectResponse
@@ -156,6 +168,89 @@ class AvoirController extends Controller
         return redirect()->route('avoirs.show', $avoir)
             ->with('success', $factures->count().' factures émises en remplacement : '
                 .$factures->pluck('numero_facture')->implode(', ').'.');
+    }
+
+    /**
+     * Accorde une remise sur la part du patient — chef de facturation dans
+     * la limite fixée par la direction, direction sans limite.
+     */
+    public function remise(Request $request, Facture $facture): RedirectResponse
+    {
+        abort_unless(auth()->user()?->can('facture.remise'), 403,
+            'Une remise est une recette à laquelle l\'hôpital renonce : seuls le chef de facturation et la direction l\'accordent.');
+
+        $donnees = $request->validate([
+            'mode' => 'required|in:taux,montant',
+            'valeur' => 'required|numeric|min:0.01',
+            'motif_categorie' => 'required|in:'.implode(',', array_keys(Avoir::MOTIFS_REMISE)),
+            'motif' => 'required|string|min:5|max:1000',
+            'lignes' => 'nullable|array',
+            'lignes.*' => 'uuid',
+        ], [
+            'valeur.required' => 'Indiquez le pourcentage ou le montant de la remise.',
+            'valeur.min' => 'La remise doit être positive.',
+            'motif.required' => 'Une remise se motive : écrivez pourquoi l\'hôpital y renonce.',
+            'motif.min' => 'Le motif doit dire pourquoi, en quelques mots au moins.',
+        ]);
+
+        try {
+            $avoir = $this->avoirs->accorderRemise(
+                $facture,
+                $donnees['motif_categorie'],
+                $donnees['motif'],
+                taux: $donnees['mode'] === 'taux' ? (float) $donnees['valeur'] : null,
+                montant: $donnees['mode'] === 'montant' ? (float) $donnees['valeur'] : null,
+                ligneIds: $donnees['lignes'] ?? null,
+            );
+        } catch (RuntimeException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        $facture->refresh();
+        $message = $avoir->libelleCourt().' accordée ('.$avoir->numero.') : '
+            .$avoir->formater((float) $avoir->montant_total).' de moins pour le patient.';
+
+        $message .= (float) $avoir->credit_patient > 0
+            ? ' Il avait déjà payé : '.$avoir->formater((float) $avoir->credit_patient).' lui reviennent en crédit.'
+            : ($facture->soldeRestant() > 0
+                ? ' Reste à encaisser : '.$facture->formater($facture->soldeRestant()).'.'
+                : ' La facture est soldée.');
+
+        return redirect()->route('caisse.show', $facture)->with('success', $message);
+    }
+
+    /**
+     * Le caissier qui juge une remise justifiée la demande : le chef de
+     * facturation et la direction en sont prévenus et décident.
+     */
+    public function demanderRemise(Request $request, Facture $facture): RedirectResponse
+    {
+        $donnees = $request->validate([
+            'demande' => 'required|string|min:5|max:500',
+        ], [
+            'demande.required' => 'Écrivez ce que le patient demande et pourquoi.',
+            'demande.min' => 'Écrivez ce que le patient demande et pourquoi.',
+        ]);
+
+        $facture->loadMissing('patient');
+        $notifications = app(NotificationService::class);
+
+        foreach (['chef_facturation', 'directeur'] as $groupe) {
+            $notifications->envoyer(
+                service: 'caisse',
+                type: 'demande_remise',
+                titre: 'Remise demandée — '.$facture->numero_facture,
+                message: ($facture->patient?->nom_complet ?? 'Patient').' : '.$donnees['demande']
+                    .' (demande de '.auth()->user()->nom_complet.')',
+                referenceType: 'facture',
+                referenceId: $facture->id,
+                codeReference: $facture->numero_facture,
+                groupeDestinataire: $groupe,
+                patientId: null,
+            );
+        }
+
+        return back()->with('success', 'Demande transmise au chef de facturation et à la direction : ils décideront de la remise.');
     }
 
     /** Le caissier rend au patient, en espèces, le crédit laissé par l'avoir. */

@@ -7,6 +7,7 @@ use App\Models\Facture;
 use App\Models\Prescription;
 use App\Models\Visit;
 use App\Services\AcompteService;
+use App\Services\AvoirService;
 use App\Services\DeviseService;
 use App\Services\FacturationService;
 use Illuminate\Http\RedirectResponse;
@@ -40,8 +41,15 @@ class CaisseController extends Controller
         $acompteDisponible = $acomptes->soldePatient($facture->patient_id);
         $acompteParDevise = $acomptes->soldeParDevise($facture->patient_id);
         $peutAnnuler = (bool) auth()->user()?->can('facture.annuler');
+        $peutRemettre = (bool) auth()->user()?->can('facture.remise');
+        $avoirs = app(AvoirService::class);
+        $lignesRemisables = $avoirs->lignesCreditables($facture)->filter(fn ($l) => $l['reste_patient'] > 0)->values();
+        $plafondRemise = $peutRemettre ? $avoirs->plafondRemise() : null;
 
-        return view('caisse.show', compact('facture', 'acompteDisponible', 'acompteParDevise', 'peutAnnuler'));
+        return view('caisse.show', compact(
+            'facture', 'acompteDisponible', 'acompteParDevise', 'peutAnnuler',
+            'peutRemettre', 'lignesRemisables', 'plafondRemise'
+        ));
     }
 
     /**

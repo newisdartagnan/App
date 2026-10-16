@@ -73,13 +73,13 @@
             </tr>
             @foreach($facture->avoirs as $avoir)
             <tr>
-                <td colspan="3">Avoir {{ $avoir->numero }} du {{ $avoir->date_avoir->format('d/m/Y') }} — part patient reprise</td>
+                <td colspan="3">{{ $avoir->libelleCourt() }} {{ $avoir->numero }} du {{ $avoir->date_avoir->format('d/m/Y') }}{{ $avoir->estRemise() ? '' : ' — part patient reprise' }}</td>
                 <td class="num">− {{ number_format((float) $avoir->montant_patient, 0, ',', '.') }}</td>
             </tr>
             @endforeach
             @if($facture->avoirs->isNotEmpty())
             <tr class="total-row">
-                <td colspan="3">Part patient après avoirs</td>
+                <td colspan="3">Part patient après {{ $facture->avoirs->every(fn ($a) => $a->estRemise()) ? 'remise' : 'avoirs' }}</td>
                 <td class="num">{{ number_format($facture->partPatientNette(), 0, ',', '.') }}</td>
             </tr>
             @endif

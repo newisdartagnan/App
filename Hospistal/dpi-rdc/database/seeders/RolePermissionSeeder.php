@@ -17,6 +17,9 @@ class RolePermissionSeeder extends Seeder
         // Annuler tout ou partie d'une facture émise, par un avoir. Ce n'est
         // pas le droit d'encaisser : le caissier ne corrige pas sa caisse.
         'facture.annuler',
+        // Accorder une remise : renoncer à une part de la recette. Réservé à
+        // qui en répond — jamais à la main qui tient le tiroir.
+        'facture.remise',
         'sync.manage', 'user.manage', 'settings.manage',
         'labo.create', 'labo.view', 'labo.validate',
         // Exécuter et tracer un soin : c'est le travail infirmier, et il
@@ -37,7 +40,7 @@ class RolePermissionSeeder extends Seeder
             'directeur' => [
                 'patient.view', 'consultation.view', 'consultation.validate',
                 'rapport.financier.view', 'settings.manage', 'sync.manage',
-                'labo.view', 'stock.view', 'facture.annuler',
+                'labo.view', 'stock.view', 'facture.annuler', 'facture.remise',
             ],
             'medecin' => [
                 'patient.view', 'patient.create', 'patient.update',
@@ -70,7 +73,7 @@ class RolePermissionSeeder extends Seeder
             // main qui reçoit l'argent n'est pas celle qui annule la dette.
             'chef_facturation' => [
                 'patient.view', 'facture.create', 'facture.annuler',
-                'rapport.financier.view',
+                'facture.remise', 'rapport.financier.view',
             ],
             'agent_admin' => [
                 'patient.create', 'patient.view', 'patient.update', 'settings.manage',

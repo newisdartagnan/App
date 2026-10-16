@@ -19,7 +19,13 @@
     <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
         <div><span class="text-gray-500 text-xs">Période</span><p class="font-semibold">{{ $facture->periode_debut->format('d/m/Y') }} → {{ $facture->periode_fin->format('d/m/Y') }}</p></div>
         <div><span class="text-gray-500 text-xs">Présentation</span><p class="font-semibold capitalize">{{ $facture->mode }}</p></div>
-        <div><span class="text-gray-500 text-xs">Montant</span><p class="font-semibold">{{ number_format((float) $facture->montant_total, 2, ',', ' ') }} {{ $facture->devise }}</p></div>
+        <div><span class="text-gray-500 text-xs">Montant</span><p class="font-semibold">{{ number_format((float) $facture->montant_total, 2, ',', ' ') }} {{ $facture->devise }}</p>
+            @php $deduits = $facture->montantAvoirs(); @endphp
+            @if($deduits > 0)
+            <p class="text-xs text-red-700">− {{ number_format($deduits, 2, ',', ' ') }} d'avoirs
+                ({{ $facture->avoirs()->pluck('numero')->implode(', ') }})</p>
+            @endif
+        </div>
         <div><span class="text-gray-500 text-xs">Réglé</span><p class="font-semibold text-green-700">{{ number_format((float) $facture->montant_regle, 2, ',', ' ') }}</p></div>
         <div><span class="text-gray-500 text-xs">Reste dû</span><p class="font-semibold {{ $facture->resteDu() > 0 ? 'text-amber-700' : 'text-green-700' }}">{{ number_format($facture->resteDu(), 2, ',', ' ') }}</p></div>
         <div>

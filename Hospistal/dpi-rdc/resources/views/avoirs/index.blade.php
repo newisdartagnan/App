@@ -14,7 +14,7 @@
         </form>
     </div>
     <p class="text-sm text-gray-500 mb-5">
-        Chaque facture corrigée en {{ $mois->translatedFormat('F Y') }}, par qui et pourquoi.
+        Chaque facture corrigée ou remise en {{ $mois->translatedFormat('F Y') }}, par qui et pourquoi.
         Un même motif qui revient dit où le circuit de facturation se trompe.
     </p>
 
@@ -29,6 +29,18 @@
             </p>
         </div>
         @endforeach
+    </div>
+    @endif
+
+    @if($remisesParAuteur->isNotEmpty())
+    <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-sm text-amber-900">
+        <p class="font-semibold mb-1">Remises accordées ce mois</p>
+        <ul class="space-y-0.5">
+            @foreach($remisesParAuteur as $r)
+            <li>{{ $r['auteur'] }} — {{ $r['nombre'] }} remise{{ $r['nombre'] > 1 ? 's' : '' }},
+                {{ app(\App\Services\DeviseService::class)->formater($r['montant'], 'CDF') }}</li>
+            @endforeach
+        </ul>
     </div>
     @endif
 
@@ -53,7 +65,7 @@
                     <tr>
                         <td class="px-4 py-2 whitespace-nowrap">
                             <a href="{{ route('avoirs.show', $avoir) }}" class="text-blue-700 hover:underline font-medium">{{ $avoir->numero }}</a>
-                            <p class="text-xs text-gray-500">{{ $avoir->date_avoir->format('d/m/Y H:i') }} · {{ $avoir->libelleType() }}</p>
+                            <p class="text-xs text-gray-500">{{ $avoir->date_avoir->format('d/m/Y H:i') }} · {{ $avoir->estRemise() ? $avoir->libelleCourt() : $avoir->libelleType() }}</p>
                         </td>
                         <td class="px-4 py-2 whitespace-nowrap">
                             <a href="{{ route('caisse.show', $avoir->facture_id) }}" class="text-blue-700 hover:underline">{{ $avoir->facture?->numero_facture }}</a>

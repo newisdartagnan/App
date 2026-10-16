@@ -199,6 +199,7 @@ Route::middleware(['auth'])->group(function () {
     // ══════════════════════════════════════════════════════════════
     Route::get('/parametres', [ParametreController::class, 'index'])->name('parametres.index');
     Route::post('/parametres/taux', [ParametreController::class, 'reviserTaux'])->name('parametres.taux');
+    Route::post('/parametres/remise', [ParametreController::class, 'plafondRemise'])->name('parametres.remise');
 
     // Tarifs : ce que coûte chaque prestation, révisable sans développeur
     Route::get('/parametres/tarifs', [TarifController::class, 'index'])->name('tarifs.index');
@@ -402,6 +403,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/caisse/{facture}/journal', [AvoirController::class, 'journal'])->name('caisse.journal');
     Route::get('/caisse/{facture}/avoir', [AvoirController::class, 'create'])->name('avoirs.create');
     Route::post('/caisse/{facture}/avoir', [AvoirController::class, 'store'])->name('avoirs.store');
+    Route::post('/caisse/{facture}/remise', [AvoirController::class, 'remise'])->name('caisse.remise');
+    Route::post('/caisse/{facture}/remise/demande', [AvoirController::class, 'demanderRemise'])->name('caisse.remise.demande');
     Route::get('/avoirs', [AvoirController::class, 'index'])->name('avoirs.index');
     Route::get('/avoirs/{avoir}', [AvoirController::class, 'show'])->name('avoirs.show');
     Route::post('/avoirs/{avoir}/refacturer', [AvoirController::class, 'refacturer'])->name('avoirs.refacturer');

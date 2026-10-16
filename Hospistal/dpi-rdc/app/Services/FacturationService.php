@@ -819,6 +819,69 @@ class FacturationService
         });
     }
 
+    /**
+     * Ce qu'un encaissement débloque, quand la facture est soldée autrement
+     * que par un paiement au guichet : un acompte imputé, une remise
+     * accordée. L'ordonnance doit alors partir à la pharmacie et l'examen
+     * au laboratoire exactement comme si le patient avait payé.
+     *
+     * Rien n'est émis deux fois : un bon encore valide suffit.
+     */
+    public function debloquerSiSoldee(Facture $facture): ?BonSortie
+    {
+        $facture->refresh();
+
+        if ($facture->estAnnulee() || ! $facture->estSoldee() || ! auth()->id()) {
+            return null;
+        }
+
+        $bon = null;
+
+        $prescription = $facture->prescription_id ? Prescription::find($facture->prescription_id) : null;
+
+        if ($prescription && in_array($prescription->statut, ['brouillon', 'en_attente_paiement'], true)
+            && ! BonSortie::where('prescription_id', $prescription->id)->where('statut', 'emis')->exists()) {
+            $bon = BonSortie::create([
+                'numero' => BonSortie::genererNumero(),
+                'facture_id' => $facture->id,
+                'patient_id' => $facture->patient_id,
+                'emis_par' => auth()->id(),
+                'type' => 'pharmacie',
+                'statut' => 'emis',
+                'prescription_id' => $prescription->id,
+                'expire_at' => now()->addHours(24),
+            ]);
+
+            $prescription->update(['statut' => 'en_attente']);
+        }
+
+        foreach (ExamenLaboratoire::where('facture_id', $facture->id)->get() as $examen) {
+            if (BonSortie::where('examen_id', $examen->id)->where('statut', 'emis')->exists()) {
+                continue;
+            }
+
+            $bon = BonSortie::create([
+                'numero' => BonSortie::genererNumero(),
+                'facture_id' => $facture->id,
+                'patient_id' => $facture->patient_id,
+                'emis_par' => auth()->id(),
+                'type' => $examen->domaine === 'imagerie' ? 'imagerie' : 'labo',
+                'statut' => 'emis',
+                'examen_id' => $examen->id,
+                'expire_at' => now()->addHours(48),
+            ]);
+        }
+
+        $facture->loadMissing('lignes', 'visit');
+        if ($facture->visit
+            && $facture->visit->statut === 'en_attente'
+            && $facture->lignes->contains(fn ($l) => $l->type === 'consultation')) {
+            $facture->visit->update(['statut' => 'en_cours']);
+        }
+
+        return $bon;
+    }
+
     protected function genererNumeroFacture(): string
     {
         $prefix = 'FAC-'.now()->format('Y').'-';

@@ -12,17 +12,6 @@
 
     @include('parametres._onglets')
 
-    @foreach(['success','error','info'] as $t)
-        @if(session($t))
-        <div class="mb-4 rounded-lg px-4 py-3 text-sm border {{ $t==='success' ? 'bg-green-50 border-green-200 text-green-800' : ($t==='error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-blue-50 border-blue-200 text-blue-800') }}">{{ session($t) }}</div>
-        @endif
-    @endforeach
-
-    @if ($errors->any())
-    <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 mb-4 text-sm">
-        @foreach ($errors->all() as $err)<p>{{ $err }}</p>@endforeach
-    </div>
-    @endif
 
     {{-- Taux en vigueur --}}
     <div class="grid sm:grid-cols-3 gap-3 mb-5">
@@ -122,6 +111,26 @@
                 @endforelse
             </div>
         </div>
+    </div>
+
+    {{-- Remises --}}
+    <div class="bg-white rounded-xl shadow p-5 mt-5">
+        <h3 class="font-semibold text-gray-700 mb-1">Remises accordées par le chef de facturation</h3>
+        <p class="text-xs text-gray-500 mb-4 pb-3 border-b">
+            Le caissier n'accorde jamais de remise. Le chef de facturation en accorde seul jusqu'à ce
+            pourcentage de la part du patient, par facture ; au-delà, c'est la direction qui décide.
+            Mettre 0 réserve toute remise à la direction.
+        </p>
+        <form method="POST" action="{{ route('parametres.remise') }}" class="flex flex-wrap items-end gap-3">
+            @csrf
+            <div>
+                <label for="p-plafond" class="block text-xs font-semibold text-gray-600 mb-1">Plafond (%)</label>
+                <input id="p-plafond" name="plafond" type="number" step="0.5" min="0" max="100" required
+                       value="{{ old('plafond', rtrim(rtrim(number_format($plafondRemise, 2, '.', ''), '0'), '.')) }}"
+                       class="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <button class="bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-lg min-h-[40px]">Enregistrer</button>
+        </form>
     </div>
 
     <div class="mt-5 flex flex-wrap gap-3">

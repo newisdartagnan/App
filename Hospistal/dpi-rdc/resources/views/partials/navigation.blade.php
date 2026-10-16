@@ -104,7 +104,7 @@
                 ['Forfaits', route('forfaits.index'), request()->routeIs('forfaits.*')],
                 ['Billetage de caisse', route('caisse.billetage'), request()->routeIs('caisse.billetage*')],
                 $voitAvoirs
-                    ? ['Avoirs', route('avoirs.index'), request()->routeIs('avoirs.*')]
+                    ? ['Avoirs et remises', route('avoirs.index'), request()->routeIs('avoirs.*')]
                     : null,
                 ['Conventions & sociétés', route('conventions.index'), request()->routeIs('conventions.index')],
                 ['Dettes à recouvrer', route('conventions.dettes'), request()->routeIs('conventions.dettes')],

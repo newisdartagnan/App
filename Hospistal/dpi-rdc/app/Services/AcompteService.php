@@ -165,6 +165,10 @@ class AcompteService
 
             if ($facture->estSoldee()) {
                 $facture->update(['statut' => 'payee']);
+
+                // Soldée par l'avance : l'ordonnance et l'examen partent comme
+                // après un paiement au guichet.
+                app(FacturationService::class)->debloquerSiSoldee($facture);
             } elseif ($facture->statut === 'emise') {
                 $facture->update(['statut' => 'partiellement_payee']);
             }
