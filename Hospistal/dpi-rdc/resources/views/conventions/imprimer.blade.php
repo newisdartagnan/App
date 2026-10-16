@@ -28,6 +28,7 @@
                     <th style="border:1px solid #999;padding:4px;text-align:left;">Bénéficiaire</th>
                     <th style="border:1px solid #999;padding:4px;text-align:left;">Dossier</th>
                     <th style="border:1px solid #999;padding:4px;text-align:left;">Facture</th>
+                    <th style="border:1px solid #999;padding:4px;text-align:left;">Bon de prise en charge</th>
                     <th style="border:1px solid #999;padding:4px;text-align:left;">Date</th>
                     <th style="border:1px solid #999;padding:4px;text-align:right;">Part convention</th>
                 </tr>
@@ -38,6 +39,7 @@
                     <td style="border:1px solid #999;padding:4px;">{{ $ligne->patient->nom_complet }}</td>
                     <td style="border:1px solid #999;padding:4px;">{{ $ligne->patient->dossier_number }}</td>
                     <td style="border:1px solid #999;padding:4px;">{{ $ligne->facture->numero_facture }}</td>
+                    <td style="border:1px solid #999;padding:4px;">{{ $ligne->facture->bonPriseEnCharge?->numero ?? '—' }}</td>
                     <td style="border:1px solid #999;padding:4px;">{{ $ligne->facture->date_facture->format('d/m/Y') }}</td>
                     <td style="border:1px solid #999;padding:4px;text-align:right;">{{ number_format((float) $ligne->part_assurance, 0, ',', ' ') }}</td>
                 </tr>
@@ -45,7 +47,7 @@
             </tbody>
             <tfoot>
                 <tr style="background:#f2f2f2;font-weight:bold;">
-                    <td colspan="4" style="border:1px solid #999;padding:5px;text-align:right;">
+                    <td colspan="5" style="border:1px solid #999;padding:5px;text-align:right;">
                         Total à régler ({{ $facture->devise }})
                     </td>
                     <td style="border:1px solid #999;padding:5px;text-align:right;">

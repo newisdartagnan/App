@@ -16,12 +16,17 @@ class Assurance extends Model
         'plafond_annuel_cdf', 'est_actif', 'notes',
         'delai_reglement_jours', 'mode_reglement', 'periodicite_facturation',
         'ticket_moderateur', 'contact_nom', 'contact_telephone', 'contact_email',
+        'contrat_debut', 'contrat_fin', 'exige_bon_prise_en_charge', 'coefficient_tarif',
     ];
 
     protected function casts(): array
     {
         return [
             'est_actif' => 'boolean',
+            'exige_bon_prise_en_charge' => 'boolean',
+            'contrat_debut' => 'date',
+            'contrat_fin' => 'date',
+            'coefficient_tarif' => 'decimal:4',
             'taux_couverture' => 'decimal:2',
             'ticket_moderateur' => 'decimal:2',
         ];
@@ -71,6 +76,77 @@ class Assurance extends Model
     public function echeancePour(Carbon $emission): Carbon
     {
         return $emission->copy()->addDays((int) $this->delai_reglement_jours);
+    }
+
+    public function tarifs(): HasMany
+    {
+        return $this->hasMany(TarifConvention::class);
+    }
+
+    public function bonsPriseEnCharge(): HasMany
+    {
+        return $this->hasMany(BonPriseEnCharge::class);
+    }
+
+    /**
+     * Pourquoi le contrat ne couvre pas cette date ; null s'il la couvre.
+     * Sans dates saisies, le contrat est réputé en cours.
+     */
+    public function horsContrat(?Carbon $date = null): ?string
+    {
+        $date ??= now();
+
+        return match (true) {
+            ! $this->est_actif => 'la convention « '.$this->nom.' » est suspendue',
+            $this->contrat_debut && $this->contrat_debut->gt($date) => 'la convention « '.$this->nom
+                .' » ne prend effet que le '.$this->contrat_debut->format('d/m/Y'),
+            $this->contrat_fin && $this->contrat_fin->lt($date->copy()->startOfDay()) => 'la convention « '.$this->nom
+                .' » a expiré le '.$this->contrat_fin->format('d/m/Y'),
+            default => null,
+        };
+    }
+
+    /** Le contrat arrive-t-il à échéance dans les jours qui viennent ? */
+    public function expireBientot(int $jours = 30): bool
+    {
+        return $this->contrat_fin !== null
+            && $this->contrat_fin->gte(now()->startOfDay())
+            && $this->contrat_fin->lte(now()->addDays($jours));
+    }
+
+    /**
+     * Prix d'une prestation pour les bénéficiaires de cette convention :
+     * le prix fixé pour la prestation, à défaut celui de sa catégorie, à
+     * défaut le prix public multiplié par le coefficient du contrat.
+     */
+    public function prixPour(string $type, ?string $referenceId, float $prixPublic, bool $prixDeCategorie = true): float
+    {
+        $tarifs = $this->relationLoaded('tarifs') ? $this->tarifs : $this->tarifs()->get();
+
+        if ($referenceId && ($tarif = $tarifs->first(fn ($t) => $t->type === $type && $t->reference_id === $referenceId))) {
+            return (float) $tarif->prix;
+        }
+
+        if ($prixDeCategorie && ($tarif = $tarifs->first(fn ($t) => $t->type === $type && $t->reference_id === null))) {
+            return (float) $tarif->prix;
+        }
+
+        $coefficient = (float) ($this->coefficient_tarif ?: 1);
+
+        return round($prixPublic * $coefficient, 2);
+    }
+
+    /** « Prix public », « Prix public + 20 % », « Prix public − 10 % ». */
+    public function libelleCoefficient(): string
+    {
+        $ecart = round(((float) ($this->coefficient_tarif ?: 1) - 1) * 100, 2);
+
+        if (abs($ecart) < 0.01) {
+            return 'Prix public';
+        }
+
+        return 'Prix public '.($ecart > 0 ? '+ ' : '− ')
+            .rtrim(rtrim(number_format(abs($ecart), 2, ',', ' '), '0'), ',').' %';
     }
 
     public function couvertures(): HasMany

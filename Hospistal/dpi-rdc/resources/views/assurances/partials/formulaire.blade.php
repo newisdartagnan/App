@@ -87,6 +87,37 @@
     </div>
     <div></div>
 
+    {{-- Dates et conditions du contrat : hors de ces dates, pas de tiers payant. --}}
+    <div>
+        <label for="a-debut-{{ $assurance?->id ?? 'new' }}" class="block text-xs font-semibold text-gray-600 mb-1">Contrat en vigueur du</label>
+        <input id="a-debut-{{ $assurance?->id ?? 'new' }}" name="contrat_debut" type="date"
+               value="{{ old('contrat_debut', $assurance?->contrat_debut?->toDateString()) }}"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+    </div>
+    <div>
+        <label for="a-fin-{{ $assurance?->id ?? 'new' }}" class="block text-xs font-semibold text-gray-600 mb-1">au</label>
+        <input id="a-fin-{{ $assurance?->id ?? 'new' }}" name="contrat_fin" type="date"
+               value="{{ old('contrat_fin', $assurance?->contrat_fin?->toDateString()) }}"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <p class="text-xs text-gray-500 mt-1">Vide : sans échéance. Après cette date, la convention ne se facture plus.</p>
+    </div>
+    <div>
+        <label for="a-coef-{{ $assurance?->id ?? 'new' }}" class="block text-xs font-semibold text-gray-600 mb-1">Tarif : prix public ± (%)</label>
+        <input id="a-coef-{{ $assurance?->id ?? 'new' }}" name="coefficient_pct" type="number" step="0.01" min="-90" max="500"
+               value="{{ old('coefficient_pct', $assurance ? round(((float) ($assurance->coefficient_tarif ?: 1) - 1) * 100, 2) : 0) }}"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <p class="text-xs text-gray-500 mt-1">20 : prix public + 20 %. Les prix négociés l'emportent.</p>
+    </div>
+    <div class="md:col-span-3">
+        <label class="inline-flex items-start gap-2 text-sm">
+            <input type="hidden" name="exige_bon_prise_en_charge" value="0">
+            <input type="checkbox" name="exige_bon_prise_en_charge" value="1" class="mt-1"
+                   @checked(old('exige_bon_prise_en_charge', $assurance?->exige_bon_prise_en_charge))>
+            <span><span class="font-medium text-gray-800">Exige un bon de prise en charge</span>
+                <span class="block text-xs text-gray-500">Sans bon valide saisi au dossier, le tiers payant ne s'applique pas : le patient paie tout.</span></span>
+        </label>
+    </div>
+
     <div>
         <label for="a-cnom-{{ $assurance?->id ?? 'new' }}" class="block text-xs font-semibold text-gray-600 mb-1">Contact</label>
         <input id="a-cnom-{{ $assurance?->id ?? 'new' }}" name="contact_nom" maxlength="150"

@@ -152,7 +152,11 @@
                 @endif
             </span>
         </summary>
-        <form method="POST" action="{{ route('patients.assurance', $patient) }}" class="px-5 pb-5 pt-2 border-t flex flex-wrap items-end gap-3">
+        <p class="px-5 pt-3 text-sm border-t">
+            <a href="{{ route('bpc.index', $patient) }}" class="text-blue-700 hover:underline">📄 Bons de prise en charge</a>
+            <span class="text-gray-500 text-xs">— à saisir avant la facture quand la convention l'exige</span>
+        </p>
+        <form method="POST" action="{{ route('patients.assurance', $patient) }}" class="px-5 pb-5 pt-2 flex flex-wrap items-end gap-3">
             @csrf
             <div class="flex-1 min-w-[200px]">
                 <label for="assurance-nom" class="block text-sm font-medium text-gray-700 mb-1">Nom de l'assurance <span class="text-red-500">*</span></label>

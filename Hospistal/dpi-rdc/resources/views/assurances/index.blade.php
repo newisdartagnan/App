@@ -15,17 +15,7 @@
 
     @include('parametres._onglets')
 
-    @foreach(['success','error'] as $t)
-        @if(session($t))
-        <div class="mb-4 rounded-lg px-4 py-3 text-sm border {{ $t==='success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800' }}">{{ session($t) }}</div>
-        @endif
-    @endforeach
 
-    @if ($errors->any())
-    <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 mb-4 text-sm">
-        @foreach ($errors->all() as $err)<p>{{ $err }}</p>@endforeach
-    </div>
-    @endif
 
     <details class="bg-white rounded-xl shadow mb-5" {{ $errors->any() ? 'open' : '' }}>
         <summary class="px-5 py-3 font-semibold text-gray-700 cursor-pointer select-none">
@@ -72,9 +62,16 @@
                         </td>
                         <td class="px-4 py-3 text-center text-xs">{{ $assurance->patient_assurances_count }}</td>
                         <td class="px-4 py-3">
-                            <span class="px-2 py-0.5 rounded-full text-xs {{ $assurance->est_actif ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600' }}">
-                                {{ $assurance->est_actif ? 'Active' : 'Suspendue' }}
+                            @php $hors = $assurance->est_actif ? $assurance->horsContrat() : null; @endphp
+                            <span class="px-2 py-0.5 rounded-full text-xs {{ ! $assurance->est_actif || $hors ? 'bg-gray-200 text-gray-600' : ($assurance->expireBientot() ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800') }}">
+                                {{ ! $assurance->est_actif ? 'Suspendue' : ($hors ? 'Hors contrat' : 'Active') }}
                             </span>
+                            @if($assurance->contrat_fin)
+                            <p class="text-xs text-gray-500 mt-0.5">jusqu'au {{ $assurance->contrat_fin->format('d/m/Y') }}</p>
+                            @endif
+                            @if($assurance->exige_bon_prise_en_charge)
+                            <p class="text-xs text-gray-500">bon exigé</p>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
                             <a href="{{ route('assurances.show', $assurance) }}" class="text-blue-700 hover:underline text-xs">Détail →</a>

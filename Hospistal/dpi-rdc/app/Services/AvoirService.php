@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ActeClinique;
 use App\Models\Avoir;
+use App\Models\BonPriseEnCharge;
 use App\Models\BonSortie;
 use App\Models\Caution;
 use App\Models\ExamenLaboratoire;
@@ -599,6 +600,12 @@ class AvoirService
         $colonne = $devise === 'USD' ? 'consomme_annuel_usd' : 'consomme_annuel_cdf';
 
         $contrat->update([$colonne => max(0, round((float) $contrat->{$colonne} - $partAssurance, 2))]);
+
+        // Le bon de prise en charge retrouve ce que l'assureur ne paie plus.
+        if ($facture->bon_prise_en_charge_id && ($bon = BonPriseEnCharge::find($facture->bon_prise_en_charge_id))) {
+            $rendu = $this->devises->convertir($partAssurance, $facture->deviseFacture(), $bon->devise ?: 'CDF');
+            $bon->update(['montant_consomme' => max(0, round((float) $bon->montant_consomme - $rendu, 2))]);
+        }
     }
 
     /**

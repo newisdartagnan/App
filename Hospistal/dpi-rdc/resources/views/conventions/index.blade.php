@@ -10,17 +10,7 @@
         </span>
     </div>
 
-    @foreach(['success','error'] as $t)
-        @if(session($t))
-        <div class="mb-4 rounded-lg px-4 py-3 text-sm border {{ $t==='success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800' }}">{{ session($t) }}</div>
-        @endif
-    @endforeach
 
-    @if ($errors->any())
-    <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 mb-4 text-sm">
-        @foreach ($errors->all() as $err)<p>{{ $err }}</p>@endforeach
-    </div>
-    @endif
 
     <form method="GET" class="bg-white rounded-xl shadow p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div class="flex-1 min-w-48">
