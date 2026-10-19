@@ -2,6 +2,11 @@
 from collections import defaultdict
 
 from openpyxl.chart import LineChart, Reference, Series
+from openpyxl.chart.axis import ChartLines
+from openpyxl.chart.shapes import GraphicalProperties
+from openpyxl.chart.text import RichText
+from openpyxl.drawing.line import LineProperties
+from openpyxl.drawing.text import CharacterProperties, Paragraph, ParagraphProperties
 from openpyxl.comments import Comment
 from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, TwoCellAnchor
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -109,7 +114,46 @@ def graphique(ws, ancre, source, premiere_ligne, n, series, col_etiquette, titre
         s.smooth = False
         ch.series.append(s)
     ch.set_categories(Reference(source, min_col=col_etiquette, min_row=premiere_ligne, max_row=premiere_ligne + n - 1))
+    axes_discrets(ch, n)
     ws.add_chart(ch, ancre)
+
+
+AXE_TEXTE = "7F8C96"     # chiffres des axes : gris moyen, lisibles sans attirer l'œil
+AXE_TRAIT = "D5DCE2"     # trait de l'axe des jours
+AXE_GRILLE = "ECEFF2"    # quadrillage horizontal très clair
+
+
+def _texte_axe(taille=8):
+    p = Paragraph(pPr=ParagraphProperties(defRPr=CharacterProperties(sz=taille * 100, solidFill=AXE_TEXTE)),
+                  endParaRPr=CharacterProperties(sz=taille * 100, solidFill=AXE_TEXTE))
+    p.r = []
+    return RichText(p=[p])
+
+
+def axes_discrets(ch, n):
+    """Abscisses (jours) et ordonnées lisibles sans surcharge : petits chiffres gris, une étiquette de jour sur deux à
+    quatre selon la longueur de la période, pas de graduations, quadrillage horizontal très clair, pas de titres d'axes."""
+    x, y = ch.x_axis, ch.y_axis
+    x.delete = False
+    y.delete = False
+    x.axPos = "b"
+    y.axPos = "l"
+    x.title = None
+    y.title = None
+    x.txPr = _texte_axe()
+    y.txPr = _texte_axe()
+    x.majorTickMark = y.majorTickMark = "none"
+    x.minorTickMark = y.minorTickMark = "none"
+    x.tickLblPos = y.tickLblPos = "low"
+    pas = max(1, -(-n // 10))                      # au plus une dizaine de jours étiquetés
+    x.tickLblSkip = pas
+    x.tickMarkSkip = pas
+    x.spPr = GraphicalProperties(ln=LineProperties(solidFill=AXE_TRAIT, w=6350))
+    y.spPr = GraphicalProperties(ln=LineProperties(noFill=True))
+    y.number_format = "#,##0"
+    y.numFmt.sourceLinked = False
+    y.majorGridlines = ChartLines(spPr=GraphicalProperties(ln=LineProperties(solidFill=AXE_GRILLE, w=6350)))
+    y.scaling.min = 0
 
 
 def colorer(ws, r, c, x, R, force=False):
@@ -157,7 +201,7 @@ def feuille_csmkl2(wb, R, positions_actes, arbre_actes, onglet):
     section(ws, 9, "VISITES PRINCIPALES ET CAPACITÉ DU MODÈLE", 1, der)
     for r in range(10, 27):
         ws.row_dimensions[r].height = 20
-    graphique(ws, "A10", wb["_Jours"], R.lignes_jours[("CSMKL2", V.PRINCIPALE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 20,
+    graphique(ws, "A10", wb["_Jours"], R.lignes_jours[("CSMKL2", V.PRINCIPALE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 21,
               titre_periode(R).replace(f" {R.fin.year}", ""))
     dp = ind["date_pic"]
     note_bloc(ws, 27, f"Pic : {ind['pic_jour']} visites le {dp.strftime('%d/%m') if dp else '–'} = {ind['gps_pic']} GPS + "
@@ -303,7 +347,7 @@ def feuille_chme(wb, R, onglet):
     for r in range(10, 27):
         ws.row_dimensions[r].height = 20
     graphique(ws, "A10", wb["_Hospi jour"], 6, R.ndays, [(4, "Lits occupés GPS + Evo"), (2, "dont GPS"), (3, "dont Evo"),
-                                                          (5, "Lits réels")], 11, "Moyenne sur 24 heures", axe="Lits occupés")
+                                                          (5, "Lits réels")], 12, "Lits occupés (moyenne sur 24 heures)")
     note_bloc(ws, 27, f"Les séjours entrés avant le {R.debut.strftime('%d/%m')} n’ont pas de date d’entrée dans les exports "
                       f"({L['sans_entree']} dossiers) : les premiers jours sont sous-estimés. Evolucare propose une sortie à 4 jours dès "
                       "l’admission : une sortie à exactement 4 jours n’est pas confirmée, les autres sont réelles.", 1, der, alerte=True,
@@ -367,7 +411,7 @@ def feuille_chme(wb, R, onglet):
                      "Le quotient affiché n’est pas une mesure fiable de la capacité réelle des urgences.", 1, der, alerte=True, hauteur=36)
     r += 2
     section(ws, r, "AMBULATOIRE / ÉVOLUTION DE LA CHARGE", 1, der)
-    graphique(ws, f"A{r + 1}", wb["_Jours"], R.lignes_jours[("CHME", V.AMBULATOIRE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 20,
+    graphique(ws, f"A{r + 1}", wb["_Jours"], R.lignes_jours[("CHME", V.AMBULATOIRE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 21,
               titre_periode(R).replace(f" {R.fin.year}", ""))
     for x in range(r + 1, r + 18):
         ws.row_dimensions[x].height = 20
