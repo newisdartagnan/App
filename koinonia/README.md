@@ -9,7 +9,8 @@ JMJ de Séoul, du 3 au 8 août 2027.
 
 - `maquettes/vitrine.html` : vitrine publique (accueil, mouvements, annuaire,
   JMJ, formules). Le fichier est écrit pour la visionneuse des artefacts Claude,
-  qui ajoute elle-même `<!doctype html>`, `<head>` et `<body>`.
+  qui ajoute elle-même `<!doctype html>`, `<head>` et `<body>`. En local, on
+  peut aussi l'ouvrir directement dans un navigateur après avoir cloné le dépôt.
 
 ## Deux rattachements par groupe
 
