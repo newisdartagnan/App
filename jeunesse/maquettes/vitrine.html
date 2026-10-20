@@ -1,0 +1,728 @@
+<title>Koinonia Jeunes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Maquette de la vitrine publique : groupes de jeunes catholiques, paroisses, mouvements et JMJ Séoul 2027.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=block">
+<style>
+/* Mise en page : une bande tricolore (une couleur par mouvement, comme un foulard) relie le haut de page, les fiches et la JMJ. */
+:root {
+  --paper: #f4f6fb;
+  --surface: #ffffff;
+  --sunk: #e9edf6;
+  --ink: #14213d;
+  --muted: #56627b;
+  --line: #d9dfeb;
+  --accent: #2b45b8;      /* JEFAC, bleu marial */
+  --accent-ink: #ffffff;
+  --red: #c4362c;         /* K.A, rouge des martyrs */
+  --gold: #d99a14;        /* BYM, mwinda : la lumière */
+  --good: #1f7a4d;
+  --bad: #b3261e;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r: 14px;
+  --wrap: 1160px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0d1322; --surface: #151d31; --sunk: #1c2640; --ink: #e7ebf5; --muted: #9ba7c1;
+    --line: #29355a; --accent: #8098ff; --accent-ink: #0d1322; --red: #ff7b6f; --gold: #f3c35a;
+    --good: #5fd39a; --bad: #ff8a80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0d1322; --surface: #151d31; --sunk: #1c2640; --ink: #e7ebf5; --muted: #9ba7c1;
+  --line: #29355a; --accent: #8098ff; --accent-ink: #0d1322; --red: #ff7b6f; --gold: #f3c35a;
+  --good: #5fd39a; --bad: #ff8a80; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; }
+a { color: inherit; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.08; text-wrap: balance; margin: 0; }
+h2 { font-size: clamp(1.75rem, 3.6vw, 2.6rem); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 1.15rem; font-weight: 700; }
+p { margin: 0; }
+.ms { font-family: "Material Symbols Outlined"; font-weight: normal; font-style: normal; font-size: 1.25em; line-height: 1; display: inline-block; vertical-align: -0.2em; white-space: nowrap; direction: ltr; -webkit-font-feature-settings: "liga"; font-feature-settings: "liga"; overflow: hidden; max-width: 1.2em; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.band { padding-block: clamp(56px, 8vw, 96px); }
+.eyebrow { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); font-size: 1.08rem; max-width: 62ch; }
+.section-head { display: grid; gap: 12px; margin-bottom: 36px; max-width: 760px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+/* Foulard : trois bandes */
+.scarf { display: flex; height: 6px; }
+.scarf span { flex: 1; }
+.scarf span:nth-child(1) { background: var(--accent); }
+.scarf span:nth-child(2) { background: var(--red); }
+.scarf span:nth-child(3) { background: var(--gold); }
+
+/* Boutons */
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 999px; font-weight: 700; text-decoration: none; border: 1.5px solid transparent; font-size: 0.97rem; cursor: pointer; background: none; font-family: inherit; color: inherit; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { border-color: var(--line); background: var(--surface); }
+.btn-ghost:hover { border-color: var(--accent); }
+.btn-sm { padding: 8px 14px; font-size: 0.9rem; }
+
+/* En-tête */
+header.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top-row { display: flex; align-items: center; gap: 20px; padding-block: 14px; flex-wrap: wrap; }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--display); font-weight: 800; font-size: 1.3rem; }
+.logo-mark { width: 34px; height: 34px; border-radius: 10px; background: var(--ink); color: var(--paper); display: grid; place-items: center; }
+.logo small { display: block; font-family: var(--body); font-weight: 400; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.04em; }
+nav.main { display: flex; gap: 22px; margin-left: 12px; }
+nav.main a { text-decoration: none; color: var(--muted); font-weight: 700; font-size: 0.95rem; }
+nav.main a:hover { color: var(--ink); }
+.top-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 960px) { nav.main { display: none; } }
+@media (max-width: 560px) { .top-actions .hide-sm { display: none; } }
+
+/* Héros */
+.hero { padding-block: clamp(40px, 7vw, 84px); }
+.hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(28px, 5vw, 64px); align-items: center; }
+.hero-grid > * { min-width: 0; }
+@media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
+.hero h1 { font-size: clamp(2.4rem, 6vw, 4.3rem); font-weight: 800; letter-spacing: -0.02em; margin-block: 14px 20px; }
+.hero h1 .mark { position: relative; white-space: nowrap; }
+.hero h1 .mark::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0.02em; height: 0.16em; background: linear-gradient(90deg, var(--accent) 0 33.3%, var(--red) 33.3% 66.6%, var(--gold) 66.6%); border-radius: 2px; z-index: -1; }
+.hero h1 .mark { z-index: 0; }
+.hero-ctas { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
+.hero-note { margin-top: 18px; font-size: 0.9rem; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+
+/* Aperçu illustratif */
+.demo { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 24px 60px -30px rgba(20, 33, 61, 0.35); overflow: hidden; }
+.demo-flag { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); padding: 10px 16px; border-bottom: 1px dashed var(--line); background: var(--sunk); }
+.demo-head { display: flex; gap: 14px; align-items: center; padding: 18px 18px 14px; }
+.demo-badge { width: 46px; height: 46px; border-radius: 12px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 0.82rem; flex: none; }
+.demo-head h3 { font-size: 1.05rem; }
+.demo-head p { color: var(--muted); font-size: 0.86rem; }
+.tabs { display: flex; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tab { border: 0; background: none; font: inherit; font-weight: 700; font-size: 0.9rem; color: var(--muted); padding: 10px 10px 12px; border-bottom: 2.5px solid transparent; cursor: pointer; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.pane { padding: 16px 18px 20px; display: grid; gap: 10px; }
+.row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--sunk); }
+.row > div { min-width: 0; }
+.date { font-family: var(--display); font-weight: 800; text-align: center; line-height: 1; min-width: 42px; }
+.date b { display: block; font-size: 1.35rem; }
+.date small { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.row .t { font-weight: 700; font-size: 0.95rem; }
+.row .s { color: var(--muted); font-size: 0.82rem; }
+.pill { font-size: 0.74rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); white-space: nowrap; }
+.pill.ok { color: var(--good); border-color: currentColor; }
+.meter { height: 7px; background: var(--surface); border-radius: 99px; overflow: hidden; margin-top: 6px; border: 1px solid var(--line); }
+.meter i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.lesson { padding: 12px; border-radius: 10px; background: var(--sunk); display: grid; gap: 4px; }
+.lesson .files { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.82rem; color: var(--muted); }
+.stage { display: grid; grid-template-columns: 110px 1fr 34px; gap: 10px; align-items: center; font-size: 0.88rem; }
+.stage .meter { margin: 0; height: 10px; }
+.stage b { text-align: right; font-variant-numeric: tabular-nums; }
+.pane-foot { font-size: 0.78rem; color: var(--muted); }
+
+/* Trois mouvements */
+.movements { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+@media (max-width: 900px) { .movements { grid-template-columns: 1fr; } }
+.mv { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; display: flex; flex-direction: column; }
+.mv-top { padding: 20px 20px 16px; color: #fff; display: grid; gap: 6px; }
+.mv.jefac .mv-top { background: #2b45b8; }
+.mv.ka .mv-top { background: #a92e25; }
+.mv.bym .mv-top { background: #8f6406; }
+.mv-order { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85; }
+.mv-top h3 { font-size: 1.7rem; font-weight: 800; }
+.mv-top p { font-size: 0.92rem; opacity: 0.92; }
+.mv dl { margin: 0; padding: 16px 20px 6px; display: grid; gap: 12px; flex: 1; }
+.mv dt { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.mv dd { margin: 2px 0 0; font-size: 0.95rem; }
+.mv dd.todo { color: var(--muted); font-style: italic; }
+.mv-foot { padding: 14px 20px 18px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--line); margin-top: 10px; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); flex: none; }
+.mv.jefac .status-dot { background: var(--good); }
+
+/* Avant / après */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 820px) { .compare { grid-template-columns: 1fr; } }
+.cmp { border-radius: var(--r); padding: 24px; display: grid; gap: 16px; align-content: start; }
+.cmp.before { background: var(--sunk); }
+.cmp.after { background: var(--surface); border: 1.5px solid var(--accent); }
+.cmp h3 { display: flex; gap: 8px; align-items: center; }
+.cmp ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.cmp li { display: grid; grid-template-columns: 24px 1fr; gap: 10px; }
+.cmp li .ms { color: var(--bad); }
+.cmp.after li .ms { color: var(--good); }
+.cmp li b { display: block; }
+.cmp li span.d { color: var(--muted); font-size: 0.94rem; }
+.cmp .result { font-weight: 700; padding-top: 12px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
+
+/* Fonctionnalités */
+.features { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+@media (max-width: 1000px) { .features { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .features { grid-template-columns: 1fr; } }
+.ft { background: var(--surface); padding: 22px; display: grid; gap: 8px; align-content: start; }
+.ft .ms { font-size: 1.7rem; max-width: 1.2em; color: var(--accent); }
+.ft p { color: var(--muted); font-size: 0.94rem; }
+.ft .tag { justify-self: start; font-size: 0.72rem; font-weight: 700; color: var(--red); letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* Qui administre quoi */
+.roles-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table.roles { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 0.95rem; }
+.roles th, .roles td { text-align: left; vertical-align: top; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.roles thead th { font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: var(--sunk); }
+.roles tbody tr:last-child td, .roles tbody tr:last-child th { border-bottom: 0; }
+.roles tbody th { font-family: var(--display); font-size: 1.05rem; white-space: nowrap; }
+.roles tbody th small { display: block; font-family: var(--body); font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+.roles .who { font-weight: 700; }
+.roles tr.parish { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.roles-note { margin-top: 14px; color: var(--muted); font-size: 0.92rem; display: flex; gap: 8px; }
+
+/* Étapes */
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; counter-reset: s; }
+@media (max-width: 900px) { .steps { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .steps { grid-template-columns: 1fr; } }
+.step { display: grid; gap: 8px; align-content: start; padding-top: 18px; border-top: 3px solid var(--ink); }
+.step::before { counter-increment: s; content: counter(s); font-family: var(--display); font-weight: 800; font-size: 2.2rem; line-height: 1; }
+.step p { color: var(--muted); font-size: 0.95rem; }
+
+/* JMJ */
+.wyd { background: var(--ink); color: var(--paper); }
+.wyd .eyebrow, .wyd .lede { color: color-mix(in srgb, var(--paper) 72%, var(--ink)); }
+.wyd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 5vw, 64px); align-items: start; }
+.wyd-grid > * { min-width: 0; }
+@media (max-width: 860px) { .wyd-grid { grid-template-columns: 1fr; } }
+.wyd h2 { margin-block: 12px 14px; }
+.verse { margin-top: 22px; font-family: var(--display); font-size: 1.35rem; font-weight: 500; border-left: 4px solid var(--gold); padding-left: 16px; }
+.verse small { display: block; font-family: var(--body); font-size: 0.85rem; opacity: 0.75; margin-top: 6px; }
+.count { display: flex; align-items: baseline; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
+.count b { font-family: var(--display); font-size: clamp(3rem, 8vw, 4.8rem); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--gold); }
+.wyd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.wyd-list li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; padding: 14px 0; border-bottom: 1px solid color-mix(in srgb, var(--paper) 18%, var(--ink)); }
+.wyd-list li:last-child { border-bottom: 0; }
+.wyd-list .ms { color: var(--gold); font-size: 1.5rem; }
+.wyd-list p { opacity: 0.78; font-size: 0.94rem; }
+
+/* Annuaire */
+.dir-tools { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
+.search { flex: 1 1 260px; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 999px; padding: 4px 16px; }
+.search:focus-within { border-color: var(--accent); }
+.search input { border: 0; outline: 0; background: none; font: inherit; color: var(--ink); padding: 8px 0; width: 100%; min-width: 0; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 8px 14px; font: inherit; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 900px) { .groups { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .groups { grid-template-columns: 1fr; } }
+.gcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 10px; align-content: start; }
+.gcard-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.mvtag { font-size: 0.74rem; font-weight: 800; letter-spacing: 0.06em; padding: 4px 10px; border-radius: 6px; color: #fff; }
+.mvtag.jefac { background: #2b45b8; } .mvtag.ka { background: #a92e25; } .mvtag.bym { background: #8f6406; }
+.ex { font-size: 0.72rem; color: var(--muted); border: 1px dashed var(--line); padding: 2px 8px; border-radius: 6px; }
+.gcard h3 { font-size: 1.05rem; }
+.gcard .meta { color: var(--muted); font-size: 0.88rem; display: grid; gap: 4px; }
+.gcard .meta span { display: flex; gap: 6px; align-items: center; }
+.empty { grid-column: 1 / -1; padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--r); }
+
+/* Formules */
+.plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+@media (max-width: 900px) { .plans { grid-template-columns: 1fr; } }
+.plan { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 24px; display: grid; gap: 14px; align-content: start; }
+.plan.featured { border: 2px solid var(--accent); }
+.plan .price { font-family: var(--display); font-size: 2rem; font-weight: 800; }
+.plan .price small { font-family: var(--body); font-size: 0.9rem; font-weight: 400; color: var(--muted); }
+.plan ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; font-size: 0.94rem; }
+.plan li { display: flex; gap: 8px; }
+.plan li .ms { color: var(--good); }
+.plan > p { color: var(--muted); font-size: 0.94rem; }
+.honest { margin-top: 22px; color: var(--muted); font-size: 0.92rem; display: flex; gap: 8px; }
+
+/* Appel final + pied */
+.final { text-align: left; display: grid; gap: 16px; justify-items: start; padding: clamp(28px, 5vw, 48px); background: var(--surface); border: 1px solid var(--line); border-radius: 20px; }
+footer { border-top: 1px solid var(--line); background: var(--surface); }
+.foot { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 28px; padding-block: 44px 28px; }
+@media (max-width: 820px) { .foot { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .foot { grid-template-columns: 1fr; } }
+.foot h4 { margin: 0 0 10px; font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.foot ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.foot a { text-decoration: none; }
+.foot a:hover { text-decoration: underline; }
+.foot p { color: var(--muted); font-size: 0.92rem; max-width: 40ch; margin-top: 10px; }
+.copy { padding-block: 16px 28px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn, .chip, .tab { transition: background-color .15s, border-color .15s, color .15s, filter .15s; }
+}
+</style>
+
+<div class="scarf" aria-hidden="true"><span></span><span></span><span></span></div>
+
+<header class="top">
+  <div class="wrap top-row">
+    <a class="logo" href="#accueil" aria-label="Koinonia Jeunes, accueil">
+      <span class="logo-mark"><span class="ms" aria-hidden="true">diversity_3</span></span>
+      <span>Koinonia<small>Nom provisoire</small></span>
+    </a>
+    <nav class="main" aria-label="Navigation principale">
+      <a href="#mouvements">Mouvements</a>
+      <a href="#annuaire">Trouver un groupe</a>
+      <a href="#fonctionnalites">Fonctionnalités</a>
+      <a href="#jmj">JMJ Séoul 2027</a>
+      <a href="#formules">Formules</a>
+    </nav>
+    <div class="top-actions">
+      <a class="btn btn-ghost btn-sm hide-sm" href="#roles"><span class="ms" aria-hidden="true">login</span>Se connecter à mon groupe</a>
+      <a class="btn btn-ghost btn-sm hide-sm" href="#roles"><span class="ms" aria-hidden="true">admin_panel_settings</span>Espace aumônier</a>
+      <a class="btn btn-primary btn-sm" href="#etapes">Inscrire mon groupe</a>
+    </div>
+  </div>
+</header>
+
+<main id="accueil">
+
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow">Groupes de jeunes · paroisses · mouvements · JMJ Séoul 2027</p>
+        <h1>Chaque groupe a son <span class="mark">charisme.</span> Faites-le connaître.</h1>
+        <p class="lede">Un espace pour chaque groupe de jeunes catholiques, rattaché à sa paroisse et à son mouvement. Agenda, enseignements, présences et suivi des étapes au même endroit, et une fiche publique pour présenter votre charisme et votre apostolat au monde entier.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary" href="#etapes">Inscrire mon groupe gratuitement<span class="ms" aria-hidden="true">arrow_forward</span></a>
+          <a class="btn btn-ghost" href="#annuaire"><span class="ms" aria-hidden="true">travel_explore</span>Trouver un groupe</a>
+        </div>
+        <p class="hero-note"><span class="ms" aria-hidden="true">verified_user</span>Chaque groupe est validé par l'aumônier ou les coordinateurs de sa paroisse.</p>
+      </div>
+
+      <div class="demo" aria-label="Aperçu illustratif d'un espace de groupe">
+        <div class="demo-flag"><span class="ms" aria-hidden="true">info</span>Aperçu illustratif : groupe, paroisse et contenus fictifs</div>
+        <div class="demo-head">
+          <div class="demo-badge">JEFAC</div>
+          <div>
+            <h3>JEFAC · Paroisse Sainte-Famille</h3>
+            <p>Kinshasa · 26 membres · aumônier et 2 coordinateurs</p>
+          </div>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Sections de l'espace groupe">
+          <button class="tab" role="tab" id="tab-agenda" aria-controls="pane-agenda" aria-selected="true">Agenda</button>
+          <button class="tab" role="tab" id="tab-ens" aria-controls="pane-ens" aria-selected="false" tabindex="-1">Enseignements</button>
+          <button class="tab" role="tab" id="tab-etapes" aria-controls="pane-etapes" aria-selected="false" tabindex="-1">Étapes</button>
+        </div>
+
+        <div class="pane" role="tabpanel" id="pane-agenda" aria-labelledby="tab-agenda">
+          <div class="row">
+            <div class="date"><b>24</b><small>oct.</small></div>
+            <div><div class="t">Rencontre hebdomadaire</div><div class="s">Samedi 15 h · salle paroissiale</div></div>
+            <span class="pill ok">19 présents</span>
+          </div>
+          <div class="row">
+            <div class="date"><b>25</b><small>oct.</small></div>
+            <div><div class="t">Messe animée par le groupe</div><div class="s">Dimanche 10 h · église paroissiale</div></div>
+            <span class="pill">À venir</span>
+          </div>
+          <div class="row">
+            <div class="date"><b>7</b><small>nov.</small></div>
+            <div><div class="t">Récollection du doyenné</div><div class="s">Avec les groupes K.A et BYM de la paroisse</div></div>
+            <span class="pill">Annonce</span>
+          </div>
+          <p class="pane-foot">Les présences se pointent en direct ou par QR code à l'entrée.</p>
+        </div>
+
+        <div class="pane" role="tabpanel" id="pane-ens" aria-labelledby="tab-ens" hidden>
+          <div class="lesson">
+            <div class="t"><b>Enseignement 4 · La famille, Église domestique</b></div>
+            <div class="files"><span><span class="ms" aria-hidden="true">picture_as_pdf</span> Support PDF</span><span><span class="ms" aria-hidden="true">headphones</span> Audio 18 min</span><span><span class="ms" aria-hidden="true">quiz</span> 5 questions</span></div>
+            <div class="s" style="color:var(--muted);font-size:.84rem">Publié par le formateur · suivi par 18 membres sur 26</div>
+            <div class="meter" aria-hidden="true"><i style="width:69%"></i></div>
+          </div>
+          <div class="lesson">
+            <div class="t"><b>Enseignement 3 · Prier en groupe</b></div>
+            <div class="files"><span><span class="ms" aria-hidden="true">picture_as_pdf</span> Support PDF</span><span><span class="ms" aria-hidden="true">event</span> Donné le 10 oct.</span></div>
+            <div class="s" style="color:var(--muted);font-size:.84rem">Suivi par 24 membres sur 26</div>
+            <div class="meter" aria-hidden="true"><i style="width:92%"></i></div>
+          </div>
+          <p class="pane-foot">Chaque membre voit ses enseignements suivis et ceux qu'il lui reste à rattraper.</p>
+        </div>
+
+        <div class="pane" role="tabpanel" id="pane-etapes" aria-labelledby="tab-etapes" hidden>
+          <div class="stage"><span>Accueil</span><div class="meter" aria-hidden="true"><i style="width:27%"></i></div><b>7</b></div>
+          <div class="stage"><span>Formation</span><div class="meter" aria-hidden="true"><i style="width:42%"></i></div><b>11</b></div>
+          <div class="stage"><span>Engagement</span><div class="meter" aria-hidden="true"><i style="width:23%"></i></div><b>6</b></div>
+          <div class="stage"><span>Envoi</span><div class="meter" aria-hidden="true"><i style="width:8%"></i></div><b>2</b></div>
+          <p class="pane-foot">Noms d'étapes donnés en exemple : chaque mouvement définit les siens dans son modèle.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="mouvements" style="padding-top:24px">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Les premiers modèles de mouvement</p>
+        <h2>Trois mouvements pour commencer</h2>
+        <p class="lede">Chaque mouvement a son modèle : charisme, patrons, étapes de croissance et enseignements de référence. Un groupe qui s'inscrit hérite du modèle de son mouvement et le complète avec sa vie paroissiale. Les fiches sont rédigées avec les coordinations de chaque mouvement.</p>
+      </div>
+      <div class="movements">
+        <article class="mv jefac">
+          <div class="mv-top">
+            <span class="mv-order">Premier modèle · en cours</span>
+            <h3>JEFAC</h3>
+            <p>Jeunesse Famille Chrétienne</p>
+          </div>
+          <dl>
+            <div><dt>Charisme</dt><dd class="todo">À rédiger avec la coordination JEFAC</dd></div>
+            <div><dt>Apostolat</dt><dd class="todo">À rédiger avec la coordination JEFAC</dd></div>
+            <div><dt>Étapes de croissance</dt><dd class="todo">À définir dans le modèle</dd></div>
+          </dl>
+          <div class="mv-foot"><span class="status-dot" aria-hidden="true"></span>Modèle en préparation</div>
+        </article>
+        <article class="mv ka">
+          <div class="mv-top">
+            <span class="mv-order">Deuxième modèle</span>
+            <h3>K.A</h3>
+            <p>Mouvement Kizito-Anuarite</p>
+          </div>
+          <dl>
+            <div><dt>Patrons</dt><dd>Saint Kizito et la bienheureuse Anuarite</dd></div>
+            <div><dt>Charisme et apostolat</dt><dd class="todo">À rédiger avec la coordination K.A</dd></div>
+            <div><dt>Étapes et grades</dt><dd class="todo">À définir dans le modèle</dd></div>
+          </dl>
+          <div class="mv-foot"><span class="status-dot" aria-hidden="true"></span>Prévu après JEFAC</div>
+        </article>
+        <article class="mv bym">
+          <div class="mv-top">
+            <span class="mv-order">Troisième modèle</span>
+            <h3>BYM</h3>
+            <p>Bilenge ya Mwinda, « les jeunes de lumière »</p>
+          </div>
+          <dl>
+            <div><dt>Charisme</dt><dd class="todo">À rédiger avec la coordination BYM</dd></div>
+            <div><dt>Apostolat</dt><dd class="todo">À rédiger avec la coordination BYM</dd></div>
+            <div><dt>Étapes de croissance</dt><dd class="todo">À définir dans le modèle</dd></div>
+          </dl>
+          <div class="mv-foot"><span class="status-dot" aria-hidden="true"></span>Prévu après K.A</div>
+        </article>
+      </div>
+      <p class="honest"><span class="ms" aria-hidden="true">add_circle</span>Votre mouvement n'est pas encore là ? Le modèle « groupe libre » permet de s'inscrire dès maintenant. Un modèle dédié suivra avec sa coordination.</p>
+    </div>
+  </section>
+
+  <section class="band" style="background:var(--surface);border-block:1px solid var(--line)">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Ce qui change pour le groupe</p>
+        <h2>Fini les annonces perdues dans le groupe WhatsApp</h2>
+        <p class="lede">Une rencontre ne devrait pas commencer par chercher qui a reçu l'annonce, qui a suivi le dernier enseignement et qui est à quelle étape.</p>
+      </div>
+      <div class="compare">
+        <div class="cmp before">
+          <h3><span class="ms" aria-hidden="true">close</span>Aujourd'hui</h3>
+          <ul>
+            <li><span class="ms" aria-hidden="true">cancel</span><div><b>Annonces noyées</b><span class="d">L'heure de la récollection se perd parmi des centaines de messages.</span></div></li>
+            <li><span class="ms" aria-hidden="true">cancel</span><div><b>Enseignements sur des cahiers</b><span class="d">Celui qui était absent ne sait pas ce qui a été dit, ni où trouver le support.</span></div></li>
+            <li><span class="ms" aria-hidden="true">cancel</span><div><b>Présences sur papier</b><span class="d">L'aumônier ne voit pas qui décroche avant qu'il soit trop tard.</span></div></li>
+            <li><span class="ms" aria-hidden="true">cancel</span><div><b>Étapes suivies de mémoire</b><span class="d">Le passage d'une étape à l'autre dépend du responsable qui se souvient.</span></div></li>
+            <li><span class="ms" aria-hidden="true">cancel</span><div><b>Groupes invisibles</b><span class="d">Un groupe ne connaît pas ceux de la paroisse voisine, encore moins ceux d'un autre pays.</span></div></li>
+          </ul>
+        </div>
+        <div class="cmp after">
+          <h3><span class="ms" aria-hidden="true">check_circle</span>Avec Koinonia</h3>
+          <ul>
+            <li><span class="ms" aria-hidden="true">verified</span><div><b>Agenda et annonces</b><span class="d">Chaque membre reçoit l'événement, avec lieu et heure, dans son espace.</span></div></li>
+            <li><span class="ms" aria-hidden="true">verified</span><div><b>Enseignements en ligne</b><span class="d">Le formateur dépose texte, PDF et audio. Les absents rattrapent chez eux.</span></div></li>
+            <li><span class="ms" aria-hidden="true">verified</span><div><b>Participation visible</b><span class="d">Présences et enseignements suivis, membre par membre.</span></div></li>
+            <li><span class="ms" aria-hidden="true">verified</span><div><b>Suivi par étapes</b><span class="d">Les enfants et les jeunes avancent selon le parcours de leur mouvement.</span></div></li>
+            <li><span class="ms" aria-hidden="true">verified</span><div><b>Une fiche publique</b><span class="d">Le charisme et l'apostolat du groupe, visibles dans l'annuaire mondial.</span></div></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="fonctionnalites">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Pensé pour la vie d'un groupe</p>
+        <h2>Ce que contient l'espace d'un groupe</h2>
+      </div>
+      <div class="features">
+        <div class="ft"><span class="ms" aria-hidden="true">calendar_month</span><h3>Agenda et annonces</h3><p>Rencontres, messes animées, récollections, activités d'apostolat. Calendrier du groupe et calendrier commun de la paroisse.</p></div>
+        <div class="ft"><span class="ms" aria-hidden="true">school</span><h3>Enseignements</h3><p>Le formateur publie le contenu de chaque enseignement : texte, PDF, audio, questions. Seuls les membres du groupe y ont accès.</p></div>
+        <div class="ft"><span class="ms" aria-hidden="true">how_to_reg</span><h3>Présences et participation</h3><p>Pointage en direct ou par QR code. Chacun sait s'il a participé, le responsable voit qui décroche.</p></div>
+        <div class="ft"><span class="ms" aria-hidden="true">stairs</span><h3>Suivi par étapes</h3><p>Le parcours propre au mouvement : étapes, grades ou engagements, avec l'historique de chaque membre.</p></div>
+        <div class="ft"><span class="ms" aria-hidden="true">badge</span><h3>Comptes membres</h3><p>Chaque jeune a son compte, par lien d'invitation WhatsApp. Pour les mineurs, un parent donne son accord.</p></div>
+        <div class="ft"><span class="ms" aria-hidden="true">payments</span><h3>Cotisations et campagnes</h3><p>Cotisations du groupe, collectes pour un projet d'apostolat ou pour le voyage à Séoul, avec reçus.</p></div>
+        <div class="ft"><span class="ms" aria-hidden="true">public</span><h3>Fiche publique</h3><p>Charisme, apostolat, photos et horaires de rencontre. Rien de personnel sur les membres.</p></div>
+        <div class="ft"><span class="ms" aria-hidden="true">flight_takeoff</span><span class="tag">JMJ 2027</span><h3>Module Séoul</h3><p>Délégation, préparation spirituelle, jumelages avec des groupes du même mouvement, programme hors connexion.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="roles" style="background:var(--surface);border-block:1px solid var(--line)">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Rôles et administration</p>
+        <h2>Qui administre quoi</h2>
+        <p class="lede">La paroisse est administrée par son aumônier et ses coordinateurs. Chaque groupe garde ses propres responsables et peut avoir son propre aumônier.</p>
+      </div>
+      <div class="roles-wrap">
+        <table class="roles">
+          <thead>
+            <tr><th scope="col">Niveau</th><th scope="col">Administré par</th><th scope="col">Ce qu'il fait dans l'application</th><th scope="col">Ce qu'il voit</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Mouvement<small>JEFAC, K.A, BYM…</small></th>
+              <td class="who">Coordination nationale ou diocésaine du mouvement</td>
+              <td>Rédige et met à jour le modèle : charisme, étapes, enseignements de référence. Confirme qu'un groupe appartient bien au mouvement.</td>
+              <td>Tous les groupes du mouvement et leurs chiffres d'ensemble</td>
+            </tr>
+            <tr class="parish">
+              <th scope="row">Paroisse<small>plusieurs groupes</small></th>
+              <td class="who">Aumônier de la paroisse et coordinateurs des jeunes</td>
+              <td>Valide les nouveaux groupes, nomme les responsables et les aumôniers de groupe, tient le calendrier paroissial commun.</td>
+              <td>Tous les groupes de la paroisse, leurs agendas et leurs présences</td>
+            </tr>
+            <tr>
+              <th scope="row">Groupe<small>ex. JEFAC Sainte-Famille</small></th>
+              <td class="who">Aumônier du groupe, responsables, formateurs</td>
+              <td>Publie l'agenda et les enseignements, pointe les présences, fait passer les étapes, gère les cotisations.</td>
+              <td>Les membres du groupe et leur parcours</td>
+            </tr>
+            <tr>
+              <th scope="row">Membre<small>jeune ou enfant</small></th>
+              <td class="who">Le jeune lui-même, avec un parent pour les mineurs</td>
+              <td>Consulte l'agenda, suit les enseignements, signale une absence, paie sa cotisation.</td>
+              <td>Son propre parcours et la vie de son groupe</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="roles-note"><span class="ms" aria-hidden="true">info</span>Une même personne peut avoir plusieurs rôles, par exemple aumônier de la paroisse et aumônier d'un de ses groupes.</p>
+    </div>
+  </section>
+
+  <section class="band" id="etapes">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Inscription</p>
+        <h2>Votre groupe en ligne en quatre étapes</h2>
+        <p class="lede">Moins de dix minutes pour le responsable, aucune compétence technique.</p>
+      </div>
+      <div class="steps">
+        <div class="step"><h3>Choisissez votre mouvement</h3><p>JEFAC, K.A, BYM ou groupe libre. Le modèle du mouvement remplit déjà charisme et étapes.</p></div>
+        <div class="step"><h3>Rattachez votre paroisse</h3><p>Choisissez-la dans la liste ou ajoutez-la. L'aumônier ou un coordinateur valide le groupe.</p></div>
+        <div class="step"><h3>Invitez vos membres</h3><p>Un lien d'invitation à partager sur WhatsApp, ou l'import d'une liste Excel.</p></div>
+        <div class="step"><h3>Publiez la vie du groupe</h3><p>Premier événement, premier enseignement, première prise de présence.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band wyd" id="jmj">
+    <div class="wrap wyd-grid">
+      <div>
+        <p class="eyebrow">Journées mondiales de la jeunesse</p>
+        <h2>En route pour Séoul, du 3 au 8 août 2027</h2>
+        <p class="lede">Les groupes inscrits forment le « village des mouvements » : qui vient d'où, avec quel charisme, et qui rencontrer sur place.</p>
+        <p class="verse">« Courage ! J'ai vaincu le monde. »<small>Jean 16, 33 · thème des JMJ Séoul 2027</small></p>
+        <div class="count"><b id="days">287</b><span>jours avant l'ouverture</span></div>
+      </div>
+      <ul class="wyd-list">
+        <li><span class="ms" aria-hidden="true">groups</span><div><h3>Délégations</h3><p>Le groupe déclare ses pèlerins et rejoint la délégation de son diocèse ou de son pays.</p></div></li>
+        <li><span class="ms" aria-hidden="true">handshake</span><div><h3>Jumelages</h3><p>Un groupe JEFAC de Kinshasa peut écrire à un groupe du même mouvement en Europe ou en Asie avant le départ, et fixer une rencontre à Séoul.</p></div></li>
+        <li><span class="ms" aria-hidden="true">savings</span><div><h3>Cagnotte du pèlerinage</h3><p>Suivi des contributions de chacun pour le voyage, avec reçus.</p></div></li>
+        <li><span class="ms" aria-hidden="true">auto_stories</span><div><h3>Préparation spirituelle</h3><p>Un parcours commun avant le départ, complété par celui de chaque mouvement.</p></div></li>
+        <li><span class="ms" aria-hidden="true">wifi_off</span><div><h3>Sur place, même sans réseau</h3><p>Programme du groupe, badges QR et contacts disponibles hors connexion.</p></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="band" id="annuaire">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Annuaire mondial</p>
+        <h2>Trouver un groupe</h2>
+        <p class="lede">Par mouvement, par ville ou par paroisse. Les fiches ci-dessous sont des exemples fictifs : l'annuaire se remplira avec les groupes validés.</p>
+      </div>
+      <div class="dir-tools">
+        <label class="search" for="q"><span class="ms" aria-hidden="true">search</span><input id="q" type="search" placeholder="Ville, pays ou paroisse" autocomplete="off"></label>
+        <div class="chips" role="group" aria-label="Filtrer par mouvement">
+          <button class="chip" data-mv="all" aria-pressed="true">Tous</button>
+          <button class="chip" data-mv="jefac" aria-pressed="false">JEFAC</button>
+          <button class="chip" data-mv="ka" aria-pressed="false">K.A</button>
+          <button class="chip" data-mv="bym" aria-pressed="false">BYM</button>
+        </div>
+      </div>
+      <div class="groups" id="groups" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="band" id="formules" style="background:var(--surface);border-block:1px solid var(--line)">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Formules</p>
+        <h2>Gratuit pour les groupes de jeunes</h2>
+        <p class="lede">Proposition à valider. Un groupe de jeunes n'a souvent pas de budget : l'accès de base reste gratuit, les mouvements et diocèses peuvent soutenir le projet.</p>
+      </div>
+      <div class="plans">
+        <div class="plan">
+          <h3>Groupe</h3>
+          <div class="price">Gratuit</div>
+          <p>Pour un groupe paroissial, quel que soit son mouvement.</p>
+          <ul>
+            <li><span class="ms" aria-hidden="true">check</span>Membres et comptes</li>
+            <li><span class="ms" aria-hidden="true">check</span>Agenda, annonces, présences</li>
+            <li><span class="ms" aria-hidden="true">check</span>Enseignements et suivi par étapes</li>
+            <li><span class="ms" aria-hidden="true">check</span>Fiche publique dans l'annuaire</li>
+          </ul>
+          <a class="btn btn-ghost" href="#etapes">Inscrire mon groupe</a>
+        </div>
+        <div class="plan featured">
+          <h3>Paroisse</h3>
+          <div class="price">Gratuit</div>
+          <p>Pour l'aumônier et les coordinateurs qui suivent tous les groupes.</p>
+          <ul>
+            <li><span class="ms" aria-hidden="true">check</span>Tous les groupes de la paroisse</li>
+            <li><span class="ms" aria-hidden="true">check</span>Validation des groupes et des responsables</li>
+            <li><span class="ms" aria-hidden="true">check</span>Calendrier paroissial commun</li>
+            <li><span class="ms" aria-hidden="true">check</span>Délégation JMJ de la paroisse</li>
+          </ul>
+          <a class="btn btn-primary" href="#roles">Voir le rôle de l'aumônier</a>
+        </div>
+        <div class="plan">
+          <h3>Mouvement et diocèse</h3>
+          <div class="price">Partenariat</div>
+          <p>Pour une coordination nationale ou une pastorale diocésaine des jeunes.</p>
+          <ul>
+            <li><span class="ms" aria-hidden="true">check</span>Rédaction du modèle du mouvement</li>
+            <li><span class="ms" aria-hidden="true">check</span>Enseignements de référence pour tous les groupes</li>
+            <li><span class="ms" aria-hidden="true">check</span>Vue d'ensemble et statistiques</li>
+            <li><span class="ms" aria-hidden="true">check</span>Coordination de la délégation nationale</li>
+          </ul>
+          <a class="btn btn-ghost" href="#mouvements">Voir les mouvements</a>
+        </div>
+      </div>
+      <p class="honest"><span class="ms" aria-hidden="true">format_quote</span>Les témoignages des groupes seront publiés ici quand ils existeront. Aucune citation n'est inventée.</p>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <div class="final">
+        <div class="scarf" style="width:120px;border-radius:3px;overflow:hidden" aria-hidden="true"><span></span><span></span><span></span></div>
+        <h2>Prêts à présenter votre groupe au monde ?</h2>
+        <p class="lede">Inscrivez votre groupe, faites-le valider par votre paroisse, et préparez Séoul ensemble.</p>
+        <div class="hero-ctas" style="margin-top:4px">
+          <a class="btn btn-primary" href="#etapes">Inscrire mon groupe<span class="ms" aria-hidden="true">arrow_forward</span></a>
+          <a class="btn btn-ghost" href="#jmj">Le module JMJ</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>
+      <a class="logo" href="#accueil"><span class="logo-mark"><span class="ms" aria-hidden="true">diversity_3</span></span><span>Koinonia</span></a>
+      <p>La plateforme des groupes de jeunes catholiques : paroisses, mouvements, enseignements et JMJ.</p>
+    </div>
+    <div>
+      <h4>Découvrir</h4>
+      <ul>
+        <li><a href="#mouvements">Mouvements</a></li>
+        <li><a href="#annuaire">Trouver un groupe</a></li>
+        <li><a href="#jmj">JMJ Séoul 2027</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Accès</h4>
+      <ul>
+        <li><a href="#etapes">Inscrire mon groupe</a></li>
+        <li><a href="#roles">Se connecter à mon groupe</a></li>
+        <li><a href="#roles">Espace aumônier et coordinateurs</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Légal</h4>
+      <ul>
+        <li>Mentions légales</li>
+        <li>Confidentialité et protection des mineurs</li>
+        <li>Conditions d'utilisation</li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap copy">© 2026 Koinonia (nom provisoire) · maquette de la vitrine publique · bientôt en English, Español, Português, 한국어</div>
+</footer>
+
+<script>
+(function () {
+  // Onglets de l'aperçu
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  function select(tab) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { select(t); });
+    t.addEventListener('keydown', function (e) {
+      var d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!d) return;
+      var next = tabs[(i + d + tabs.length) % tabs.length];
+      select(next); next.focus();
+    });
+  });
+
+  // Compte à rebours jusqu'à l'ouverture des JMJ (3 août 2027, heure de Séoul)
+  var opening = Date.UTC(2027, 7, 2, 15, 0, 0);
+  var days = Math.ceil((opening - Date.now()) / 86400000);
+  var el = document.getElementById('days');
+  if (days > 0) el.textContent = days;
+  else el.parentNode.innerHTML = '<span>Les JMJ de Séoul ont commencé.</span>';
+
+  // Annuaire : exemples fictifs
+  var groups = [
+    { mv: 'jefac', label: 'JEFAC', parish: 'Paroisse Sainte-Famille', city: 'Kinshasa', country: 'RD Congo', members: 26, wyd: true },
+    { mv: 'jefac', label: 'JEFAC', parish: 'Paroisse Saint-Pierre', city: 'Bruxelles', country: 'Belgique', members: 14, wyd: true },
+    { mv: 'jefac', label: 'JEFAC', parish: 'Paroisse Saint-Esprit', city: 'Matadi', country: 'RD Congo', members: 31, wyd: false },
+    { mv: 'ka', label: 'K.A', parish: 'Paroisse Notre-Dame', city: 'Lubumbashi', country: 'RD Congo', members: 58, wyd: false },
+    { mv: 'ka', label: 'K.A', parish: 'Paroisse Saint-Joseph', city: 'Kisangani', country: 'RD Congo', members: 42, wyd: true },
+    { mv: 'bym', label: 'BYM', parish: 'Paroisse Saint-Paul', city: 'Kinshasa', country: 'RD Congo', members: 37, wyd: true }
+  ];
+  var mv = 'all';
+  var box = document.getElementById('groups');
+  var q = document.getElementById('q');
+  function norm(s) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function render() {
+    var term = norm(q.value.trim());
+    var list = groups.filter(function (g) {
+      return (mv === 'all' || g.mv === mv) && (!term || norm(g.parish + ' ' + g.city + ' ' + g.country).indexOf(term) > -1);
+    });
+    if (!list.length) {
+      box.innerHTML = '<div class="empty">Aucun groupe ne correspond. Essayez une autre ville ou un autre mouvement.</div>';
+      return;
+    }
+    box.innerHTML = list.map(function (g) {
+      return '<article class="gcard">' +
+        '<div class="gcard-top"><span class="mvtag ' + g.mv + '">' + g.label + '</span><span class="ex">Exemple fictif</span></div>' +
+        '<h3>' + g.label + ' · ' + g.parish + '</h3>' +
+        '<div class="meta">' +
+          '<span><span class="ms" aria-hidden="true">location_on</span>' + g.city + ', ' + g.country + '</span>' +
+          '<span><span class="ms" aria-hidden="true">group</span>' + g.members + ' membres</span>' +
+          '<span><span class="ms" aria-hidden="true">' + (g.wyd ? 'flight_takeoff' : 'schedule') + '</span>' + (g.wyd ? 'Délégation pour Séoul en préparation' : 'Pas de délégation JMJ pour l’instant') + '</span>' +
+        '</div></article>';
+    }).join('');
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.chip'), function (c) {
+    c.addEventListener('click', function () {
+      mv = c.getAttribute('data-mv');
+      Array.prototype.forEach.call(document.querySelectorAll('.chip'), function (o) { o.setAttribute('aria-pressed', o === c ? 'true' : 'false'); });
+      render();
+    });
+  });
+  q.addEventListener('input', render);
+  render();
+})();
+</script>
