@@ -206,7 +206,8 @@ def tableau_charge(ws, r, R, site, act, der, titre, lib_audela, specialites=None
     cols = ["Intervenant"] + (["Spécialité"] if specialites is not None else []) + [
         "Consultation", "Avant 1 sem.", "Après 1 sem.", "Visites", "Jours actifs", "Moyenne / jour actif", "Min / jour actif",
         "Max / jour", "GPS au pic", "Evo au pic", "Date du pic", lib_audela]
-    entete_tableau(ws, r, [(i, i, t) for i, t in enumerate(cols, start=1)])
+    n = len(cols)
+    entete_tableau(ws, r, [(i, i, t) for i, t in enumerate(cols[:-1], start=1)] + [(n, max(n, der), cols[-1])])
     r += 1
     k = 1 if specialites is not None else 0
     md = R.medjour[(site, act)]
@@ -231,7 +232,7 @@ def tableau_charge(ws, r, R, site, act, der, titre, lib_audela, specialites=None
                                jours_m[pic_j]["evo"]], start=8 + k):
             cellule(ws, r, c, v)
         cellule(ws, r, 12 + k, pic_j, fmt=DATE)
-        cellule(ws, r, 13 + k, sum(c["audela"] for c in jours_m.values()))
+        cellule(ws, r, 13 + k, sum(c["audela"] for c in jours_m.values()), c2=der if der > 13 + k else None)
         ws.row_dimensions[r].height = 30
         r += 1
     return r
