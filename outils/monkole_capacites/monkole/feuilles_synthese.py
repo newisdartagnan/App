@@ -170,6 +170,73 @@ def titre_periode(R):
     return f"{libelle_periode(R, '-')} {R.fin.year}"
 
 
+def tableau_lecture(ws, r, R, site, act, der, titre, lib_depasse, lib_cab, cab_jour, max_cab_col, max_cab_principal):
+    """LECTURE QUOTIDIENNE : une ligne par jour (visites, cabinets, capacité, utilisation, marge...). Renvoie la ligne suivante.
+    lib_cab / cab_jour : dernière colonne (cabinets par jour) ; en rouge au-delà de max_cab_col.
+    max_cab_principal : colonne Cabinets en rouge au-delà de ce nombre (None = pas de contrôle)."""
+    section(ws, r, titre, 1, der)
+    cols = ["Jour", "GPS", "Evolucare", "Visites réelles", "Cabinets", "Capacité", "Utilisation", "Marge cumulée",
+            lib_depasse, "Sans médecin", "Visites isolées"]
+    entete_tableau(ws, r + 1, [(i, i, t) for i, t in enumerate(cols, start=1)] + [(12, der, lib_cab)])
+    r += 2
+    for l in R.jours_act[(site, act)]:
+        j = l["jour"]
+        cellule(ws, r, 1, f"{nom_jour(j)} {j.strftime('%d/%m')}", h="left", fmt=None)
+        for c, v in enumerate([l["gps"], l["evo"], l["total"], l["cab"], l["cap"]], start=2):
+            cellule(ws, r, c, v)
+        cellule(ws, r, 7, l["util"] if l["util"] is not None else "N/D", fmt=PCT)
+        colorer(ws, r, 7, l["util"], R)
+        for c, v in enumerate([l["marge"], l["depass"], l["sans"], l["isolees"]], start=8):
+            cellule(ws, r, c, v)
+        cellule(ws, r, 12, cab_jour[j], c2=der)
+        if max_cab_principal is not None and l["cab"] > max_cab_principal:
+            colorer(ws, r, 5, 1, R, force=True)
+        if max_cab_col is not None and cab_jour[j] > max_cab_col:
+            colorer(ws, r, 12, 1, R, force=True)
+        ws.row_dimensions[r].height = 26
+        r += 1
+    return r
+
+
+def tableau_charge(ws, r, R, site, act, der, titre, lib_audela, specialites=None):
+    """CHARGE INDIVIDUELLE : un médecin par ligne, classé sur la moyenne de visites par jour actif (visites / jours actifs).
+    specialites : {médecin: spécialité} pour ajouter une colonne Spécialité après le nom. Renvoie la ligne suivante."""
+    section(ws, r, titre, 1, der)
+    r += 1
+    cols = ["Intervenant"] + (["Spécialité"] if specialites is not None else []) + [
+        "Consultation", "Avant 1 sem.", "Après 1 sem.", "Visites", "Jours actifs", "Moyenne / jour actif", "Min / jour actif",
+        "Max / jour", "GPS au pic", "Evo au pic", "Date du pic", lib_audela]
+    entete_tableau(ws, r, [(i, i, t) for i, t in enumerate(cols, start=1)])
+    r += 1
+    k = 1 if specialites is not None else 0
+    md = R.medjour[(site, act)]
+    par_med = defaultdict(dict)
+    for (j, m), c in md.items():
+        par_med[m][j] = c
+    total = {m: sum(c["total"] for c in jm.values()) for m, jm in par_med.items()}
+    moyenne = {m: total[m] / len(par_med[m]) for m in par_med}
+    ordre = sorted(par_med, key=lambda m: (-moyenne[m], -total[m], m))
+    for m in ordre:
+        jours_m = par_med[m]
+        pic_j = min(jours_m, key=lambda j: (-jours_m[j]["total"], j))
+        vals = [sum(c["cons"] for c in jours_m.values()), sum(c["avant"] for c in jours_m.values()),
+                sum(c["apres"] for c in jours_m.values()), total[m], len(jours_m)]
+        cellule(ws, r, 1, m, h="left", fmt=None)
+        if k:
+            cellule(ws, r, 2, specialites.get(m, "–"), h="left", fmt=None)
+        for c, v in enumerate(vals, start=2 + k):
+            cellule(ws, r, c, v)
+        cellule(ws, r, 7 + k, moyenne[m], fmt="0.0", gras=True)
+        for c, v in enumerate([min(c["total"] for c in jours_m.values()), jours_m[pic_j]["total"], jours_m[pic_j]["gps"],
+                               jours_m[pic_j]["evo"]], start=8 + k):
+            cellule(ws, r, c, v)
+        cellule(ws, r, 12 + k, pic_j, fmt=DATE)
+        cellule(ws, r, 13 + k, sum(c["audela"] for c in jours_m.values()))
+        ws.row_dimensions[r].height = 30
+        r += 1
+    return r
+
+
 # ----------------------------------------------------------------------------------------------
 # CSMKL2
 # ----------------------------------------------------------------------------------------------
@@ -207,57 +274,10 @@ def feuille_csmkl2(wb, R, positions_actes, arbre_actes, onglet):
     note_bloc(ws, 27, f"Pic : {ind['pic_jour']} visites le {dp.strftime('%d/%m') if dp else '–'} = {ind['gps_pic']} GPS + "
                       f"{ind['evo_pic']} Evolucare. {ind['isolees']} visites principales isolées et {ind['sans']} sans médecin restent comptées.",
               1, der, hauteur=34)
-    # Lecture quotidienne
-    section(ws, 29, "LECTURE QUOTIDIENNE / ACTIVITÉ PRINCIPALE", 1, der)
-    cols = ["Jour", "GPS", "Evolucare", "Visites réelles", "Cabinets", "Capacité", "Utilisation", "Marge cumulée",
-            f"Intervenants >{R.cap_jour}", "Sans médecin", "Visites isolées"]
-    entete_tableau(ws, 30, [(i, i, t) for i, t in enumerate(cols, start=1)] + [(12, 13, "Cabinets toutes activités")])
-    r = 31
-    for l in lignes:
-        j = l["jour"]
-        cellule(ws, r, 1, f"{nom_jour(j)} {j.strftime('%d/%m')}", h="left", fmt=None)
-        for c, v in enumerate([l["gps"], l["evo"], l["total"], l["cab"], l["cap"]], start=2):
-            cellule(ws, r, c, v)
-        cellule(ws, r, 7, l["util"] if l["util"] is not None else "N/D", fmt=PCT)
-        colorer(ws, r, 7, l["util"], R)
-        for c, v in enumerate([l["marge"], l["depass"], l["sans"], l["isolees"]], start=8):
-            cellule(ws, r, c, v)
-        cellule(ws, r, 12, R.cab_site["CSMKL2"][j], c2=13)
-        if l["cab"] > R.cabinets_csmkl2:
-            colorer(ws, r, 5, 1, R, force=True)
-        ws.row_dimensions[r].height = 26
-        r += 1
-    # Charge individuelle : moyenne = visites / jours actifs ; classement sur la moyenne
-    r += 2
-    section(ws, r, "CHARGE INDIVIDUELLE / ACTIVITÉ PRINCIPALE", 1, der)
-    r += 1
-    cols = ["Intervenant", "Consultation", "Avant 1 sem.", "Après 1 sem.", "Visites", "Jours actifs", "Moyenne / jour actif",
-            "Min / jour actif", "Max / jour", "GPS au pic", "Evo au pic", "Date du pic", f"Jours >{R.cap_jour}"]
-    entete_tableau(ws, r, [(i, i, t) for i, t in enumerate(cols, start=1)])
-    r += 1
-    md = R.medjour[("CSMKL2", V.PRINCIPALE)]
-    par_med = defaultdict(dict)
-    for (j, m), c in md.items():
-        par_med[m][j] = c
-    total = {m: sum(c["total"] for c in jm.values()) for m, jm in par_med.items()}
-    moyenne = {m: total[m] / len(par_med[m]) for m in par_med}
-    ordre = sorted(par_med, key=lambda m: (-moyenne[m], -total[m], m))
-    for m in ordre:
-        jours_m = par_med[m]
-        pic_j = min(jours_m, key=lambda j: (-jours_m[j]["total"], j))
-        vals = [sum(c["cons"] for c in jours_m.values()), sum(c["avant"] for c in jours_m.values()),
-                sum(c["apres"] for c in jours_m.values()), total[m], len(jours_m)]
-        cellule(ws, r, 1, m, h="left", fmt=None)
-        for c, v in enumerate(vals, start=2):
-            cellule(ws, r, c, v)
-        cellule(ws, r, 7, moyenne[m], fmt="0.0", gras=True)
-        for c, v in enumerate([min(c["total"] for c in jours_m.values()), jours_m[pic_j]["total"], jours_m[pic_j]["gps"],
-                               jours_m[pic_j]["evo"]], start=8):
-            cellule(ws, r, c, v)
-        cellule(ws, r, 12, pic_j, fmt=DATE)
-        cellule(ws, r, 13, sum(c["audela"] for c in jours_m.values()))
-        ws.row_dimensions[r].height = 30
-        r += 1
+    # Lecture quotidienne et charge individuelle (mêmes tableaux que le classeur CHME séparé)
+    r = tableau_lecture(ws, 29, R, "CSMKL2", V.PRINCIPALE, der, "LECTURE QUOTIDIENNE / ACTIVITÉ PRINCIPALE",
+                        f"Intervenants >{R.cap_jour}", "Cabinets toutes activités", R.cab_site["CSMKL2"], None, R.cabinets_csmkl2)
+    r = tableau_charge(ws, r + 2, R, "CSMKL2", V.PRINCIPALE, der, "CHARGE INDIVIDUELLE / ACTIVITÉ PRINCIPALE", f"Jours >{R.cap_jour}")
     # MAISON ROSE
     r += 2
     section(ws, r, "MAISON ROSE / HORS CAPACITÉ PRINCIPALE", 1, der)
