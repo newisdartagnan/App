@@ -18,7 +18,7 @@ except ImportError:
     print("Le module openpyxl manque. Installez-le avec :  py -m pip install openpyxl")
     sys.exit(1)
 
-from monkole import calculs, classeur, classeur_brut, classeur_chme, historique, lecture, rdv, referentiel_excel  # noqa: E402
+from monkole import calculs, classeur, classeur_brut, classeur_comparaison, historique, lecture, rdv, referentiel_excel  # noqa: E402
 from monkole.resume import ecrire_resume  # noqa: E402
 from monkole.texte import MOIS  # noqa: E402
 
@@ -97,10 +97,10 @@ def main(argv):
     except PermissionError:
         print(f"\nERREUR : impossible d'écrire {nom}. Fermez ce fichier dans Excel puis relancez.")
         return 3
-    nom_chme = nom.replace("Monkole_Activites_Capacites_", "Monkole_CHME_Activite_Charge_")
+    nom_chme = nom.replace("Monkole_Activites_Capacites_", "Monkole_CSMKL2_CHME_Activite_Charge_")
     chemin_chme = os.path.join(sorties, nom_chme)
     try:
-        classeur_chme.construire(R, chemin_chme)
+        classeur_comparaison.construire(R, chemin_chme)
     except PermissionError:
         print(f"\nATTENTION : impossible d'écrire {nom_chme} (fichier ouvert dans Excel ?). Le classeur principal est écrit.")
         chemin_chme = None
@@ -116,7 +116,7 @@ def main(argv):
         print(f"Noms rapprochés automatiquement : {len(R.rapprochements)} (liste dans « Notez bien »).")
     print(f"\nClasseur écrit : {chemin}  ({time.time() - t0:.0f} s)")
     if chemin_chme:
-        print(f"Classeur CHME (lecture quotidienne et charge individuelle) : {chemin_chme}")
+        print(f"Classeur CSMKL2 et CHME (lecture quotidienne et charge individuelle) : {chemin_chme}")
     return 0
 
 

@@ -37,11 +37,12 @@ Il fonctionne sans Internet et sans Claude, et donne toujours le même résultat
 2. Double-cliquer sur **`LANCER_MONKOLE.bat`**.
 3. Le classeur apparaît dans `sorties`, par exemple `Monkole_Activites_Capacites_01-21_Septembre_2026.xlsx`,
    avec un court résumé texte `..._resume.txt`.
-4. En même temps, un second classeur est produit pour le CHME : `Monkole_CHME_Activite_Charge_<période>.xlsx`. Il contient,
-   présentés comme dans la feuille CSMKL2, la **lecture quotidienne** de l'activité ambulatoire du CHME (visites GPS et
-   Evolucare, cabinets, capacité, utilisation, marge, intervenants au-delà de leur capacité, sans médecin, visites isolées,
-   cabinets de spécialistes sur 15) et la **charge individuelle** des médecins (avec leur spécialité, classés sur la moyenne
-   de visites par jour actif).
+4. En même temps, un second classeur est produit pour comparer les sites : `Monkole_CSMKL2_CHME_Activite_Charge_<période>.xlsx`.
+   Il reprend les tableaux de la feuille CSMKL2 (**lecture quotidienne** : visites GPS et Evolucare, cabinets, capacité,
+   utilisation, marge, intervenants au-delà de leur capacité, sans médecin, visites isolées ; **charge individuelle** :
+   médecins classés sur la moyenne de visites par jour actif) dans deux onglets :
+   - **CSMKL2** : activité principale (mêmes chiffres que la feuille CSMKL2 du classeur principal) ;
+   - **CHME** : activité ambulatoire (avec la spécialité de chaque médecin et les cabinets de spécialistes sur 15), puis urgences.
 
 La période est lue dans le nom des fichiers (`20260901-20260921`). Les lignes hors période sont exclues
 et signalées dans « Notez bien ».
