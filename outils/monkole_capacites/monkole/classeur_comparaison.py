@@ -2,13 +2,17 @@
 les colonnes aient la même largeur d'un site à l'autre :
 - onglet « Charge individuelle » : CSMKL2 (activité principale, puis urgences CHME dessous) à gauche, CHME ambulatoire à
   droite (spécialistes en cabinet, puis intervenants hors cabinet), mêmes colonnes ;
-- onglet « Lecture quotidienne » : CSMKL2, CHME ambulatoire et urgences CHME l'un sous l'autre, mêmes colonnes."""
+- onglet « Lecture quotidienne » : CSMKL2, CHME ambulatoire et urgences CHME l'un sous l'autre, mêmes colonnes.
+Règles propres à ce classeur : les infirmiers d'Evolucare (nom terminé par INF) ne consultent pas (ni liste, ni cabinet, ni
+capacité) ; les spécialistes retenus (nutrition : MWAMOLANDA) sont comptés en cabinet."""
+import copy
 from collections import Counter, defaultdict
 
 import openpyxl
 from openpyxl.utils import get_column_letter
 
 from . import visites as V
+from .calculs import non_consultant, recalculer_activites
 from .centrage import centrer
 from .feuilles_synthese import cellule, entete_tableau, fusion, section, tableau_lecture, titre_periode
 from .styles import CLAIR, TEXTE, bandeau, ecrire, mise_en_page
@@ -18,6 +22,7 @@ ONGLET_LECTURE = "143348"
 COLS_CHARGE = ["Intervenant", "Spécialité", "Consultation", "Avant 1 sem.", "Après 1 sem.", "Visites", "Jours actifs",
                "Moy / jour"]
 LARGEURS_CHARGE = [30, 26, 12, 12, 12, 11, 11, 11]
+SPECIALISTES_RETENUS = ("MWAMOLANDA",)          # mot du nom : spécialiste compté en cabinet malgré sa spécialité
 GAUCHE, DROITE = 1, len(COLS_CHARGE) + 2      # colonnes de départ des deux blocs (une colonne vide entre les deux)
 DER_CHARGE = DROITE + len(COLS_CHARGE) - 1
 DER_LECTURE = 14
@@ -53,7 +58,7 @@ def tableau_charge_simple(ws, r, c0, R, site, act, titre, specialites, garder=No
     r += 2
     par_med = defaultdict(list)
     for (_, m), c in R.medjour[(site, act)].items():
-        if garder is None or garder(m):
+        if not non_consultant(R, m) and (garder is None or garder(m)):
             par_med[m].append(c)
     total = {m: sum(c["total"] for c in cs) for m, cs in par_med.items()}
     moyenne = {m: total[m] / len(cs) for m, cs in par_med.items()}
@@ -78,7 +83,8 @@ def _onglet_charge(wb, R, per):
                  "GPS + Evolucare • un intervenant par ligne, classé sur la moyenne de visites par jour actif (visites / jours "
                  "avec au moins une visite) • à gauche : CSMKL2 activité principale, puis urgences CHME • à droite : CHME "
                  "ambulatoire, spécialistes en cabinet puis intervenants hors cabinet (kinésithérapie, soins, imagerie, "
-                 "pharmacie, médecine générale…)", DER_CHARGE)
+                 "pharmacie, médecine générale…) • infirmiers (nom terminé par INF) retirés : ils ne consultent pas",
+                 DER_CHARGE)
     for c0 in (GAUCHE, DROITE):
         for i, l in enumerate(LARGEURS_CHARGE):
             ws.column_dimensions[get_column_letter(c0 + i)].width = l
@@ -92,7 +98,7 @@ def _onglet_charge(wb, R, per):
 
     # Droite : CHME ambulatoire, spécialistes en cabinet puis hors cabinet
     spec = specialites_medecins(R, "CHME", V.AMBULATOIRE)
-    hors = lambda m: spec.get(m) in R.hors_cabinets
+    hors = lambda m: spec.get(m) in R.hors_cabinets and not any(n in m.split() for n in R.specialistes_retenus)
     r = tableau_charge_simple(ws, 4, DROITE, R, "CHME", V.AMBULATOIRE, "CHME / AMBULATOIRE — SPÉCIALISTES EN CABINET", spec,
                               garder=lambda m: not hors(m))
     tableau_charge_simple(ws, r + 2, DROITE, R, "CHME", V.AMBULATOIRE, "CHME / AMBULATOIRE — HORS CABINET DE SPÉCIALISTE", spec,
@@ -108,7 +114,8 @@ def _onglet_lecture(wb, R, per):
                  f"GPS + Evolucare • {seuil} • CSMKL2 et urgences : {R.cap_jour} visites par médecin et par jour, "
                  f"{R.cabinets_csmkl2} cabinets physiques à CSMKL2 • CHME ambulatoire : capacité = {capacite} ; "
                  f"cabinets et utilisation sans les intervenants hors cabinet ; {R.cabinets_chme} cabinets physiques, "
-                 "un cabinet peut accueillir deux spécialistes qui se succèdent", DER_LECTURE)
+                 "un cabinet peut accueillir deux spécialistes qui se succèdent • infirmiers (nom terminé par INF) : visites "
+                 "gardées, sans cabinet ni capacité, hors utilisation", DER_LECTURE)
     ws.column_dimensions["A"].width = 16
     for c in "BCDEFGHIJK":
         ws.column_dimensions[c].width = 12
@@ -128,6 +135,10 @@ def construire(R, chemin):
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     per = titre_periode(R)
+    R = copy.copy(R)                     # règles propres à ce classeur, sans changer le classeur principal
+    R.exclure_inf = True
+    R.specialistes_retenus = SPECIALISTES_RETENUS
+    recalculer_activites(R)
     _onglet_charge(wb, R, per)
     _onglet_lecture(wb, R, per)
     centrer(wb)
