@@ -45,6 +45,9 @@ Il fonctionne sans Internet et sans Claude, et donne toujours le même résultat
      soins, imagerie, pharmacie, médecine générale, UF non renseignée…) ;
    - **Lecture quotidienne** : CSMKL2, CHME ambulatoire (dernière colonne : cabinets occupés en même temps, sur 16) et
      urgences CHME, l'un sous l'autre, mêmes colonnes.
+   - Règles propres à ce classeur : les infirmiers d'Evolucare (nom terminé par **INF**) ne consultent pas — retirés des
+     listes de charge, sans cabinet ni capacité, leurs visites restent dans les visites réelles mais hors utilisation ;
+     **MWAMOLANDA** (nutrition) est comptée comme spécialiste en cabinet (liste `SPECIALISTES_RETENUS` du programme).
 
 La période est lue dans le nom des fichiers (`20260901-20260921`). Les lignes hors période sont exclues
 et signalées dans « Notez bien ».

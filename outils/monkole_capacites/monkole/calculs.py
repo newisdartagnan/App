@@ -168,8 +168,19 @@ def lib_cap(R):
     return "capacité" if R.horaire else str(R.cap_jour)
 
 
+def non_consultant(R, medecin):
+    """Intervenant qui ne consulte pas (classeur CSMKL2 et CHME : infirmiers d'Evolucare, nom terminé par INF)."""
+    return bool(getattr(R, "exclure_inf", False) and medecin and medecin.split()[-1] == "INF")
+
+
+def recalculer_activites(R):
+    """Recalcule cabinets, capacités et journées-intervenants (après changement des règles sur une copie de R)."""
+    _visites_par_activite(R)
+
+
 def _visites_par_activite(R):
     seuil = R.seuil
+    retenus = getattr(R, "specialistes_retenus", ())       # spécialistes comptés en cabinet malgré leur spécialité
     _capacites(R)
     # Journées-intervenants par site / activité (identités absentes exclues des cabinets)
     R.medjour = {}
@@ -193,7 +204,9 @@ def _visites_par_activite(R):
         horaire_site = (site, act) in SITES_HORAIRE
         for (j, m), c in md.items():
             cap = cap_ind(R, site, act, m)
-            hors = horaire_site and spec_jm[(j, m)].most_common(1)[0][0] in R.hors_cabinets
+            nc = non_consultant(R, m)
+            hors = nc or (horaire_site and spec_jm[(j, m)].most_common(1)[0][0] in R.hors_cabinets
+                          and not any(n in m.split() for n in retenus))
             c["hors_cabinet"] = 1 if hors else 0
             if horaire_site:
                 # Plage de présence : première -> dernière visite enregistrée du médecin ce jour-là, plus une consultation
@@ -216,7 +229,7 @@ def _visites_par_activite(R):
             c["cap"] = c["cab"] * cap
             c["marge"] = max(cap - c["total"], 0) if c["cab"] else 0
             c["audela"] = 1 if (c["cab"] and c["total"] > cap) else 0
-            c["isolee"] = 1 if c["total"] == 1 else 0
+            c["isolee"] = 1 if (c["total"] == 1 and not nc) else 0
         R.medjour[(site, act)] = md
         lignes = []
         for j in R.jours:
@@ -240,7 +253,7 @@ def _visites_par_activite(R):
     for site, acts in (("CSMKL2", (V.PRINCIPALE, V.SECONDAIRE)), ("CHME", (V.AMBULATOIRE, V.URGENCES))):
         cnt = Counter()
         for v in R.visites:
-            if v["site"] == site and v["activite"] in acts and v["medecin"]:
+            if v["site"] == site and v["activite"] in acts and v["medecin"] and not non_consultant(R, v["medecin"]):
                 cnt[(v["jour"], v["medecin"])] += 1
         R.cab_site[site] = {j: sum(1 for (jj, _), n in cnt.items() if jj == j and n >= seuil) for j in R.jours}
 
