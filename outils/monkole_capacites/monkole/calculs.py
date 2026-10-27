@@ -46,6 +46,8 @@ def calculer(donnees, ref, debut, fin):
     R.seuil_bas = p["seuil_utilisation_basse"]
     R.seuil_haut = p["seuil_utilisation_haute"]
     R.hors_cabinets = set(ref["HORS_CABINETS_CHME"])
+    R.duree_defaut = p.get("duree_consultation_defaut_min", 20) or 20
+    R.capacite_plage = bool(p.get("capacite_plage_presence", 1))
     R.lits = ref["LITS"]
     R.total_lits = sum(n for _, n in R.lits)
     R.lits_reels = R.total_lits
@@ -103,37 +105,56 @@ SITES_HORAIRE = (("CHME", V.AMBULATOIRE),)
 
 def _capacites(R):
     """Capacité de chaque médecin par journée de cabinet : créneaux de ses rendez-vous (Capacité horaire du référentiel),
-    sinon médiane des médecins connus de sa spécialité, sinon le repère (24). CHME ambulatoire seulement."""
+    sinon médiane des médecins connus de sa spécialité, sinon le repère (24). Durée d'une consultation : celle de ses
+    rendez-vous, sinon médiane de sa spécialité, sinon la durée par défaut du référentiel. CHME ambulatoire seulement."""
     tableau = R.ref.get("CAPACITE_HORAIRE") or []
     R.horaire = bool(R.ref["PARAMETRES"].get("capacite_horaire_rdv", 1)) and bool(tableau)
     R.cap_detail = {}
     R.rdv_lien = {}
-    if not R.horaire:
-        return
-    noms_visites = {v["medecin"] for v in R.visites if v["medecin"]}
-    par_nom = {str(l[0]): l for l in tableau}
-    lien = rdv.associer(list(par_nom), noms_visites, R.ref["ALIAS_MEDECINS"])
-    creneaux = {}
-    for n, m in lien.items():
-        creneaux[m] = int(par_nom[n][4])
-    R.rdv_lien = lien
+    R.duree_detail = {}
+    creneaux, durees = {}, {}
+    if tableau:
+        noms_visites = {v["medecin"] for v in R.visites if v["medecin"]}
+        par_nom = {str(l[0]): l for l in tableau}
+        R.rdv_lien = rdv.associer(list(par_nom), noms_visites, R.ref["ALIAS_MEDECINS"])
+        for n, m in R.rdv_lien.items():
+            l = par_nom[n]
+            creneaux[m] = int(l[4])
+            if len(l) > 2 and isinstance(l[2], (int, float)) and l[2] > 0:
+                durees[m] = float(l[2])
     for site, act in SITES_HORAIRE:
         spec = defaultdict(Counter)
         for v in R.visites:
             if v["site"] == site and v["activite"] == act and v["medecin"]:
                 spec[v["medecin"]][v["specialite"]] += 1
         dominante = {m: c.most_common(1)[0][0] for m, c in spec.items()}
-        connus = defaultdict(list)
+        connus_cap, connus_dur = defaultdict(list), defaultdict(list)
         for m, sp in dominante.items():
             if m in creneaux:
-                connus[sp].append(creneaux[m])
+                connus_cap[sp].append(creneaux[m])
+            if m in durees:
+                connus_dur[sp].append(durees[m])
         for m, sp in dominante.items():
+            R.duree_detail[(site, act, m)] = (durees.get(m) or (st.median(connus_dur[sp]) if connus_dur.get(sp) else None)
+                                              or R.duree_defaut)
+            if not R.horaire:
+                continue
             if m in creneaux:
                 R.cap_detail[(site, act, m)] = (creneaux[m], "Rendez-vous du médecin", sp)
-            elif connus.get(sp):
-                R.cap_detail[(site, act, m)] = (int(round(st.median(connus[sp]))), "Médiane de la spécialité", sp)
+            elif connus_cap.get(sp):
+                R.cap_detail[(site, act, m)] = (int(round(st.median(connus_cap[sp]))), "Médiane de la spécialité", sp)
             else:
                 R.cap_detail[(site, act, m)] = (R.cap_jour, f"Repère de {R.cap_jour}", sp)
+
+
+def _pic_simultane(intervalles):
+    """Nombre maximal d'intervalles [début, fin[ qui se chevauchent."""
+    evts = sorted([(a, 1) for a, _ in intervalles] + [(b, -1) for _, b in intervalles], key=lambda e: (e[0], e[1]))
+    n = pic = 0
+    for _, d in evts:
+        n += d
+        pic = max(pic, n)
+    return pic
 
 
 def cap_ind(R, site, act, medecin):
@@ -158,16 +179,40 @@ def _visites_par_activite(R):
         md = defaultdict(_compte)
         par_jour = {j: _compte() for j in R.jours}
         sans = Counter()
+        heures = defaultdict(list)
+        spec_jm = defaultdict(Counter)
         for v in vs:
             _ajouter(par_jour[v["jour"]], v)
             if v["medecin"]:
                 _ajouter(md[(v["jour"], v["medecin"])], v)
+                if v["date"]:
+                    heures[(v["jour"], v["medecin"])].append(v["date"])
+                spec_jm[(v["jour"], v["medecin"])][v["specialite"]] += 1
             else:
                 sans[v["jour"]] += 1
-        for (_, m), c in md.items():
+        horaire_site = (site, act) in SITES_HORAIRE
+        for (j, m), c in md.items():
             cap = cap_ind(R, site, act, m)
+            hors = horaire_site and spec_jm[(j, m)].most_common(1)[0][0] in R.hors_cabinets
+            c["hors_cabinet"] = 1 if hors else 0
+            if horaire_site:
+                # Plage de présence : première -> dernière visite enregistrée du médecin ce jour-là, plus une consultation
+                dur = R.duree_detail.get((site, act, m), R.duree_defaut)
+                hs = heures.get((j, m)) or []
+                connues = [h for h in hs if h.hour or h.minute]
+                if connues:
+                    debut, fin = min(connues), max(connues)
+                    creneaux_plage = int((fin - debut).total_seconds() // 60 // dur) + 1
+                    plage = max(creneaux_plage, c["total"])           # au moins le temps des patients vus
+                    if R.capacite_plage:
+                        cap = min(cap, plage)
+                    c["debut"] = debut
+                    c["fin_presence"] = debut + dt.timedelta(minutes=plage * dur)
+                else:
+                    c["debut"] = c["fin_presence"] = None
+                c["duree"] = dur
             c["cap_ind"] = cap
-            c["cab"] = 1 if c["total"] >= seuil else 0
+            c["cab"] = 1 if (c["total"] >= seuil and not hors) else 0
             c["cap"] = c["cab"] * cap
             c["marge"] = max(cap - c["total"], 0) if c["cab"] else 0
             c["audela"] = 1 if (c["cab"] and c["total"] > cap) else 0
@@ -180,12 +225,13 @@ def _visites_par_activite(R):
             c["jour"] = j
             c["cab"] = sum(x["cab"] for x in dj)
             c["cap"] = sum(x["cap"] for x in dj)
-            c["util"] = c["total"] / c["cap"] if c["cap"] else None
+            c["hors"] = sum(x["total"] for x in dj if x["hors_cabinet"])      # visites hors cabinet de spécialiste
+            c["util"] = (c["total"] - c["hors"]) / c["cap"] if c["cap"] else None
             c["marge"] = sum(x["marge"] for x in dj)
             c["depass"] = sum(x["audela"] for x in dj)
             c["sans"] = sans[j]
             c["isolees"] = sum(x["isolee"] for x in dj)
-            c["jour_audela"] = 1 if (c["cap"] > 0 and c["total"] > c["cap"]) else 0
+            c["jour_audela"] = 1 if (c["cap"] > 0 and c["total"] - c["hors"] > c["cap"]) else 0
             lignes.append(c)
         R.jours_act[(site, act)] = lignes
 
@@ -198,12 +244,15 @@ def _visites_par_activite(R):
                 cnt[(v["jour"], v["medecin"])] += 1
         R.cab_site[site] = {j: sum(1 for (jj, _), n in cnt.items() if jj == j and n >= seuil) for j in R.jours}
 
-    # Cabinets de spécialistes CHME (ambulatoire, hors spécialités sans cabinet) : à comparer aux cabinets physiques
-    cnt = Counter()
-    for v in R.visites:
-        if v["site"] == "CHME" and v["activite"] == V.AMBULATOIRE and v["medecin"] and v["specialite"] not in R.hors_cabinets:
-            cnt[(v["jour"], v["medecin"])] += 1
-    R.cab_chme_spec = {j: sum(1 for (jj, _), n in cnt.items() if jj == j and n >= seuil) for j in R.jours}
+    # Cabinets de spécialistes CHME : nombre maximal de spécialistes présents EN MÊME TEMPS (d'après leur plage de présence),
+    # à comparer aux cabinets physiques ; deux spécialistes qui se succèdent dans la journée occupent un seul cabinet.
+    md = R.medjour[("CHME", V.AMBULATOIRE)]
+    R.cab_chme_journees = {j: sum(c["cab"] for (jj, _), c in md.items() if jj == j) for j in R.jours}
+    R.cab_chme_spec = {}
+    for j in R.jours:
+        cabs = [c for (jj, _), c in md.items() if jj == j and c["cab"]]
+        ints = [(c["debut"], c["fin_presence"]) for c in cabs if c.get("debut")]
+        R.cab_chme_spec[j] = _pic_simultane(ints) + sum(1 for c in cabs if not c.get("debut"))
 
     # Journées intervenants par spécialité (CHME ambulatoire et urgences)
     R.spec_jour = defaultdict(Counter)
@@ -216,8 +265,9 @@ def indicateurs(R, site, act):
     lignes = R.jours_act[(site, act)]
     md = R.medjour[(site, act)]
     tot = lambda k: sum(l[k] for l in lignes)
-    out = {k: tot(k) for k in ("total", "gps", "evo", "cons", "avant", "apres", "cab", "cap", "marge", "depass", "sans", "isolees", "jour_audela")}
-    out["util"] = out["total"] / out["cap"] if out["cap"] else None
+    out = {k: tot(k) for k in ("total", "gps", "evo", "cons", "avant", "apres", "cab", "cap", "marge", "depass", "sans", "isolees",
+                               "jour_audela", "hors")}
+    out["util"] = (out["total"] - out["hors"]) / out["cap"] if out["cap"] else None
     out["pic_medecin"] = max((c["total"] for c in md.values()), default=0)
     pic = max(lignes, key=lambda l: l["total"]) if lignes else None   # première date en cas d'égalité
     out["pic_jour"] = pic["total"] if pic else 0
@@ -298,7 +348,7 @@ def _semaines(R):
             lignes = [R.jours_act[(site, act)][i] for i in idx]
             s[k] = sum(l["total"] for l in lignes)
             s[k + "_cap"] = sum(l["cap"] for l in lignes)
-            s[k + "_util"] = s[k] / s[k + "_cap"] if s[k + "_cap"] else None
+            s[k + "_util"] = (s[k] - sum(l["hors"] for l in lignes)) / s[k + "_cap"] if s[k + "_cap"] else None
         s["cab_cs_max"] = max(R.jours_act[("CSMKL2", V.PRINCIPALE)][i]["cab"] for i in idx)
         s["cab_chme_max"] = max(R.cab_chme_spec[R.jours[i]] for i in idx)
         s["lits"] = sum(R.lits_occ["jour"][i] for i in idx) / len(idx)

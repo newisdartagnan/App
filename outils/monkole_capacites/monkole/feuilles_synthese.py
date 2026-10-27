@@ -359,8 +359,8 @@ def feuille_chme(wb, R, onglet):
         taille=23, lien_cible="'CHME médecins'!A1", lien_texte="Médecins par jour")
     kpi(ws, 7, 9, "DOSSIERS HOSPI / GPS - EVO", f"{t['dos_gps']} / {t['dos_evo']}", f"dont {L['sans_entree']} sans date d’entrée (sans durée)",
         lien_cible="'CHME jours'!A1", lien_texte="Jours et séjours")
-    kpi(ws, 10, 12, f"CABINETS SPÉCIALISTES / {R.cabinets_chme}", max(cab, default=0),
-        f"maximum / jour ; moyenne {fr_dec(sum(ouvres) / len(ouvres) if ouvres else 0)} ; {jours_plus} jour(s) > {R.cabinets_chme}",
+    kpi(ws, 10, 12, f"CABINETS OCCUPÉS / {R.cabinets_chme}", max(cab, default=0),
+        f"max. en même temps ; moy. {fr_dec(sum(ouvres) / len(ouvres) if ouvres else 0)} ; {jours_plus} j. > {R.cabinets_chme}",
         lien_cible="'CHME actes'!A1", lien_texte="Actes détaillés")
     if max(cab, default=0) > R.cabinets_chme:
         colorer(ws, 5, 10, 1, R, force=True)
@@ -555,12 +555,12 @@ def termes_capacites(R):
                                          f"(CSMKL2 et urgences : {R.cap_jour} visites"
                                          + ("; CHME ambulatoire : ses créneaux de rendez-vous" if R.horaire else "") + ").",
         "Pic par\nmédecin": "Le plus grand nombre de visites faites par un seul médecin en un jour.",
-        "Cabinets\nmoy. / jour": "Moyenne des cabinets comptés par jour, sur les jours où le site a eu de l’activité.",
-        "Cabinets\nmax / jour": "Le plus grand nombre de cabinets comptés un même jour. En rouge s’il dépasse les cabinets physiques.",
+        "Cabinets\nmoy. / jour": "Moyenne des cabinets occupés par jour, sur les jours où le site a eu de l’activité. CSMKL2 : "
+                                  "médecins ayant au moins 2 visites dans la journée. CHME : nombre maximal de spécialistes présents en même temps (plage de présence = de la première à la dernière visite enregistrée du médecin, plus une consultation) ; deux spécialistes qui se succèdent occupent un seul cabinet.",
+        "Cabinets\nmax / jour": "Le plus grand nombre de cabinets occupés un même jour. En rouge s’il dépasse les cabinets physiques.",
         "Cabinets\nphysiques": f"Salles de consultation disponibles : {R.cabinets_csmkl2} à CSMKL2, {R.cabinets_chme} de spécialistes au "
                                f"CHME (sans {hors}).",
-        "Jours >\ncabinets": "Jours où les cabinets comptés dépassent les cabinets physiques. Des spécialités se relaient "
-                                       "parfois dans une même salle : c’est un maximum.",
+        "Jours >\ncabinets": "Jours où les cabinets occupés dépassent les cabinets physiques.",
         "MAISON ROSE": "Activités secondaires de CSMKL2 (prénatal, imagerie, laboratoire, sage-femme) : visites comptées, hors capacité.",
         "Urgences": "Visites des urgences du CHME. Celles sans médecin renseigné ne donnent pas de cabinet : la capacité des "
                     "urgences n’est pas mesurable tant que ce champ est vide.",
@@ -613,8 +613,9 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
                  f"{fr(cs['total'])} visites / {fr(cs['cap'])} de capacité", fmt=PCT, couleur=alerte(cs["util"], *seuils),
                  aide="Activité principale de CSMKL2 (hors MAISON ROSE). " + T["Utilisation"] + " " + T["Capacité"])
     _kpi_compact(ws, 5, 8, "CHME AMBULATOIRE · UTILISATION", amb["util"] if amb["util"] is not None else "N/D",
-                 f"{fr(amb['total'])} visites / {fr(amb['cap'])} de capacité", fmt=PCT, couleur=alerte(amb["util"], *seuils),
-                 aide="Consultations ambulatoires du CHME. " + T["Utilisation"] + " " + T["Capacité"])
+                 f"{fr(amb['total'] - amb['hors'])} visites / {fr(amb['cap'])} de capacité", fmt=PCT, couleur=alerte(amb["util"], *seuils),
+                 aide="Consultations des spécialistes en cabinet du CHME (hors kinésithérapie, soins, imagerie, pharmacie, "
+                      "médecine générale…). " + T["Utilisation"] + " " + T["Capacité"])
     _kpi_compact(ws, 9, 12, "URGENCES CHME · VISITES", urg["total"], f"dont {fr(urg['sans'])} sans médecin renseigné",
                  aide=T["Urgences"])
     _kpi_compact(ws, 13, 16, "OCCUPATION DES LITS CHME", L["taux"],

@@ -6,6 +6,7 @@ from . import feuilles_bases as FB
 from . import feuilles_detail as FD
 from . import feuilles_synthese as FS
 from .notez_bien import feuille_notez_bien
+from .centrage import centrer
 
 ONGLET_DASH = "008797"
 ONGLET_CSMKL2 = "167D8D"
@@ -57,5 +58,6 @@ def construire(R, chemin):
     for ws in wb.worksheets:
         ws.sheet_view.tabSelected = ws.title == "Dashboard"
     wb.calculation.fullCalcOnLoad = True
+    centrer(wb)
     wb.save(chemin)
     return wb

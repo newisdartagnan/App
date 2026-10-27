@@ -5,6 +5,7 @@ from . import diag_analyses as DA
 from . import diag_classeur as DC
 from . import diag_notez as DN
 from .diag_calculs import SANS_SITE
+from .centrage import centrer
 
 ORDRE = ["Dashboard", "Composition familles", "Âge et sexe", "Évolution hebdo", "Par spécialité", "CSMKL2", "CSMKL2 diagnostics",
          "CHME", "CHME diagnostics", "Dictionnaire", "À classer", "Historique", "Notez bien", "Groupes globaux", "Base sources",
@@ -37,4 +38,5 @@ def construire(R, chemin):
     wb.active = 0
     for ws in wb.worksheets:
         ws.sheet_view.tabSelected = ws.title == "Dashboard"
+    centrer(wb)
     wb.save(chemin)

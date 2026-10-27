@@ -48,7 +48,8 @@ def _tableau(ws, r, titre, der, colonnes, lignes, formats, hauteur_entete=34, la
         cellule(ws, r, 1, lg[0], fmt=None, c2=largeur_titre if largeur_titre > 1 else None, h="left")
         for i, v in enumerate(lg[1:], start=1):
             f = formats[i] if i < len(formats) else NB
-            cellule(ws, r, largeur_titre + i, v if v is not None else "–", fmt=f, h="right" if v is not None else "center")
+            h = "center" if v is None else ("left" if isinstance(v, str) and f is None else "right")
+            cellule(ws, r, largeur_titre + i, v if v is not None else "–", fmt=f, h=h)
         ws.row_dimensions[r].height = 17
         r += 1
     return r, debut
@@ -83,6 +84,12 @@ def _consultations(R):
 # ----------------------------------------------------------------------------------------------
 # Capacité horaire
 # ----------------------------------------------------------------------------------------------
+def _presence_moyenne(cs):
+    """Heures moyennes entre la première visite et la fin de la dernière consultation (journées avec heures connues)."""
+    h = [(c["fin_presence"] - c["debut"]).total_seconds() / 3600 for c in cs if c.get("debut") and c.get("fin_presence")]
+    return sum(h) / len(h) if h else None
+
+
 def feuille_capacite_horaire(wb, R):
     if not R.horaire:
         return None
@@ -134,12 +141,13 @@ def feuille_capacite_horaire(wb, R):
         vis = sum(c["total"] for c in cs)
         moy = vis / len(cs)
         lignes.append([m, sp, src.replace("Rendez-vous du médecin", "Rendez-vous").replace("Médiane de la spécialité", "Médiane spécialité"),
-                       l[2], l[3], cap, len(cs), vis, moy, moy / cap if cap else None, sum(c["audela"] for c in cs)])
-    f = [None, None, None, NB, "0.0", NB, NB, NB, "0.0", PCT, NB]
+                       l[2], l[3], cap, len(cs), vis, moy, moy / cap if cap else None, sum(c["audela"] for c in cs),
+                       _presence_moyenne(cs)])
+    f = [None, None, None, NB, "0.0", NB, NB, NB, "0.0", PCT, NB, "0.0"]
     r, d0 = _tableau(ws, r + 2, "PAR MÉDECIN (CLASSÉ PAR VOLUME DE VISITES)", der,
                      ["Médecin", "Spécialité", "Source de la\ncapacité", "Durée d’une\nconsultation (min)", "Plage\n(heures)",
                       "Créneaux\npar jour", "Journées de\ncabinet", "Visites", "Visites par\njournée", "Remplissage\ndes créneaux",
-                      "Journées au-\ndelà créneaux"], lignes, f)
+                      "Journées au-\ndelà créneaux", "Présence\nmoy. (h)"], lignes, f)
     for i, lg in enumerate(lignes):
         colorer(ws, d0 + i, 10, lg[9], R)
     # Praticiens du fichier RDV sans visite retrouvée
@@ -185,7 +193,7 @@ def feuille_plannings(wb, R):
     f = [None, NB, "0.0", "0.0", "0.0", PCT, "0.0", NB, "0.0", "0.0"]
     r, d0 = _tableau(ws, 4, "PAR JOUR DE LA SEMAINE (MOYENNE PAR JOUR)", der,
                      ["Jour", "Jours dans\nla période", "CSMKL2\nvisites", "CSMKL2\ncabinets", "CHME amb.\nvisites",
-                      "CHME amb.\nutilisation", f"CHME cabinets\n(sur {R.cabinets_chme})", "CHME cabinets\nmaximum",
+                      "CHME amb.\nutilisation", f"CHME cabinets\noccupés (sur {R.cabinets_chme})", "CHME cabinets\nmaximum",
                       "CHME médecins\nprogrammés (RDV)", "Urgences\nvisites"], lignes, f)
     for i, lg in enumerate(lignes):
         colorer(ws, d0 + i, 6, lg[5], R)
@@ -227,18 +235,25 @@ def feuille_plannings(wb, R):
     f = [None] + ["0.0"] * len(jours_ouverts) + [NB]
     r, d0 = _tableau(ws, r + 2, "CHME / MÉDECINS SPÉCIALISTES PRÉSENTS PAR JOUR DE LA SEMAINE (MOYENNE) — BASE DES ROTATIONS DE SALLES", der,
                      ["Spécialité"] + [JOURS[w] for w in jours_ouverts] + ["Journées de\ncabinet"], lignes, f)
-    tot = ["Cabinets occupés (moyenne)"] + [sum(g[w] for g in grille.values()) / nb_jours[w] for w in jours_ouverts] + \
+    tot = ["Spécialistes présents (moyenne)"] + [sum(g[w] for g in grille.values()) / nb_jours[w] for w in jours_ouverts] + \
           [sum(sum(g.values()) for g in grille.values())]
     r = _total(ws, r, tot, f)
-    ecart = [f"Écart aux {R.cabinets_chme} cabinets"] + [t - R.cabinets_chme for t in tot[1:-1]] + [None]
+    simul = ["Cabinets occupés en même temps (moyenne du pic)"] + [
+        sum(R.cab_chme_spec[j] for j in R.jours if j.weekday() == w) / nb_jours[w] for w in jours_ouverts] + [None]
+    cellule(ws, r, 1, simul[0], fmt=None, h="left", gras=True)
+    for i, v in enumerate(simul[1:-1], start=2):
+        cellule(ws, r, i, v, fmt="0.0", gras=True)
+    r += 1
+    ecart = [f"Écart aux {R.cabinets_chme} cabinets"] + [t - R.cabinets_chme for t in simul[1:-1]] + [None]
     cellule(ws, r, 1, ecart[0], fmt=None, h="left", gras=True)
     for i, v in enumerate(ecart[1:-1], start=2):
         cellule(ws, r, i, v, fmt="+0.0;-0.0;0", gras=True)
         if v > 0:
             colorer(ws, r, i, 1, R, force=True)
-    note_bloc(ws, r + 2, "Lecture : un écart positif signifie qu’en moyenne plus de spécialistes consultent ce jour-là que de "
-                         "cabinets disponibles. Déplacer une partie des spécialités chargées vers les jours à écart négatif "
-                         "réduit le besoin de salles sans en ouvrir.", 1, der, hauteur=34)
+    note_bloc(ws, r + 2, "Lecture : « cabinets occupés en même temps » = nombre maximal de spécialistes présents au même moment "
+                         "(de leur première à leur dernière visite enregistrée). Un écart positif signifie qu’il manque des salles "
+                         "à ce moment-là : déplacer une partie des spécialités chargées vers les jours à écart négatif ou vers "
+                         "l’après-midi réduit le besoin de salles sans en ouvrir.", 1, der, hauteur=40)
     return ws
 
 

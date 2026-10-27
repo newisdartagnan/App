@@ -38,11 +38,13 @@ Il fonctionne sans Internet et sans Claude, et donne toujours le même résultat
 3. Le classeur apparaît dans `sorties`, par exemple `Monkole_Activites_Capacites_01-21_Septembre_2026.xlsx`,
    avec un court résumé texte `..._resume.txt`.
 4. En même temps, un second classeur est produit pour comparer les sites : `Monkole_CSMKL2_CHME_Activite_Charge_<période>.xlsx`.
-   Il reprend les tableaux de la feuille CSMKL2 (**lecture quotidienne** : visites GPS et Evolucare, cabinets, capacité,
-   utilisation, marge, intervenants au-delà de leur capacité, sans médecin, visites isolées ; **charge individuelle** :
-   médecins classés sur la moyenne de visites par jour actif) dans deux onglets :
-   - **CSMKL2** : activité principale (mêmes chiffres que la feuille CSMKL2 du classeur principal) ;
-   - **CHME** : activité ambulatoire (avec la spécialité de chaque médecin et les cabinets de spécialistes sur 15), puis urgences.
+   Les onglets sont organisés par type de tableau, pour que les colonnes aient la même largeur d'un site à l'autre :
+   - **Charge individuelle** : colonnes Intervenant, Spécialité, Consultation, Avant 1 sem., Après 1 sem., Visites,
+     Jours actifs, Moy / jour (classement sur la moyenne). À gauche CSMKL2 activité principale, puis urgences CHME ; à
+     droite, côte à côte, CHME ambulatoire : spécialistes en cabinet, puis intervenants hors cabinet (kinésithérapie,
+     soins, imagerie, pharmacie, médecine générale, UF non renseignée…) ;
+   - **Lecture quotidienne** : CSMKL2, CHME ambulatoire (dernière colonne : cabinets occupés en même temps, sur 16) et
+     urgences CHME, l'un sous l'autre, mêmes colonnes.
 
 La période est lue dans le nom des fichiers (`20260901-20260921`). Les lignes hors période sont exclues
 et signalées dans « Notez bien ».
@@ -59,8 +61,8 @@ Dashboard → toutes les feuilles CSMKL2 → toutes les feuilles CHME → analys
 | … médecins | Médecins en lignes, jours du mois en colonnes (dimanches en violet), 4 lignes par médecin |
 | … jours | Date → Jour → Médecin, filtre sur la date pour voir qui a consulté un jour donné |
 | … actes | Spécialité → sous-spécialité → acte (groupes « + »), GPS sur Date_V, Evolucare sur DATEHEURE |
-| Capacité horaire | CHME ambulatoire : capacité de chaque médecin (créneaux de rendez-vous par jour, durée d'une consultation, plage horaire), comparée au repère de 24 ; par spécialité et par médecin, remplissage des créneaux |
-| Plannings | Moyennes par jour de la semaine (visites, cabinets, médecins programmés), visites par heure d'enregistrement, **spécialistes présents par jour de la semaine** et écart aux 15 cabinets (base des rotations de salles) |
+| Capacité horaire | CHME ambulatoire : capacité de chaque médecin (créneaux de rendez-vous par jour, durée d'une consultation, plage horaire), comparée au repère de 24 ; par spécialité et par médecin, remplissage des créneaux et **présence moyenne par jour** (première visite → fin de la dernière consultation) |
+| Plannings | Moyennes par jour de la semaine (visites, cabinets, médecins programmés), visites par heure d'enregistrement, **spécialistes présents et cabinets occupés en même temps par jour de la semaine**, écart aux 16 cabinets (base des rotations de salles) |
 | Séjours | Par unité : entrées, sorties, durée moyenne de séjour (GPS ; Evolucare sur sorties réelles), séjours sans sortie dont ceux entrés depuis plus de 7 jours |
 | Prises en charge | Visites par organisme (MONKOLE AMO, privé, conventions…) et détail des libellés PEC |
 | Origine patients | Dossiers par commune de Kinshasa (adresse des exports) |
@@ -83,11 +85,20 @@ Règles fixées avec le directeur des opérations (septembre 2026) :
   exactement 4 jours est une proposition (non comptée comme sortie réalisée ni dans la durée de séjour), les autres dates
   (plus courtes ou plus longues) sont réelles (durée modifiable dans le référentiel). Les séjours entrés avant le début de la période n'ont pas de date d'entrée dans les
   exports : les premiers jours sont sous-estimés, le chiffre du **dernier jour** est le plus représentatif ;
-- **Cabinets physiques** : 6 à CSMKL2, 15 de spécialistes au CHME. Ne sont pas comptés dans les 15 : nutrition, kinésithérapie,
-  soins infirmiers, laboratoire, imagerie, pharmacie, documents médicaux (liste modifiable). Certaines spécialités se relaient
-  dans un même cabinet : le nombre de cabinets comptés est un maximum ;
+- **Cabinets physiques** : 6 à CSMKL2, 16 de spécialistes au CHME. N'ouvrent ni cabinet ni capacité de spécialiste
+  (leurs visites restent comptées) : nutrition, kinésithérapie, soins infirmiers, laboratoire, imagerie, pharmacie,
+  documents médicaux, médecine générale / famille (médecins de CSMKL2 passés au CHME), UF non renseignée (liste
+  modifiable). Un cabinet peut accueillir deux spécialistes qui se succèdent : les **cabinets occupés** d'un jour sont le
+  nombre maximal de spécialistes présents **en même temps**, comparé aux 16 cabinets ;
+- **Plage de présence (CHME ambulatoire)** : un médecin est considéré présent de sa première à sa dernière visite
+  enregistrée du jour, plus une consultation (durée de ses rendez-vous, sinon médiane de sa spécialité, sinon 20 min).
+  Quand son nom n'apparaît plus, il a fini ou a été remplacé : sa capacité du jour est limitée aux créneaux de cette plage,
+  sans descendre sous le nombre de patients vus. L'utilisation CHME ambulatoire ne compte que les visites des spécialistes
+  en cabinet (plus les visites isolées et sans médecin) ;
 - **Couleurs d'alerte** : orange sous 50 %, vert de 50 à 85 %, rouge à partir de 85 % ; rouge aussi quand les cabinets
   comptés un jour dépassent les cabinets physiques ;
+- **Mise en forme** : dans tous les classeurs (activités et capacités, CSMKL2 et CHME, diagnostics), les noms de
+  colonnes et les valeurs chiffrées sont centrés ; les libellés (noms, jours, spécialités) restent à gauche ;
 - **Capacité horaire (CHME ambulatoire)** : le repère de 24 visites est une estimation théorique. Quand le fichier des
   rendez-vous est fourni, la capacité d'un médecin devient son nombre de créneaux par jour (médiane) ; un médecin sans
   rendez-vous connu reçoit la médiane de sa spécialité, à défaut 24. CSMKL2 (surtout sans rendez-vous) et les urgences
@@ -97,11 +108,12 @@ Règles fixées avec le directeur des opérations (septembre 2026) :
 
 Créé au premier lancement à côté du programme. On peut y modifier :
 
-- **Paramètres** : 24 visites par jour, seuil de 2 visites, 6 cabinets CSMKL2, 15 cabinets CHME, seuils d'alerte (50 % et 85 %),
-  capacité horaire des rendez-vous (1 = oui, 0 = repère de 24) ;
+- **Paramètres** : 24 visites par jour, seuil de 2 visites, 6 cabinets CSMKL2, 16 cabinets CHME, seuils d'alerte (50 % et 85 %),
+  capacité horaire des rendez-vous (1 = oui, 0 = repère de 24), durée d'une consultation sans rendez-vous connu (20 min),
+  capacité limitée à la plage de présence (1 = oui, 0 = non) ;
 - **Capacité horaire** : créneaux par jour de chaque médecin, remplis automatiquement à partir du fichier des rendez-vous ;
 - **Lits CHME** : lits réels par unité (leur total, 104, est la capacité du CHME) ;
-- **Hors cabinets CHME** : spécialités qui n'occupent pas un des cabinets de spécialistes ;
+- **Hors cabinets CHME** : spécialités qui n'occupent pas un des cabinets de spécialistes (visites conservées, sans cabinet ni capacité) ;
 - **MAISON ROSE** : UF rattachées ;
 - **UF visites** : UF → spécialité (à compléter quand « Notez bien » signale une UF nouvelle) ;
 - **Catégories Evo** et **Produits Evo** : harmonisation des actes Evolucare ;
