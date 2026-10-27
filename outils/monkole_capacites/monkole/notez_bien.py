@@ -101,7 +101,11 @@ def feuille_notez_bien(wb, R, positions, onglet):
             "dernière visite enregistrée, plus une consultation), sans descendre sous le nombre de patients vus. Les activités "
             f"hors cabinet de spécialiste ({', '.join(sorted(R.hors_cabinets))}) gardent leurs visites mais n’ouvrent ni "
             "cabinet ni capacité. Cabinets occupés = nombre maximal de spécialistes présents en même temps, comparé aux "
-            f"{R.cabinets_chme} cabinets physiques." if R.capacite_plage else "")),
+            f"{R.cabinets_chme} cabinets physiques." if R.capacite_plage else "")
+         + (" Spécialistes comptés en cabinet malgré leur spécialité (feuille « Spécialistes en cabinet » du référentiel) : "
+            + ", ".join(sorted(" ".join(sorted(n)) for n in R.specialistes_retenus)) + "." if R.specialistes_retenus else "")
+         + (" Infirmiers d’Evolucare (nom terminé par INF) : ils ne consultent pas ; leurs visites restent dans les volumes, "
+            "sans cabinet, sans capacité, hors utilisation et hors listes de charge individuelle." if R.exclure_inf else "")),
         ("8 / Utilisation et marge",
          "Utilisation du modèle = toutes les visites du périmètre / capacité comptée. Visites isolées et sans médecin restent au "
          "numérateur ; au CHME ambulatoire, les visites des intervenants hors cabinet de spécialiste en sont retirées (elles "

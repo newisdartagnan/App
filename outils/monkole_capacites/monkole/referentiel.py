@@ -16,6 +16,7 @@ PARAMETRES = {
     "sortie_proposee_evo_jours": 4,
     "duree_consultation_defaut_min": 20,
     "capacite_plage_presence": 1,
+    "infirmiers_non_consultants": 1,
 }
 
 # Libellés des paramètres dans Referentiel_Monkole.xlsx (feuille Paramètres), dans l'ordre d'affichage
@@ -30,6 +31,7 @@ LIBELLES_PARAMETRES = [
     ("sortie_proposee_evo_jours", "Evolucare : durée de séjour proposée à l'admission (jours ; cette durée exacte = sortie non confirmée)"),
     ("duree_consultation_defaut_min", "CHME : durée d'une consultation sans rendez-vous connu (minutes)"),
     ("capacite_plage_presence", "CHME : capacité limitée à la plage de présence du médecin (1 = oui, 0 = non)"),
+    ("infirmiers_non_consultants", "Infirmiers Evolucare (nom terminé par INF) : ne consultent pas (1 = oui, 0 = non)"),
 ]
 
 # Capacité horaire par médecin, tirée du dernier fichier RDV_Horaire_* (rempli automatiquement, modifiable) :
@@ -51,6 +53,9 @@ HORS_CABINETS_CHME = [
 ]
 # Ancienne liste (avant octobre 2026) : complétée automatiquement si elle est lue telle quelle dans le référentiel
 HORS_CABINETS_CHME_V1 = HORS_CABINETS_CHME[:8]
+
+# Intervenants comptés comme spécialistes en cabinet malgré une spécialité hors cabinet (mots du nom, en majuscules)
+SPECIALISTES_CABINET = ["MWAMOLANDA"]
 
 # Lits réels du CHME par unité (104 au total, septembre 2026 ; ordre d'affichage conservé).
 # Les lits paramétrés dans GPS et Evolucare comprennent des lits fictifs : ils ne servent pas de capacité.

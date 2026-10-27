@@ -12,7 +12,7 @@ from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, TwoCellAnchor
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from . import visites as V
-from .calculs import cap_ind, indicateurs
+from .calculs import cap_ind, indicateurs, non_consultant
 from .feuilles_detail import libelle_periode
 from .styles import (ALERTE_F, ALERTE_T, BLANC, CLAIR, DATE, DEC, GRIS, NAVY, NB, PCT, ROUGE_F, ROUGE_T, TEAL, TEXTE, ZEBRE,
                      alerte, bandeau, ecrire, lien, mise_en_page)
@@ -213,7 +213,8 @@ def tableau_charge(ws, r, R, site, act, der, titre, lib_audela, specialites=None
     md = R.medjour[(site, act)]
     par_med = defaultdict(dict)
     for (j, m), c in md.items():
-        par_med[m][j] = c
+        if not non_consultant(R, m):          # infirmiers (nom terminé par INF) : ils ne consultent pas
+            par_med[m][j] = c
     total = {m: sum(c["total"] for c in jm.values()) for m, jm in par_med.items()}
     moyenne = {m: total[m] / len(par_med[m]) for m in par_med}
     ordre = sorted(par_med, key=lambda m: (-moyenne[m], -total[m], m))
