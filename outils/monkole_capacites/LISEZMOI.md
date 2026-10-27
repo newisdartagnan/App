@@ -45,9 +45,7 @@ Il fonctionne sans Internet et sans Claude, et donne toujours le même résultat
      soins, imagerie, pharmacie, médecine générale, UF non renseignée…) ;
    - **Lecture quotidienne** : CSMKL2, CHME ambulatoire (dernière colonne : cabinets occupés en même temps, sur 16) et
      urgences CHME, l'un sous l'autre, mêmes colonnes.
-   - Règles propres à ce classeur : les infirmiers d'Evolucare (nom terminé par **INF**) ne consultent pas — retirés des
-     listes de charge, sans cabinet ni capacité, leurs visites restent dans les visites réelles mais hors utilisation ;
-     **MWAMOLANDA** (nutrition) est comptée comme spécialiste en cabinet (liste `SPECIALISTES_RETENUS` du programme).
+   - Infirmiers (nom terminé par INF) et spécialistes retenus : mêmes règles que le classeur principal (voir plus bas).
 
 La période est lue dans le nom des fichiers (`20260901-20260921`). Les lignes hors période sont exclues
 et signalées dans « Notez bien ».
@@ -100,6 +98,11 @@ Règles fixées avec le directeur des opérations (septembre 2026) :
   en cabinet (plus les visites isolées et sans médecin) ;
 - **Couleurs d'alerte** : orange sous 50 %, vert de 50 à 85 %, rouge à partir de 85 % ; rouge aussi quand les cabinets
   comptés un jour dépassent les cabinets physiques ;
+- **Infirmiers d'Evolucare** (nom terminé par **INF**) : ils ne consultent pas. Leurs visites restent dans les volumes,
+  mais sans cabinet, sans capacité, hors utilisation et hors listes de charge individuelle (paramètre du référentiel,
+  1 = oui, 0 = non) ;
+- **Spécialistes en cabinet** : intervenants comptés comme spécialistes en cabinet même si leur spécialité est hors
+  cabinet (ex. **MWAMOLANDA**, nutrition) — feuille « Spécialistes en cabinet » du référentiel ;
 - **Mise en forme** : dans tous les classeurs (activités et capacités, CSMKL2 et CHME, diagnostics), les noms de
   colonnes et les valeurs chiffrées sont centrés ; les libellés (noms, jours, spécialités) restent à gauche ;
 - **Capacité horaire (CHME ambulatoire)** : le repère de 24 visites est une estimation théorique. Quand le fichier des
@@ -113,10 +116,11 @@ Créé au premier lancement à côté du programme. On peut y modifier :
 
 - **Paramètres** : 24 visites par jour, seuil de 2 visites, 6 cabinets CSMKL2, 16 cabinets CHME, seuils d'alerte (50 % et 85 %),
   capacité horaire des rendez-vous (1 = oui, 0 = repère de 24), durée d'une consultation sans rendez-vous connu (20 min),
-  capacité limitée à la plage de présence (1 = oui, 0 = non) ;
+  capacité limitée à la plage de présence (1 = oui, 0 = non), infirmiers « INF » non consultants (1 = oui, 0 = non) ;
 - **Capacité horaire** : créneaux par jour de chaque médecin, remplis automatiquement à partir du fichier des rendez-vous ;
 - **Lits CHME** : lits réels par unité (leur total, 104, est la capacité du CHME) ;
 - **Hors cabinets CHME** : spécialités qui n'occupent pas un des cabinets de spécialistes (visites conservées, sans cabinet ni capacité) ;
+- **Spécialistes en cabinet** : noms (ou partie du nom) comptés en cabinet malgré une spécialité hors cabinet (MWAMOLANDA) ;
 - **MAISON ROSE** : UF rattachées ;
 - **UF visites** : UF → spécialité (à compléter quand « Notez bien » signale une UF nouvelle) ;
 - **Catégories Evo** et **Produits Evo** : harmonisation des actes Evolucare ;

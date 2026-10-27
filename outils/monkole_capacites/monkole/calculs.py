@@ -48,6 +48,8 @@ def calculer(donnees, ref, debut, fin):
     R.hors_cabinets = set(ref["HORS_CABINETS_CHME"])
     R.duree_defaut = p.get("duree_consultation_defaut_min", 20) or 20
     R.capacite_plage = bool(p.get("capacite_plage_presence", 1))
+    R.exclure_inf = bool(p.get("infirmiers_non_consultants", 1))
+    R.specialistes_retenus = [set(n.split()) for n in ref.get("SPECIALISTES_CABINET", []) if n]
     R.lits = ref["LITS"]
     R.total_lits = sum(n for _, n in R.lits)
     R.lits_reels = R.total_lits
@@ -169,18 +171,18 @@ def lib_cap(R):
 
 
 def non_consultant(R, medecin):
-    """Intervenant qui ne consulte pas (classeur CSMKL2 et CHME : infirmiers d'Evolucare, nom terminé par INF)."""
-    return bool(getattr(R, "exclure_inf", False) and medecin and medecin.split()[-1] == "INF")
+    """Intervenant qui ne consulte pas : infirmier d'Evolucare (nom terminé par INF)."""
+    return bool(R.exclure_inf and medecin and medecin.split()[-1] == "INF")
 
 
-def recalculer_activites(R):
-    """Recalcule cabinets, capacités et journées-intervenants (après changement des règles sur une copie de R)."""
-    _visites_par_activite(R)
+def hors_cabinet(R, medecin, specialite):
+    """Spécialité hors cabinet de spécialiste, sauf pour les spécialistes retenus du référentiel (ex. nutrition)."""
+    mots = set(medecin.split()) if medecin else set()
+    return specialite in R.hors_cabinets and not any(n <= mots for n in R.specialistes_retenus)
 
 
 def _visites_par_activite(R):
     seuil = R.seuil
-    retenus = getattr(R, "specialistes_retenus", ())       # spécialistes comptés en cabinet malgré leur spécialité
     _capacites(R)
     # Journées-intervenants par site / activité (identités absentes exclues des cabinets)
     R.medjour = {}
@@ -205,8 +207,7 @@ def _visites_par_activite(R):
         for (j, m), c in md.items():
             cap = cap_ind(R, site, act, m)
             nc = non_consultant(R, m)
-            hors = nc or (horaire_site and spec_jm[(j, m)].most_common(1)[0][0] in R.hors_cabinets
-                          and not any(n in m.split() for n in retenus))
+            hors = nc or (horaire_site and hors_cabinet(R, m, spec_jm[(j, m)].most_common(1)[0][0]))
             c["hors_cabinet"] = 1 if hors else 0
             if horaire_site:
                 # Plage de présence : première -> dernière visite enregistrée du médecin ce jour-là, plus une consultation

@@ -5,7 +5,7 @@ import statistics as st
 from collections import Counter, defaultdict
 
 from . import visites as V
-from .calculs import SITES_HORAIRE
+from .calculs import SITES_HORAIRE, hors_cabinet
 from .feuilles_synthese import cellule, colorer, entete_tableau, fusion, note_bloc, section
 from .styles import BLANC, CLAIR, NB, PCT, TEAL, TEXTE, ecrire, lien, mise_en_page
 from .texte import JOURS, cle, texte
@@ -225,7 +225,7 @@ def feuille_plannings(wb, R):
         if not c["cab"]:
             continue
         sp = spec_med[(j, m)].most_common(1)[0][0]
-        if sp in R.hors_cabinets:
+        if hors_cabinet(R, m, sp):
             continue
         grille[sp][j.weekday()] += 1
     jours_ouverts = [w for w in range(6) if nb_jours.get(w)]

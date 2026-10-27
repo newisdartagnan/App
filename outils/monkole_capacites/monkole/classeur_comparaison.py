@@ -3,16 +3,14 @@ les colonnes aient la même largeur d'un site à l'autre :
 - onglet « Charge individuelle » : CSMKL2 (activité principale, puis urgences CHME dessous) à gauche, CHME ambulatoire à
   droite (spécialistes en cabinet, puis intervenants hors cabinet), mêmes colonnes ;
 - onglet « Lecture quotidienne » : CSMKL2, CHME ambulatoire et urgences CHME l'un sous l'autre, mêmes colonnes.
-Règles propres à ce classeur : les infirmiers d'Evolucare (nom terminé par INF) ne consultent pas (ni liste, ni cabinet, ni
-capacité) ; les spécialistes retenus (nutrition : MWAMOLANDA) sont comptés en cabinet."""
-import copy
+Les infirmiers d'Evolucare (nom terminé par INF) ne figurent pas dans les listes : ils ne consultent pas."""
 from collections import Counter, defaultdict
 
 import openpyxl
 from openpyxl.utils import get_column_letter
 
 from . import visites as V
-from .calculs import non_consultant, recalculer_activites
+from .calculs import hors_cabinet, non_consultant
 from .centrage import centrer
 from .feuilles_synthese import cellule, entete_tableau, fusion, section, tableau_lecture, titre_periode
 from .styles import CLAIR, TEXTE, bandeau, ecrire, mise_en_page
@@ -22,7 +20,6 @@ ONGLET_LECTURE = "143348"
 COLS_CHARGE = ["Intervenant", "Spécialité", "Consultation", "Avant 1 sem.", "Après 1 sem.", "Visites", "Jours actifs",
                "Moy / jour"]
 LARGEURS_CHARGE = [30, 26, 12, 12, 12, 11, 11, 11]
-SPECIALISTES_RETENUS = ("MWAMOLANDA",)          # mot du nom : spécialiste compté en cabinet malgré sa spécialité
 GAUCHE, DROITE = 1, len(COLS_CHARGE) + 2      # colonnes de départ des deux blocs (une colonne vide entre les deux)
 DER_CHARGE = DROITE + len(COLS_CHARGE) - 1
 DER_LECTURE = 14
@@ -98,7 +95,7 @@ def _onglet_charge(wb, R, per):
 
     # Droite : CHME ambulatoire, spécialistes en cabinet puis hors cabinet
     spec = specialites_medecins(R, "CHME", V.AMBULATOIRE)
-    hors = lambda m: spec.get(m) in R.hors_cabinets and not any(n in m.split() for n in R.specialistes_retenus)
+    hors = lambda m: hors_cabinet(R, m, spec.get(m))
     r = tableau_charge_simple(ws, 4, DROITE, R, "CHME", V.AMBULATOIRE, "CHME / AMBULATOIRE — SPÉCIALISTES EN CABINET", spec,
                               garder=lambda m: not hors(m))
     tableau_charge_simple(ws, r + 2, DROITE, R, "CHME", V.AMBULATOIRE, "CHME / AMBULATOIRE — HORS CABINET DE SPÉCIALISTE", spec,
@@ -135,10 +132,6 @@ def construire(R, chemin):
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     per = titre_periode(R)
-    R = copy.copy(R)                     # règles propres à ce classeur, sans changer le classeur principal
-    R.exclure_inf = True
-    R.specialistes_retenus = SPECIALISTES_RETENUS
-    recalculer_activites(R)
     _onglet_charge(wb, R, per)
     _onglet_lecture(wb, R, per)
     centrer(wb)
