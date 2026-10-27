@@ -412,6 +412,8 @@ def feuille_jours_chme(wb, R, onglet):
             sit = "Sans médecin renseigné"
         elif inf:
             sit = "Infirmier (ne consulte pas)"
+        elif act == V.URGENCES and R.garde_urgences:
+            sit = "Au-dessus de la limite" if tot > ci else "Urgences : capacité de garde"
         elif c_md is not None and c_md.get("hors_cabinet") and tot >= R.seuil:
             sit = "Hors cabinet de spécialiste"
         else:

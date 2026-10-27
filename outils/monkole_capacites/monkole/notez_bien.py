@@ -24,7 +24,7 @@ def _texte(ws, r, titre, contenu):
     fusion(ws, r + 1, 1, DER)
     for c in range(1, DER + 1):
         ecrire(ws, (r + 1, c), contenu if c == 1 else None, couleur=GRIS, fond=CLAIR)
-    ws.row_dimensions[r + 1].height = 47
+    ws.row_dimensions[r + 1].height = max(47, 15 * -(-len(contenu) // 210) + 12)     # texte long : ligne plus haute
 
 
 def feuille_notez_bien(wb, R, positions, onglet):
@@ -107,9 +107,12 @@ def feuille_notez_bien(wb, R, positions, onglet):
          + (" Infirmiers d’Evolucare (nom terminé par INF) : ils ne consultent pas ; leurs visites restent dans les volumes, "
             "sans cabinet, sans capacité, hors utilisation et hors listes de charge individuelle." if R.exclure_inf else "")),
         ("8 / Utilisation et marge",
-         "Utilisation du modèle = toutes les visites du périmètre / capacité comptée. Visites isolées et sans médecin restent au "
-         "numérateur ; au CHME ambulatoire, les visites des intervenants hors cabinet de spécialiste en sont retirées (elles "
-         f"n’ont pas de capacité). Marge individuelle cumulée = somme de MAX({cap} - visites, 0), uniquement pour les cabinets comptés. Cette "
+         "Utilisation du modèle = visites du périmètre / capacité comptée. CSMKL2 et urgences : visites isolées et sans médecin "
+         "restent au numérateur. CHME ambulatoire : seules les visites des cabinets comptés entrent au numérateur (les visites "
+         "hors cabinet de spécialiste, sans médecin ou isolées n’ont pas de capacité)."
+         + (f" Urgences CHME : capacité = {R.garde_urgences} médecin(s) de garde × {R.cap_jour} visites, chaque jour de la "
+            "période ; marge = capacité - visites du jour." if R.garde_urgences else "")
+         + f" Marge individuelle cumulée = somme de MAX({cap} - visites, 0), uniquement pour les cabinets comptés. Cette "
          "marge n’est pas une garantie de places réellement disponibles."),
         ("9 / Identités des intervenants",
          f"Titres, accents et espaces sont harmonisés. Alias confirmés repris : {alias}. Les rapprochements uniques à au moins deux "
@@ -119,9 +122,13 @@ def feuille_notez_bien(wb, R, positions, onglet):
          f"première date est retenue; les contributions GPS/Evo sont celles de cette même date. Les jours {vides} sont laissés vides "
          "dans les matrices, pas remplis de zéros."),
         ("11 / Urgences : manque d’identité",
-         f"{urg_sans} visites d’urgences CHME n’ont pas de médecin renseigné. Elles restent comptées dans les {urg_tot} visites. Leur "
-         "capacité individuelle ne peut pas être calculée. Le quotient visites/capacité des seuls intervenants nommés ne permet pas une "
-         "décision fiable sur la capacité réelle des urgences."),
+         f"{urg_sans} visites d’urgences CHME n’ont pas de médecin renseigné (surtout dans Evolucare). Elles restent comptées dans "
+         f"les {urg_tot} visites."
+         + (f" La capacité des urgences ne dépend donc pas des médecins nommés : {R.garde_urgences} médecin(s) de garde × "
+            f"{R.cap_jour} visites par jour (paramètre du référentiel). La colonne « Médecins nommés » de la lecture quotidienne "
+            "aide à suivre la saisie." if R.garde_urgences else
+            " Leur capacité individuelle ne peut pas être calculée. Le quotient visites/capacité des seuls intervenants nommés ne "
+            "permet pas une décision fiable sur la capacité réelle des urgences.")),
         ("12 / Spécialités et capacité physique",
          "Au CHME, la spécialité vient de l’UF, sinon du motif explicite. Hospitalisation est prioritaire lorsque UF/Motif/Nature la "
          "mentionnent; Urgences vient ensuite. Un intervenant couvrant plusieurs spécialités ne multiplie pas les cabinets de la même "

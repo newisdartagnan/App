@@ -44,7 +44,7 @@ Il fonctionne sans Internet et sans Claude, et donne toujours le même résultat
      droite, côte à côte, CHME ambulatoire : spécialistes en cabinet, puis intervenants hors cabinet (kinésithérapie,
      soins, imagerie, pharmacie, médecine générale, UF non renseignée…) ;
    - **Lecture quotidienne** : CSMKL2, CHME ambulatoire (dernière colonne : cabinets occupés en même temps, sur 16) et
-     urgences CHME, l'un sous l'autre, mêmes colonnes.
+     urgences CHME (médecins de garde et médecins nommés), l'un sous l'autre, mêmes colonnes.
    - Infirmiers (nom terminé par INF) et spécialistes retenus : mêmes règles que le classeur principal (voir plus bas).
 
 La période est lue dans le nom des fichiers (`20260901-20260921`). Les lignes hors période sont exclues
@@ -94,8 +94,12 @@ Règles fixées avec le directeur des opérations (septembre 2026) :
 - **Plage de présence (CHME ambulatoire)** : un médecin est considéré présent de sa première à sa dernière visite
   enregistrée du jour, plus une consultation (durée de ses rendez-vous, sinon médiane de sa spécialité, sinon 20 min).
   Quand son nom n'apparaît plus, il a fini ou a été remplacé : sa capacité du jour est limitée aux créneaux de cette plage,
-  sans descendre sous le nombre de patients vus. L'utilisation CHME ambulatoire ne compte que les visites des spécialistes
-  en cabinet (plus les visites isolées et sans médecin) ;
+  sans descendre sous le nombre de patients vus. L'utilisation CHME ambulatoire ne compte que les visites des cabinets
+  comptés (sans les visites hors cabinet, sans médecin ou isolées) ;
+- **Urgences CHME** : le nom du médecin manque souvent dans Evolucare ; la capacité est donc celle de la **permanence** :
+  médecins de garde × 24 visites, chaque jour de la période (1 médecin de garde par défaut, modifiable dans le référentiel ;
+  0 = ancien calcul sur les médecins nommés). Toutes les visites des urgences comptent dans l'utilisation (sauf
+  infirmiers « INF ») ; la lecture quotidienne affiche les médecins de garde et le nombre de **médecins nommés** par jour ;
 - **Couleurs d'alerte** : orange sous 50 %, vert de 50 à 85 %, rouge à partir de 85 % ; rouge aussi quand les cabinets
   comptés un jour dépassent les cabinets physiques ;
 - **Infirmiers d'Evolucare** (nom terminé par **INF**) : ils ne consultent pas. Leurs visites restent dans les volumes,
@@ -116,7 +120,7 @@ Créé au premier lancement à côté du programme. On peut y modifier :
 
 - **Paramètres** : 24 visites par jour, seuil de 2 visites, 6 cabinets CSMKL2, 16 cabinets CHME, seuils d'alerte (50 % et 85 %),
   capacité horaire des rendez-vous (1 = oui, 0 = repère de 24), durée d'une consultation sans rendez-vous connu (20 min),
-  capacité limitée à la plage de présence (1 = oui, 0 = non), infirmiers « INF » non consultants (1 = oui, 0 = non) ;
+  capacité limitée à la plage de présence (1 = oui, 0 = non), infirmiers « INF » non consultants (1 = oui, 0 = non), médecins de garde aux urgences (1) ;
 - **Capacité horaire** : créneaux par jour de chaque médecin, remplis automatiquement à partir du fichier des rendez-vous ;
 - **Lits CHME** : lits réels par unité (leur total, 104, est la capacité du CHME) ;
 - **Hors cabinets CHME** : spécialités qui n'occupent pas un des cabinets de spécialistes (visites conservées, sans cabinet ni capacité) ;
