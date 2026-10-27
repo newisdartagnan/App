@@ -49,6 +49,7 @@ def calculer(donnees, ref, debut, fin):
     R.duree_defaut = p.get("duree_consultation_defaut_min", 20) or 20
     R.capacite_plage = bool(p.get("capacite_plage_presence", 1))
     R.exclure_inf = bool(p.get("infirmiers_non_consultants", 1))
+    R.garde_urgences = int(p.get("medecins_garde_urgences", 1) or 0)
     R.specialistes_retenus = [set(n.split()) for n in ref.get("SPECIALISTES_CABINET", []) if n]
     R.lits = ref["LITS"]
     R.total_lits = sum(n for _, n in R.lits)
@@ -187,6 +188,7 @@ def _visites_par_activite(R):
     # Journées-intervenants par site / activité (identités absentes exclues des cabinets)
     R.medjour = {}
     R.jours_act = {}
+    R.medecins_nommes = {}
     for site, act in (("CSMKL2", V.PRINCIPALE), ("CSMKL2", V.SECONDAIRE), ("CHME", V.AMBULATOIRE), ("CHME", V.URGENCES)):
         vs = [v for v in R.visites if v["site"] == site and v["activite"] == act]
         md = defaultdict(_compte)
@@ -204,6 +206,8 @@ def _visites_par_activite(R):
             else:
                 sans[v["jour"]] += 1
         horaire_site = (site, act) in SITES_HORAIRE
+        # Urgences : capacité = permanence (médecins de garde x repère, chaque jour), pas les médecins nommés
+        garde = R.garde_urgences if (site, act) == ("CHME", V.URGENCES) else 0
         for (j, m), c in md.items():
             cap = cap_ind(R, site, act, m)
             nc = non_consultant(R, m)
@@ -226,10 +230,10 @@ def _visites_par_activite(R):
                     c["debut"] = c["fin_presence"] = None
                 c["duree"] = dur
             c["cap_ind"] = cap
-            c["cab"] = 1 if (c["total"] >= seuil and not hors) else 0
+            c["cab"] = 1 if (c["total"] >= seuil and not hors and not garde) else 0
             c["cap"] = c["cab"] * cap
             c["marge"] = max(cap - c["total"], 0) if c["cab"] else 0
-            c["audela"] = 1 if (c["cab"] and c["total"] > cap) else 0
+            c["audela"] = 1 if ((c["cab"] or (garde and not nc)) and c["total"] > cap) else 0
             c["isolee"] = 1 if (c["total"] == 1 and not nc) else 0
         R.medjour[(site, act)] = md
         lignes = []
@@ -237,17 +241,22 @@ def _visites_par_activite(R):
             c = dict(par_jour[j])
             dj = [x for (jj, _), x in md.items() if jj == j]
             c["jour"] = j
-            c["cab"] = sum(x["cab"] for x in dj)
-            c["cap"] = sum(x["cap"] for x in dj)
-            c["hors"] = sum(x["total"] for x in dj if x["hors_cabinet"])      # visites hors cabinet de spécialiste
+            c["cab"] = garde if garde else sum(x["cab"] for x in dj)
+            c["cap"] = garde * R.cap_jour if garde else sum(x["cap"] for x in dj)
+            if horaire_site:
+                # visites hors utilisation : tout ce qui n'est pas vu dans un cabinet compté (hors cabinet, sans médecin, isolées)
+                c["hors"] = c["total"] - sum(x["total"] for x in dj if x["cab"])
+            else:
+                c["hors"] = sum(x["total"] for x in dj if x["hors_cabinet"])  # infirmiers (nom terminé par INF)
             c["util"] = (c["total"] - c["hors"]) / c["cap"] if c["cap"] else None
-            c["marge"] = sum(x["marge"] for x in dj)
+            c["marge"] = max(c["cap"] - (c["total"] - c["hors"]), 0) if garde else sum(x["marge"] for x in dj)
             c["depass"] = sum(x["audela"] for x in dj)
             c["sans"] = sans[j]
             c["isolees"] = sum(x["isolee"] for x in dj)
             c["jour_audela"] = 1 if (c["cap"] > 0 and c["total"] - c["hors"] > c["cap"]) else 0
             lignes.append(c)
         R.jours_act[(site, act)] = lignes
+        R.medecins_nommes[(site, act)] = Counter(j for (j, m) in md if not non_consultant(R, m))
 
     # Cabinets toutes activités (hors hospitalisation) par site et jour
     R.cab_site = {}

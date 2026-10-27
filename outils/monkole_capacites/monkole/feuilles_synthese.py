@@ -170,12 +170,14 @@ def titre_periode(R):
     return f"{libelle_periode(R, '-')} {R.fin.year}"
 
 
-def tableau_lecture(ws, r, R, site, act, der, titre, lib_depasse, lib_cab, cab_jour, max_cab_col, max_cab_principal):
+def tableau_lecture(ws, r, R, site, act, der, titre, lib_depasse, lib_cab, cab_jour, max_cab_col, max_cab_principal,
+                    lib_cabinets="Cabinets"):
     """LECTURE QUOTIDIENNE : une ligne par jour (visites, cabinets, capacité, utilisation, marge...). Renvoie la ligne suivante.
     lib_cab / cab_jour : dernière colonne (cabinets par jour) ; en rouge au-delà de max_cab_col.
-    max_cab_principal : colonne Cabinets en rouge au-delà de ce nombre (None = pas de contrôle)."""
+    max_cab_principal : colonne Cabinets en rouge au-delà de ce nombre (None = pas de contrôle).
+    lib_cabinets : titre de la colonne des cabinets (urgences : médecins de garde)."""
     section(ws, r, titre, 1, der)
-    cols = ["Jour", "GPS", "Evolucare", "Visites réelles", "Cabinets", "Capacité", "Utilisation", "Marge cumulée",
+    cols = ["Jour", "GPS", "Evolucare", "Visites réelles", lib_cabinets, "Capacité", "Utilisation", "Marge cumulée",
             lib_depasse, "Sans médecin", "Visites isolées"]
     entete_tableau(ws, r + 1, [(i, i, t) for i, t in enumerate(cols, start=1)] + [(12, der, lib_cab)])
     r += 2
@@ -429,8 +431,14 @@ def feuille_chme(wb, R, onglet):
         ws.row_dimensions[r].height = 30
         r += 1
     urg = indicateurs(R, "CHME", V.URGENCES)
-    note_bloc(ws, r, f"Urgences : {urg['sans']} visites sans médecin renseigné restent dans le volume, sans ajouter de cabinet. "
-                     "Le quotient affiché n’est pas une mesure fiable de la capacité réelle des urgences.", 1, der, alerte=True, hauteur=36)
+    if R.garde_urgences:
+        texte_urg = (f"Urgences : capacité = {R.garde_urgences} médecin(s) de garde × {R.cap_jour} visites, chaque jour (colonne "
+                     f"Cabinets-jours = journées de garde). {urg['sans']} visites sans médecin renseigné sont comptées : le nom du "
+                     "médecin manque surtout dans Evolucare. Ambulatoire : utilisation sur les seules visites des cabinets comptés.")
+    else:
+        texte_urg = (f"Urgences : {urg['sans']} visites sans médecin renseigné restent dans le volume, sans ajouter de cabinet. "
+                     "Le quotient affiché n’est pas une mesure fiable de la capacité réelle des urgences.")
+    note_bloc(ws, r, texte_urg, 1, der, alerte=True, hauteur=36)
     r += 2
     section(ws, r, "AMBULATOIRE / ÉVOLUTION DE LA CHARGE", 1, der)
     graphique(ws, f"A{r + 1}", wb["_Jours"], R.lignes_jours[("CHME", V.AMBULATOIRE)], R.ndays, [(5, "Visites"), (12, "Capacité")], 21,
@@ -547,11 +555,14 @@ def termes_capacites(R):
         "Evolucare": "Visites enregistrées dans le nouveau logiciel Evolucare (migration en cours ; un patient est dans l’un ou "
                      "l’autre le jour de sa consultation).",
         "Capacité": ("CHME ambulatoire : somme des créneaux de rendez-vous des médecins présents (horaires des rendez-vous ; "
-                     "médiane de la spécialité pour un médecin sans rendez-vous connu). CSMKL2 et urgences : " if R.horaire else "")
+                     "médiane de la spécialité pour un médecin sans rendez-vous connu). CSMKL2 : " if R.horaire else "")
                     + f"{R.cap_jour} visites × cabinets comptés. Un cabinet est compté quand un médecin a au moins {R.seuil} visites "
-                    "dans la journée.",
-        "Utilisation": f"Visites ÷ capacité. Orange sous {fr_pct(R.seuil_bas, 0)}, vert entre les deux, rouge à partir de "
-                       f"{fr_pct(R.seuil_haut, 0)}.",
+                    "dans la journée."
+                    + (f" Urgences : {R.garde_urgences} médecin(s) de garde × {R.cap_jour} visites, chaque jour." if R.garde_urgences
+                       else ""),
+        "Utilisation": f"Visites ÷ capacité. CHME ambulatoire : seules les visites des cabinets comptés (sans les visites hors "
+                       f"cabinet, sans médecin ou isolées). Orange sous {fr_pct(R.seuil_bas, 0)}, vert entre les deux, rouge à "
+                       f"partir de {fr_pct(R.seuil_haut, 0)}.",
         "Journées au-\ndelà capacité": "Nombre de fois où un médecin a reçu plus de patients que sa capacité du jour "
                                          f"(CSMKL2 et urgences : {R.cap_jour} visites"
                                          + ("; CHME ambulatoire : ses créneaux de rendez-vous" if R.horaire else "") + ").",
@@ -563,8 +574,10 @@ def termes_capacites(R):
                                f"CHME (sans {hors}).",
         "Jours >\ncabinets": "Jours où les cabinets occupés dépassent les cabinets physiques.",
         "MAISON ROSE": "Activités secondaires de CSMKL2 (prénatal, imagerie, laboratoire, sage-femme) : visites comptées, hors capacité.",
-        "Urgences": "Visites des urgences du CHME. Celles sans médecin renseigné ne donnent pas de cabinet : la capacité des "
-                    "urgences n’est pas mesurable tant que ce champ est vide.",
+        "Urgences": (f"Visites des urgences du CHME, toutes comptées. Capacité = {R.garde_urgences} médecin(s) de garde × "
+                     f"{R.cap_jour} visites par jour (le nom du médecin manque souvent dans Evolucare)." if R.garde_urgences else
+                     "Visites des urgences du CHME. Celles sans médecin renseigné ne donnent pas de cabinet : la capacité des "
+                     "urgences n’est pas mesurable tant que ce champ est vide."),
         "Lits réels": f"Lits disponibles par unité (total {R.lits_reels}). Les lits paramétrés dans les logiciels, fictifs inclus, "
                       "ne sont pas utilisés.",
         "Lits occupés\nmoy. / jour": "Journées d’hospitalisation GPS + Evolucare de la période ÷ nombre de jours. Les dossiers sans "

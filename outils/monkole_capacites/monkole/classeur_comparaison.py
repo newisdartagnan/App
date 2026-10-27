@@ -108,10 +108,12 @@ def _onglet_lecture(wb, R, per):
     capacite = (f"créneaux de rendez-vous de chaque médecin, limités à sa plage de présence (à défaut : médiane de la "
                 f"spécialité, puis {R.cap_jour})" if R.horaire else f"{R.cap_jour} visites par médecin en cabinet et par jour")
     ws = _onglet(wb, "Lecture quotidienne", ONGLET_LECTURE, f"CSMKL2 ET CHME / LECTURE QUOTIDIENNE — {per}",
-                 f"GPS + Evolucare • {seuil} • CSMKL2 et urgences : {R.cap_jour} visites par médecin et par jour, "
-                 f"{R.cabinets_csmkl2} cabinets physiques à CSMKL2 • CHME ambulatoire : capacité = {capacite} ; "
-                 f"cabinets et utilisation sans les intervenants hors cabinet ; {R.cabinets_chme} cabinets physiques, "
-                 "un cabinet peut accueillir deux spécialistes qui se succèdent • infirmiers (nom terminé par INF) : visites "
+                 f"GPS + Evolucare • {seuil} • CSMKL2 : {R.cap_jour} visites par médecin et par jour, "
+                 f"{R.cabinets_csmkl2} cabinets physiques • CHME ambulatoire : capacité = {capacite} ; utilisation sur les "
+                 f"seules visites des cabinets comptés ; {R.cabinets_chme} cabinets physiques, "
+                 "un cabinet peut accueillir deux spécialistes qui se succèdent • urgences : "
+                 + (f"{R.garde_urgences} médecin(s) de garde × {R.cap_jour} visites par jour" if R.garde_urgences
+                    else f"{R.cap_jour} visites par médecin et par jour") + " • infirmiers (nom terminé par INF) : visites "
                  "gardées, sans cabinet ni capacité, hors utilisation", DER_LECTURE)
     ws.column_dimensions["A"].width = 16
     for c in "BCDEFGHIJK":
@@ -123,8 +125,12 @@ def _onglet_lecture(wb, R, per):
     lib_depasse = "Intervenants >\ncapacité" if R.horaire else f"Intervenants >{R.cap_jour}"
     r = tableau_lecture(ws, r + 2, R, "CHME", V.AMBULATOIRE, DER_LECTURE, "CHME / AMBULATOIRE", lib_depasse,
                         f"Cabinets occupés en\nmême temps (sur {R.cabinets_chme})", R.cab_chme_spec, R.cabinets_chme, None)
-    tableau_lecture(ws, r + 2, R, "CHME", V.URGENCES, DER_LECTURE, "CHME / URGENCES", f"Intervenants >{R.cap_jour}",
-                    "Cabinets toutes activités", R.cab_site["CHME"], None, None)
+    if R.garde_urgences:
+        tableau_lecture(ws, r + 2, R, "CHME", V.URGENCES, DER_LECTURE, "CHME / URGENCES", f"Intervenants >{R.cap_jour}",
+                        "Médecins nommés", R.medecins_nommes[("CHME", V.URGENCES)], None, None, lib_cabinets="Médecins\nde garde")
+    else:
+        tableau_lecture(ws, r + 2, R, "CHME", V.URGENCES, DER_LECTURE, "CHME / URGENCES", f"Intervenants >{R.cap_jour}",
+                        "Cabinets toutes activités", R.cab_site["CHME"], None, None)
     return ws
 
 

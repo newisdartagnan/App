@@ -30,7 +30,9 @@ def ecrire_resume(R, chemin, nom_classeur):
         f"CHME ambulatoire : {amb['total']} visites ; capacité {amb['cap']} ; utilisation {pct(amb['util'])} ; "
         f"{amb['depass']} journées-médecin au-delà de leur capacité (pic individuel {amb['pic_medecin']})"
         + (" ; capacité = créneaux des rendez-vous." if R.horaire else "."),
-        f"CHME urgences : {urg['total']} visites dont {urg['sans']} sans médecin renseigné.",
+        f"CHME urgences : {urg['total']} visites dont {urg['sans']} sans médecin renseigné"
+        + (f" ; capacité {urg['cap']} ({R.garde_urgences} médecin(s) de garde × {R.cap_jour} par jour) ; utilisation "
+           f"{pct(urg['util'])}." if R.garde_urgences else "."),
         f"Total hors suivi d'hospitalisation : {cs['total'] + mr['total'] + amb['total'] + urg['total']} visites "
         f"(traces de suivi hospitalier séparées : {sum(1 for v in R.visites if v['activite'] == V.HOSPITALISATION)}).",
         "",
