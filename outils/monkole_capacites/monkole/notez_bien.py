@@ -96,10 +96,16 @@ def feuille_notez_bien(wb, R, positions, onglet):
          f"fois par {R.ndays}."
          + (" CHME ambulatoire : chaque cabinet compté vaut la capacité horaire de son médecin (créneaux par jour tirés du fichier "
             "des rendez-vous, feuille « Capacité horaire » ; médiane de la spécialité pour un médecin sans rendez-vous connu). Un "
-            "médecin peut recevoir plus (patients sans rendez-vous) ou moins (absences) que ses créneaux." if R.horaire else "")),
+            "médecin peut recevoir plus (patients sans rendez-vous) ou moins (absences) que ses créneaux." if R.horaire else "")
+         + (" CHME ambulatoire : la capacité d’une journée est limitée à la plage de présence du médecin (de sa première à sa "
+            "dernière visite enregistrée, plus une consultation), sans descendre sous le nombre de patients vus. Les activités "
+            f"hors cabinet de spécialiste ({', '.join(sorted(R.hors_cabinets))}) gardent leurs visites mais n’ouvrent ni "
+            "cabinet ni capacité. Cabinets occupés = nombre maximal de spécialistes présents en même temps, comparé aux "
+            f"{R.cabinets_chme} cabinets physiques." if R.capacite_plage else "")),
         ("8 / Utilisation et marge",
          "Utilisation du modèle = toutes les visites du périmètre / capacité comptée. Visites isolées et sans médecin restent au "
-         f"numérateur. Marge individuelle cumulée = somme de MAX({cap} - visites, 0), uniquement pour les cabinets comptés. Cette "
+         "numérateur ; au CHME ambulatoire, les visites des intervenants hors cabinet de spécialiste en sont retirées (elles "
+         f"n’ont pas de capacité). Marge individuelle cumulée = somme de MAX({cap} - visites, 0), uniquement pour les cabinets comptés. Cette "
          "marge n’est pas une garantie de places réellement disponibles."),
         ("9 / Identités des intervenants",
          f"Titres, accents et espaces sont harmonisés. Alias confirmés repris : {alias}. Les rapprochements uniques à au moins deux "

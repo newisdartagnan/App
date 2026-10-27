@@ -402,9 +402,17 @@ def feuille_jours_chme(wb, R, onglet):
         sans = m == SANS_MEDECIN
         cab = 1 if (tot >= R.seuil and not sans) else 0
         ci = cap_ind(R, site, act, m)
+        c_md = R.medjour.get((site, act), {}).get((j, m))
+        if c_md is not None:                 # même capacité et même cabinet que les calculs (plage de présence, hors cabinet)
+            ci, cab = c_md["cap_ind"], c_md["cab"]
         cap = cab * ci
         marge = max(ci - tot, 0) if cab else 0
-        sit = "Sans médecin renseigné" if sans else _situation(tot, ci, R.seuil)
+        if sans:
+            sit = "Sans médecin renseigné"
+        elif c_md is not None and c_md.get("hors_cabinet") and tot >= R.seuil:
+            sit = "Hors cabinet de spécialiste"
+        else:
+            sit = _situation(tot, ci, R.seuil)
         specs = " / ".join(sorted({v["specialite"] for v in l}))
         vals = [j, nom_jour(j), m, act, specs, c, a, p, tot, cab, cap, marge, sit,
                 sum(1 for v in l if v["logiciel"] == "GPS"), sum(1 for v in l if v["logiciel"] != "GPS"),

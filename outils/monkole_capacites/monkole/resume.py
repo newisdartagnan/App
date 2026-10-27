@@ -42,7 +42,7 @@ def ecrire_resume(R, chemin, nom_classeur):
         "Occupation par unité (moyenne / dernier jour) : " + " ; ".join(
             f"{u['unite'].replace('Hospi ', '')} {u['lits']} lits {pct(u['taux'])} / {pct(u['taux_dernier'])}"
             for u in R.unites if u["lits"]) + ".",
-        f"Cabinets de spécialistes CHME : maximum {max(R.cab_chme_spec.values(), default=0)} par jour pour {R.cabinets_chme} "
+        f"Cabinets CHME occupés en même temps par des spécialistes : maximum {max(R.cab_chme_spec.values(), default=0)} pour {R.cabinets_chme} "
         f"cabinets physiques ; {sum(1 for n in R.cab_chme_spec.values() if n > R.cabinets_chme)} jour(s) au-delà.",
         "",
         "Par semaine : " + " | ".join(f"S{s['num']} ({s['debut']:%d/%m}-{s['fin']:%d/%m}) CSMKL2 {s['cs']} visites "

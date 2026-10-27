@@ -92,9 +92,14 @@ def charger(chemin):
                     v = int(v)
                 ref["PARAMETRES"][k] = v
                 lus.add(k)
+        if "duree_consultation_defaut_min" not in lus and ref["PARAMETRES"]["cabinets_physiques_chme"] == 15:
+            ref["PARAMETRES"]["cabinets_physiques_chme"] = 16      # 16 cabinets physiques retenus (octobre 2026)
         manquants = len(lus) < len(D.LIBELLES_PARAMETRES)
     if "Hors cabinets CHME" in noms:
         ref["HORS_CABINETS_CHME"] = [str(r[0]).strip() for r in _lignes(wb["Hors cabinets CHME"])]
+        if ref["HORS_CABINETS_CHME"] == D.HORS_CABINETS_CHME_V1:      # liste d'origine : médecine de famille et UF vide ajoutées
+            ref["HORS_CABINETS_CHME"] = list(D.HORS_CABINETS_CHME)
+            manquants = True
     else:
         manquants = True
     if "Lits CHME" in noms:

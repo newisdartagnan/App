@@ -9,11 +9,13 @@ PARAMETRES = {
     "visites_par_intervenant_jour": 24,
     "seuil_visites_cabinet": 2,
     "cabinets_physiques_csmkl2": 6,
-    "cabinets_physiques_chme": 15,
+    "cabinets_physiques_chme": 16,
     "seuil_utilisation_basse": 0.50,
     "seuil_utilisation_haute": 0.85,
     "capacite_horaire_rdv": 1,
     "sortie_proposee_evo_jours": 4,
+    "duree_consultation_defaut_min": 20,
+    "capacite_plage_presence": 1,
 }
 
 # Libellés des paramètres dans Referentiel_Monkole.xlsx (feuille Paramètres), dans l'ordre d'affichage
@@ -26,6 +28,8 @@ LIBELLES_PARAMETRES = [
     ("seuil_utilisation_haute", "Alerte : utilisation haute à partir de (ex. 0,85 = 85 %)"),
     ("capacite_horaire_rdv", "Capacité : horaires des rendez-vous (1 = oui, 0 = repère de 24 visites)"),
     ("sortie_proposee_evo_jours", "Evolucare : durée de séjour proposée à l'admission (jours ; cette durée exacte = sortie non confirmée)"),
+    ("duree_consultation_defaut_min", "CHME : durée d'une consultation sans rendez-vous connu (minutes)"),
+    ("capacite_plage_presence", "CHME : capacité limitée à la plage de présence du médecin (1 = oui, 0 = non)"),
 ]
 
 # Capacité horaire par médecin, tirée du dernier fichier RDV_Horaire_* (rempli automatiquement, modifiable) :
@@ -42,7 +46,11 @@ HORS_CABINETS_CHME = [
     "Imagerie médicale",
     "Pharmacie",
     "Documents médicaux",
+    "Médecine générale / famille",
+    "UF non renseignée",
 ]
+# Ancienne liste (avant octobre 2026) : complétée automatiquement si elle est lue telle quelle dans le référentiel
+HORS_CABINETS_CHME_V1 = HORS_CABINETS_CHME[:8]
 
 # Lits réels du CHME par unité (104 au total, septembre 2026 ; ordre d'affichage conservé).
 # Les lits paramétrés dans GPS et Evolucare comprennent des lits fictifs : ils ne servent pas de capacité.
