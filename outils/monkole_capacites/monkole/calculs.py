@@ -355,8 +355,58 @@ def _hospitalisation(R):
             "sor_evo": sum(1 for d in chme if d["logiciel"] == "Evolucare" and d["sortie"] and d["sortie_periode"] and d["sortie"].date() == j.date()),
             "sans_trace": sum(1 for d in chme if not d["date_connue"] and j in d["jours_traces"]),
         })
+    _rotation(R, chme)
     R.sans_site = [d for d in R.dossiers if d["site"] not in ("CHME", "CSMKL2")]
     R.hospi_evo_non_attribues = [b for b in R.base_hospi if b["logiciel"] == "Evolucare" and b["site"] not in ("CHME", "CSMKL2")]
+
+
+def _rotation(R, chme):
+    """Rotation des lits par unité. Les exports ne donnent pas le numéro du lit : dans une même unité, une sortie confirmée
+    est appariée à la première entrée du même jour qui la suit (lit libéré puis repris le même jour)."""
+    sans_heure = lambda x: x.hour == 0 and x.minute == 0
+    for d in chme:
+        d["repris_par"] = d["remplace"] = None
+    par_unite_jour = defaultdict(lambda: ([], []))
+    for d in chme:
+        if d["sortie_periode"] and d["sortie"]:
+            par_unite_jour[(d["unite"], d["sortie"].date())][0].append(d)
+        if d["entree_periode"] and d["entree"]:
+            par_unite_jour[(d["unite"], d["entree"].date())][1].append(d)
+    reprises = Counter()
+    for (u, jour), (sorties, entrees) in par_unite_jour.items():
+        libres = sorted(entrees, key=lambda d: d["entree"])
+        for s in sorted(sorties, key=lambda d: d["sortie"]):
+            for e in libres:
+                if e is not s and e["dossier"] != s["dossier"] and (
+                        e["entree"] >= s["sortie"] or sans_heure(e["entree"]) or sans_heure(s["sortie"])):
+                    s["repris_par"], e["remplace"] = e, s
+                    libres.remove(e)
+                    reprises[(u, jour)] += 1
+                    break
+    R.rotation = []
+    for x in R.unites:
+        ds = [d for d in chme if d["unite"] == x["unite"]]
+        n, sorties = x["lits"], sum(d["sortie_periode"] for d in ds)
+        nuits = sum(sum(d["par_jour"]) for d in ds)
+        R.rotation.append({
+            "unite": x["unite"], "lits": n, "entrees": sum(d["entree_periode"] for d in ds), "sorties": sorties,
+            "proposees": sum(d["sortie_proposee_periode"] for d in ds),
+            "sejours": sum(1 for d in ds if any(d["present_jour"])), "nuits": nuits,
+            "rotation": sorties / n if n else None,
+            "intervalle": (n * R.ndays - nuits) / sorties if (n and sorties) else None,
+            "reprises": sum(k for (u, _), k in reprises.items() if u == x["unite"]),
+            "jour_meme": sum(1 for d in ds if d["entree_periode"] and d["sortie_periode"] and d["entree"] and d["sortie"]
+                             and d["entree"].date() == d["sortie"].date()),
+        })
+    R.rotation_jour = []
+    for i, j in enumerate(R.jours):
+        R.rotation_jour.append({
+            "jour": j, "lits": R.lits_occ["jour"][i],
+            "entrees": sum(1 for d in chme if d["entree_periode"] and d["entree"] and d["entree"].date() == j.date()),
+            "sorties": sum(1 for d in chme if d["sortie_periode"] and d["sortie"] and d["sortie"].date() == j.date()),
+            "presents": sum(d["present_jour"][i] for d in chme),
+            "reprises": sum(k for (_, jour), k in reprises.items() if jour == j.date()),
+        })
 
 
 def _semaines(R):

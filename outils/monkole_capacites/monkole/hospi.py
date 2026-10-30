@@ -24,6 +24,9 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
     # Evolucare propose une sortie à J + N dès l'admission (N = 4) : une sortie à exactement N jours est une proposition,
     # les autres dates ont été saisies par le service (sortie réelle).
     n_prop = ref["PARAMETRES"].get("sortie_proposee_evo_jours", 4)
+    # Recensement des lits : patients présents à une heure fixe chaque jour (0 = minuit, fin de la journée)
+    h_rec = int(ref["PARAMETRES"].get("heure_recensement_lits", 0) or 0) % 24
+    decalage = (UN_JOUR - dt.timedelta(seconds=1)) if h_rec == 0 else dt.timedelta(hours=h_rec)   # minuit : 23:59:59
     ndays = (fin_excl - debut).days
     jours = [debut + UN_JOUR * i for i in range(ndays)]
 
@@ -94,7 +97,10 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
             ouvertes = [l for l in lignes if l["sortie"] is None]
             d["sortie"] = None if ouvertes else max(l["sortie"] for l in lignes)
             d["sortie_proposee"] = 0 if ouvertes else max(lignes, key=lambda l: l["sortie"])["sortie_proposee"]
-            ints = _fusionner([(max(l["entree"], debut), min(l["sortie"] or fin_excl, fin_excl)) for l in lignes])
+            # sortie proposée par Evolucare (non confirmée) : le patient est considéré présent jusqu'à la fin de la période
+            ints = _fusionner([(max(l["entree"], debut),
+                                fin_excl if (l["sortie"] is None or l["sortie_proposee"]) else min(l["sortie"], fin_excl))
+                               for l in lignes])
             d["intervalles"] = ints
             d["date_connue"] = 1
         else:
@@ -109,13 +115,15 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
         d["entree_periode"] = 1 if (e is not None and debut <= e < fin_excl) else 0
         d["sortie_proposee_periode"] = 1 if (s is not None and debut <= s < fin_excl and d["sortie_proposee"]) else 0
         d["sortie_periode"] = 1 if (s is not None and debut <= s < fin_excl and not d["sortie_proposee"]) else 0
-        d["en_cours"] = 1 if (e is not None and (s is None or s >= fin_excl)) else 0
-        d["par_jour"] = []
+        d["en_cours"] = 1 if (e is not None and (s is None or s >= fin_excl or d["sortie_proposee"])) else 0
+        # par_jour : 1 si le patient occupe un lit à l'heure du recensement (nombre entier de lits) ;
+        # present_jour : 1 s'il a été hospitalisé à un moment de la journée (rotation : sorti puis remplacé le même jour)
+        d["par_jour"], d["present_jour"] = [], []
         for j in jours:
-            tot = 0.0
-            for a, b2 in d["intervalles"]:
-                tot += max(0.0, (min(b2, j + UN_JOUR) - max(a, j)).total_seconds() / 86400)
-            d["par_jour"].append(tot)
+            t = j + decalage
+            d["par_jour"].append(1 if any(a <= t < b2 for a, b2 in d["intervalles"]) else 0)
+            # b2 >= j : une sortie datée sans heure (00:00) compte comme présente le jour de sa sortie
+            d["present_jour"].append(1 if any(a < j + UN_JOUR and b2 >= j for a, b2 in d["intervalles"]) else 0)
         d["jours_connus"] = sum(d["par_jour"]) if d["date_connue"] else None
         d["n_traces"] = len(d["traces"])
         d["n_lignes"] = len(lignes)

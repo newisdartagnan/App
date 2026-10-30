@@ -39,8 +39,8 @@ def ecrire_resume(R, chemin, nom_classeur):
         f"Actes GPS (Date_V) : {sum(1 for a in R.actes if a['logiciel'] == 'GPS')} ; prestations Evolucare (DATEHEURE, série "
         f"séparée) : {sum(1 for a in R.actes if a['logiciel'] != 'GPS')} ; produits Evolucare séparés : {len(R.produits)}.",
         f"Hospitalisation CHME : {t['dos_gps']} dossiers GPS / {t['dos_evo']} Evolucare ; {t['sans_gps'] + t['sans_evo']} sans date "
-        f"d'entrée ; lits occupés GPS + Evolucare : {fr_dec(R.lits_occ['moy'])} en moyenne sur {R.lits_reels} lits réels "
-        f"(occupation {pct(R.lits_occ['taux'])}), {fr_dec(R.lits_occ['dernier'])} le dernier jour ({pct(R.lits_occ['taux_dernier'])}).",
+        f"d'entrée ; lits occupés GPS + Evolucare (recensement de minuit) : {round(R.lits_occ['moy'])} en moyenne sur {R.lits_reels} lits "
+        f"réels (occupation {pct(R.lits_occ['taux'])}), {round(R.lits_occ['dernier'])} le dernier jour ({pct(R.lits_occ['taux_dernier'])}).",
         "Occupation par unité (moyenne / dernier jour) : " + " ; ".join(
             f"{u['unite'].replace('Hospi ', '')} {u['lits']} lits {pct(u['taux'])} / {pct(u['taux_dernier'])}"
             for u in R.unites if u["lits"]) + ".",

@@ -8,7 +8,7 @@ from . import visites as V
 from .calculs import SITES_HORAIRE, hors_cabinet
 from .feuilles_synthese import cellule, colorer, entete_tableau, fusion, note_bloc, section
 from .styles import BLANC, CLAIR, NB, PCT, TEAL, TEXTE, ecrire, lien, mise_en_page
-from .texte import JOURS, cle, texte
+from .texte import JOURS, cle, nom_jour, texte
 
 ONGLET = "3B6E8F"
 COMMUNES_KINSHASA = ["Bandalungwa", "Barumbu", "Bumbu", "Gombe", "Kalamu", "Kasa-Vubu", "Kimbanseke", "Kinshasa", "Kintambo",
@@ -278,14 +278,14 @@ def feuille_sejours(wb, R):
             return len(durees), (st.mean(durees) if durees else None), (st.median(durees) if durees else None)
         ng, mg, medg = dms("GPS")
         ne, me, _ = dms("Evolucare")
-        ouverts = [d for d in ds if d["date_connue"] and d["sortie"] is None]
+        ouverts = [d for d in ds if d["date_connue"] and (d["sortie"] is None or d["sortie_proposee"])]
         anciens = sum(1 for d in ouverts if (R.fin_excl - d["entree"]).days > 7)
         lignes.append([u.replace("Hors unités / UF absente", "Sans unité"), sum(1 for d in ds if d["entree_periode"]),
                        sum(d["sortie_periode"] for d in ds), ng, mg, medg, ne, me, len(ouverts), anciens])
     f = [None, NB, NB, NB, "0.0", "0.0", NB, "0.0", NB, NB]
     r, d0 = _tableau(ws, 4, "PAR UNITÉ", der,
                      ["Unité", "Entrées dans\nla période", "Sorties dans\nla période", "Séjours clos\nGPS", "DMS GPS\n(jours)",
-                      "Médiane GPS\n(jours)", "Séjours clos\nEvolucare", "DMS Evo\n(sorties réelles)", "Séjours sans\nsortie", "dont entrés\n> 7 jours"],
+                      "Médiane GPS\n(jours)", "Séjours clos\nEvolucare", "DMS Evo\n(sorties réelles)", "Sans sortie\nconfirmée", "dont entrés\n> 7 jours"],
                      lignes, f)
     ng = sum(l[3] for l in lignes)
     mg = (sum(l[3] * l[4] for l in lignes if l[4] is not None) / ng) if ng else None
@@ -298,6 +298,63 @@ def feuille_sejours(wb, R):
             colorer(ws, d0 + i, 10, 1, R, force=True)
     note_bloc(ws, r + 1, "Séjours sans sortie entrés depuis plus de 7 jours : à vérifier avec le service (patient encore présent ou "
                          "sortie non enregistrée). Ils gonflent l’occupation des lits.", 1, der, alerte=True, hauteur=30)
+    return ws
+
+
+# ----------------------------------------------------------------------------------------------
+# Rotation des lits
+# ----------------------------------------------------------------------------------------------
+DATE_HEURE = "dd/mm/yyyy hh:mm"
+
+
+def _statut_sortie(d):
+    if not d["date_connue"]:
+        return "Sans date d’entrée"
+    if d["sortie"] is None:
+        return "Sans sortie (en cours)"
+    if d["sortie_proposee"]:
+        return "Proposée à l’admission (non confirmée)"
+    return "Réelle"
+
+
+def feuille_rotation(wb, R):
+    ws, der = _feuille(wb, "Rotation des lits", "CHME / ROTATION DES LITS ET SÉJOURS",
+                       "Lits occupés = patients présents au recensement (minuit) : nombre entier. Rotation = sorties confirmées par "
+                       "lit sur la période. Intervalle de rotation = temps moyen pendant lequel un lit reste vide entre deux patients "
+                       "(négatif si l’unité dépasse ses lits). Les exports ne donnent pas le numéro du lit : un lit est « repris le "
+                       "même jour » quand, dans la même unité, une entrée suit une sortie confirmée le même jour.",
+                       [30, 12, 14, 17, 17, 24, 12, 12, 20, 20, 13])
+    lignes = [[x["unite"].replace("Hors unités / UF absente", "Sans unité"), x["lits"], x["entrees"], x["sorties"], x["proposees"],
+               x["sejours"], x["nuits"], x["rotation"], x["intervalle"], x["reprises"], x["jour_meme"]] for x in R.rotation]
+    f = [None, NB, NB, NB, NB, NB, NB, "0.0", "0.0", NB, NB]
+    r, _ = _tableau(ws, 4, "PAR UNITÉ (GPS + EVOLUCARE)", der,
+                    ["Unité", "Lits réels", "Entrées", "Sorties\nconfirmées", "Sorties proposées\n(non confirmées)",
+                     "Patients\nhospitalisés", "Journées\n(nuits)", "Rotation\n(sorties / lit)", "Intervalle de\nrotation (j)",
+                     "Lits repris\nle même jour", "Entrée et sortie\nle même jour"], lignes, f)
+    t = [sum(l[k] or 0 for l in lignes) for k in range(1, 7)]
+    n, sorties = R.lits_reels, t[2]
+    r = _total(ws, r, ["Total CHME", *t, sorties / n if n else None,
+                       (n * R.ndays - sum(x["nuits"] for x in R.rotation if x["lits"])) / sorties if (n and sorties) else None,
+                       sum(l[9] for l in lignes), sum(l[10] for l in lignes)], f)
+    lignes = [[f"{nom_jour(x['jour'])} {x['jour']:%d/%m}", x["lits"], x["entrees"], x["sorties"], x["presents"], x["reprises"]]
+              for x in R.rotation_jour]
+    r, _ = _tableau(ws, r + 2, "PAR JOUR (CHME)", der,
+                    ["Jour", "Lits occupés\n(recensement)", "Entrées", "Sorties\nconfirmées", "Patients hospitalisés\ndans la journée",
+                     "Lits repris\nle même jour"], lignes, [None, NB, NB, NB, NB, NB])
+    chme = sorted([d for d in R.dossiers if d["site"] == "CHME"],
+                  key=lambda d: (d["unite"], d["entree"] is None, d["entree"] or R.debut, str(d["dossier"])))
+    lignes = []
+    for d in chme:
+        reelle = d["date_connue"] and d["sortie"] is not None and not d["sortie_proposee"]
+        lignes.append([str(d["dossier"]), d["logiciel"], d["unite"].replace("Hors unités / UF absente", "Sans unité"),
+                       d["entree"], d["sortie"], _statut_sortie(d), sum(d["par_jour"]),
+                       (d["sortie"] - d["entree"]).total_seconds() / 86400 if reelle else None,
+                       str(d["repris_par"]["dossier"]) if d.get("repris_par") else None,
+                       str(d["remplace"]["dossier"]) if d.get("remplace") else None])
+    _tableau(ws, r + 2, "SÉJOURS / UN DOSSIER PAR LIGNE (NUMÉRO DE DOSSIER, DATES, STATUT DE SORTIE, LIT REPRIS)", der,
+             ["Num_Dossier", "Logiciel", "Unité", "Entrée", "Sortie", "Statut de la sortie", "Nuits dans\nla période",
+              "Durée du\nséjour (j)", "Lit repris le même\njour par (dossier)", "A pris le lit de\n(dossier)"],
+             lignes, [None, None, None, DATE_HEURE, DATE_HEURE, None, NB, "0.0", None, None])
     return ws
 
 
