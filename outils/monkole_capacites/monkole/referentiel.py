@@ -30,7 +30,7 @@ LIBELLES_PARAMETRES = [
     ("seuil_utilisation_basse", "Alerte : utilisation basse sous (ex. 0,50 = 50 %)"),
     ("seuil_utilisation_haute", "Alerte : utilisation haute à partir de (ex. 0,85 = 85 %)"),
     ("capacite_horaire_rdv", "Capacité : horaires des rendez-vous (1 = oui, 0 = repère de 24 visites)"),
-    ("sortie_proposee_evo_jours", "Evolucare : durée de séjour proposée à l'admission (jours ; cette durée exacte = sortie non confirmée)"),
+    ("sortie_proposee_evo_jours", "Evolucare : durée de séjour proposée à l'admission (jours ; cette durée exacte = sortie prévue)"),
     ("duree_consultation_defaut_min", "CHME : durée d'une consultation sans rendez-vous connu (minutes)"),
     ("capacite_plage_presence", "CHME : capacité limitée à la plage de présence du médecin (1 = oui, 0 = non)"),
     ("infirmiers_non_consultants", "Infirmiers Evolucare (nom terminé par INF) : ne consultent pas (1 = oui, 0 = non)"),

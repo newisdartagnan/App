@@ -97,10 +97,8 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
             ouvertes = [l for l in lignes if l["sortie"] is None]
             d["sortie"] = None if ouvertes else max(l["sortie"] for l in lignes)
             d["sortie_proposee"] = 0 if ouvertes else max(lignes, key=lambda l: l["sortie"])["sortie_proposee"]
-            # sortie proposée par Evolucare (non confirmée) : le patient est considéré présent jusqu'à la fin de la période
-            ints = _fusionner([(max(l["entree"], debut),
-                                fin_excl if (l["sortie"] is None or l["sortie_proposee"]) else min(l["sortie"], fin_excl))
-                               for l in lignes])
+            # Evolucare : la sortie prévue à 4 jours termine le séjour (la fonction de sortie n'est pas utilisée par les services)
+            ints = _fusionner([(max(l["entree"], debut), min(l["sortie"] or fin_excl, fin_excl)) for l in lignes])
             d["intervalles"] = ints
             d["date_connue"] = 1
         else:
@@ -115,7 +113,7 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
         d["entree_periode"] = 1 if (e is not None and debut <= e < fin_excl) else 0
         d["sortie_proposee_periode"] = 1 if (s is not None and debut <= s < fin_excl and d["sortie_proposee"]) else 0
         d["sortie_periode"] = 1 if (s is not None and debut <= s < fin_excl and not d["sortie_proposee"]) else 0
-        d["en_cours"] = 1 if (e is not None and (s is None or s >= fin_excl or d["sortie_proposee"])) else 0
+        d["en_cours"] = 1 if (e is not None and (s is None or s >= fin_excl)) else 0
         # par_jour : 1 si le patient occupe un lit à l'heure du recensement (nombre entier de lits) ;
         # present_jour : 1 s'il a été hospitalisé à un moment de la journée (rotation : sorti puis remplacé le même jour)
         d["par_jour"], d["present_jour"] = [], []

@@ -374,7 +374,7 @@ def feuille_chme(wb, R, onglet):
                                                           (5, "Lits réels")], 12, "Lits occupés (recensement de minuit)")
     note_bloc(ws, 27, f"Les séjours entrés avant le {R.debut.strftime('%d/%m')} n’ont pas de date d’entrée dans les exports "
                       f"({L['sans_entree']} dossiers) : les premiers jours sont sous-estimés. Evolucare propose une sortie à 4 jours dès "
-                      "l’admission : une sortie à exactement 4 jours n’est pas confirmée (patient compté présent), les autres sont réelles. "
+                      "l’admission : une sortie à exactement 4 jours est une sortie prévue (fin du séjour), les autres sont définitives. "
                       "Lits occupés = patients présents à minuit ; rotation dans « Rotation des lits ».", 1, der, alerte=True,
               hauteur=46)
     section(ws, 29, "HOSPITALISATION / RÉPARTITION PAR UNITÉ", 1, der)
@@ -586,8 +586,8 @@ def termes_capacites(R):
         "Occupation\nmoyenne": "Lits occupés en moyenne ÷ lits réels de l’unité. Au-delà de 100 % : patients enregistrés dans l’unité "
                                "mais couchés ailleurs, ou séjours sans date de sortie restés ouverts.",
         "Occupation\ndernier jour": "Patients présents à minuit le dernier jour de la période ÷ lits réels. Evolucare : une sortie à "
-                                    "exactement 4 jours de l’entrée est la date proposée à l’admission (non confirmée) : le "
-                                    "patient reste compté présent.",
+                                    "exactement 4 jours de l’entrée est une sortie prévue : elle termine le séjour ; les autres "
+                                    "dates sont des sorties définitives.",
         "Actes": "Actes GPS (datés par Date_V) et prestations Evolucare (datées par DATEHEURE). Les produits (médicaments, "
                  "consommables) ne sont pas comptés.",
         "Semaine": "Du lundi au dimanche, coupée au début et à la fin de la période (colonne Jours).",

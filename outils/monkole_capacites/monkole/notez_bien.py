@@ -167,18 +167,18 @@ def feuille_notez_bien(wb, R, positions, onglet):
          f"Intervalles [entrée, sortie[ limités à la période; répétitions/chevauchements neutralisés avant somme. Une sortie vide ou "
          f"postérieure au {fin_j} laisse le dossier en cours au {fin_j}. Une date après le {fin_j} n’est pas une sortie réalisée dans la "
          "période. Les dates Evo ne portent pas d’heures : début/fin à minuit selon l’export. "
-         f"Evolucare propose une sortie à {R.ref['PARAMETRES'].get('sortie_proposee_evo_jours', 4)} jours dès l’admission, puis le "
-         "service la corrige avec la vraie date : une sortie à exactement cette durée est une proposition (non comptée comme sortie "
-         f"réalisée ni dans la DMS ; {n_prop} séjour(s) concernés), les autres dates sont des sorties réelles. "
+         f"Evolucare propose une sortie à {R.ref['PARAMETRES'].get('sortie_proposee_evo_jours', 4)} jours dès l’admission et les "
+         "services n’utilisent pas la fonction de sortie : une sortie à exactement cette durée est une sortie prévue (elle termine "
+         f"le séjour et libère le lit, mais n’entre pas dans la DMS ; {n_prop} séjour(s) concernés) ; une date plus courte ou plus "
+         "longue est une sortie définitive. "
          + (f"Toutes les sorties Evo fournies sont postérieures au {fin_j}. " if toutes_apres else "")),
         ("21 / Occupation des lits",
          "Lits occupés d’un jour = patients présents au recensement de minuit (fin de journée ; heure modifiable dans le "
          "référentiel), GPS + Evolucare, dossiers CHME datés : c’est un nombre entier. Journées d’hospitalisation = nuits passées "
          f"à l’hôpital. Lits occupés en moyenne = journées / {R.ndays} jours, affiché arrondi à l’unité. "
          f"Taux = lits occupés / {R.lits_reels} lits réels (somme des lits par unité du référentiel). Les deux séries sont additionnées car un patient "
-         "hospitalisé n’est suivi que dans un des deux logiciels (migration en cours). Une sortie Evolucare proposée (non confirmée) "
-         "ne termine pas le séjour : le patient est compté présent jusqu’à la fin de la période (à vérifier avec le service, liste "
-         "dans « Rotation des lits »). Un patient entré et sorti le même jour n’occupe pas de lit à minuit mais compte dans la "
+         "hospitalisé n’est suivi que dans un des deux logiciels (migration en cours). Une sortie Evolucare prévue (4 jours) termine "
+         "le séjour comme une sortie définitive. Un patient entré et sorti le même jour n’occupe pas de lit à minuit mais compte dans la "
          "rotation. Le graphique « dont GPS / dont Evo » reste disponible dans CHME."),
         ("22 / Occupation incomplète",
          "Aucun jour de séjour n’est inventé pour un dossier sans entrée. Les actes ne servent pas à lui attribuer des jours. Les séjours "

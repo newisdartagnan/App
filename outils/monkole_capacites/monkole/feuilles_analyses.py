@@ -263,8 +263,8 @@ def feuille_plannings(wb, R):
 def feuille_sejours(wb, R):
     ws, der = _feuille(wb, "Séjours", "CHME / DURÉE DES SÉJOURS ET SÉJOURS OUVERTS",
                        "Durée moyenne de séjour (DMS) = sortie - entrée, sur les séjours dont l’entrée et la sortie sont connues et la "
-                       "sortie dans la période. Evolucare : une sortie à exactement 4 jours de l’entrée est la date proposée à "
-                       "l’admission (non confirmée) ; les autres dates sont des sorties réelles.",
+                       "sortie dans la période. Evolucare : une sortie à exactement 4 jours de l’entrée est une sortie prévue "
+                       "(elle termine le séjour mais n’entre pas dans la DMS) ; les autres dates sont des sorties définitives.",
                        [30, 12, 12, 12, 12, 12, 12, 12, 13, 13])
     chme = [d for d in R.dossiers if d["site"] == "CHME"]
     lignes = []
@@ -278,14 +278,14 @@ def feuille_sejours(wb, R):
             return len(durees), (st.mean(durees) if durees else None), (st.median(durees) if durees else None)
         ng, mg, medg = dms("GPS")
         ne, me, _ = dms("Evolucare")
-        ouverts = [d for d in ds if d["date_connue"] and (d["sortie"] is None or d["sortie_proposee"])]
+        ouverts = [d for d in ds if d["date_connue"] and d["sortie"] is None]
         anciens = sum(1 for d in ouverts if (R.fin_excl - d["entree"]).days > 7)
         lignes.append([u.replace("Hors unités / UF absente", "Sans unité"), sum(1 for d in ds if d["entree_periode"]),
                        sum(d["sortie_periode"] for d in ds), ng, mg, medg, ne, me, len(ouverts), anciens])
     f = [None, NB, NB, NB, "0.0", "0.0", NB, "0.0", NB, NB]
     r, d0 = _tableau(ws, 4, "PAR UNITÉ", der,
                      ["Unité", "Entrées dans\nla période", "Sorties dans\nla période", "Séjours clos\nGPS", "DMS GPS\n(jours)",
-                      "Médiane GPS\n(jours)", "Séjours clos\nEvolucare", "DMS Evo\n(sorties réelles)", "Sans sortie\nconfirmée", "dont entrés\n> 7 jours"],
+                      "Médiane GPS\n(jours)", "Séjours clos\nEvolucare", "DMS Evo\n(sorties définitives)", "Séjours sans\nsortie", "dont entrés\n> 7 jours"],
                      lignes, f)
     ng = sum(l[3] for l in lignes)
     mg = (sum(l[3] * l[4] for l in lignes if l[4] is not None) / ng) if ng else None
@@ -313,22 +313,23 @@ def _statut_sortie(d):
     if d["sortie"] is None:
         return "Sans sortie (en cours)"
     if d["sortie_proposee"]:
-        return "Proposée à l’admission (non confirmée)"
-    return "Réelle"
+        return "Prévue (Evolucare, 4 jours)"
+    return "Définitive"
 
 
 def feuille_rotation(wb, R):
     ws, der = _feuille(wb, "Rotation des lits", "CHME / ROTATION DES LITS ET SÉJOURS",
-                       "Lits occupés = patients présents au recensement (minuit) : nombre entier. Rotation = sorties confirmées par "
+                       "Lits occupés = patients présents au recensement (minuit) : nombre entier. Rotation = sorties (définitives + prévues) par "
                        "lit sur la période. Intervalle de rotation = temps moyen pendant lequel un lit reste vide entre deux patients "
                        "(négatif si l’unité dépasse ses lits). Les exports ne donnent pas le numéro du lit : un lit est « repris le "
-                       "même jour » quand, dans la même unité, une entrée suit une sortie confirmée le même jour.",
+                       "même jour » quand, dans la même unité, une entrée suit une sortie le même jour. Evolucare : une sortie à exactement 4 jours "
+                       "est une sortie prévue, les autres dates sont définitives.",
                        [30, 12, 14, 17, 17, 24, 12, 12, 20, 20, 13])
-    lignes = [[x["unite"].replace("Hors unités / UF absente", "Sans unité"), x["lits"], x["entrees"], x["sorties"], x["proposees"],
+    lignes = [[x["unite"].replace("Hors unités / UF absente", "Sans unité"), x["lits"], x["entrees"], x["definitives"], x["prevues"],
                x["sejours"], x["nuits"], x["rotation"], x["intervalle"], x["reprises"], x["jour_meme"]] for x in R.rotation]
     f = [None, NB, NB, NB, NB, NB, NB, "0.0", "0.0", NB, NB]
     r, _ = _tableau(ws, 4, "PAR UNITÉ (GPS + EVOLUCARE)", der,
-                    ["Unité", "Lits réels", "Entrées", "Sorties\nconfirmées", "Sorties proposées\n(non confirmées)",
+                    ["Unité", "Lits réels", "Entrées", "Sorties\ndéfinitives", "Sorties prévues\n(Evolucare, 4 j)",
                      "Patients\nhospitalisés", "Journées\n(nuits)", "Rotation\n(sorties / lit)", "Intervalle de\nrotation (j)",
                      "Lits repris\nle même jour", "Entrée et sortie\nle même jour"], lignes, f)
     t = [sum(l[k] or 0 for l in lignes) for k in range(1, 7)]
@@ -339,7 +340,7 @@ def feuille_rotation(wb, R):
     lignes = [[f"{nom_jour(x['jour'])} {x['jour']:%d/%m}", x["lits"], x["entrees"], x["sorties"], x["presents"], x["reprises"]]
               for x in R.rotation_jour]
     r, _ = _tableau(ws, r + 2, "PAR JOUR (CHME)", der,
-                    ["Jour", "Lits occupés\n(recensement)", "Entrées", "Sorties\nconfirmées", "Patients hospitalisés\ndans la journée",
+                    ["Jour", "Lits occupés\n(recensement)", "Entrées", "Sorties (définitives\n+ prévues)", "Patients hospitalisés\ndans la journée",
                      "Lits repris\nle même jour"], lignes, [None, NB, NB, NB, NB, NB])
     chme = sorted([d for d in R.dossiers if d["site"] == "CHME"],
                   key=lambda d: (d["unite"], d["entree"] is None, d["entree"] or R.debut, str(d["dossier"])))
