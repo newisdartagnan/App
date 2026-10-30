@@ -361,14 +361,16 @@ def _hospitalisation(R):
 
 
 def _rotation(R, chme):
-    """Rotation des lits par unité. Les exports ne donnent pas le numéro du lit : dans une même unité, une sortie confirmée
-    est appariée à la première entrée du même jour qui la suit (lit libéré puis repris le même jour)."""
+    """Rotation des lits par unité. Sorties = définitives + prévues (Evolucare, 4 jours) : les deux libèrent le lit.
+    Les exports ne donnent pas le numéro du lit : dans une même unité, une sortie est appariée à la première entrée du même
+    jour qui la suit (lit libéré puis repris le même jour)."""
+    sort = lambda d: d["sortie_periode"] or d["sortie_proposee_periode"]
     sans_heure = lambda x: x.hour == 0 and x.minute == 0
     for d in chme:
         d["repris_par"] = d["remplace"] = None
     par_unite_jour = defaultdict(lambda: ([], []))
     for d in chme:
-        if d["sortie_periode"] and d["sortie"]:
+        if sort(d) and d["sortie"]:
             par_unite_jour[(d["unite"], d["sortie"].date())][0].append(d)
         if d["entree_periode"] and d["entree"]:
             par_unite_jour[(d["unite"], d["entree"].date())][1].append(d)
@@ -386,16 +388,16 @@ def _rotation(R, chme):
     R.rotation = []
     for x in R.unites:
         ds = [d for d in chme if d["unite"] == x["unite"]]
-        n, sorties = x["lits"], sum(d["sortie_periode"] for d in ds)
+        n, sorties = x["lits"], sum(1 for d in ds if sort(d))
         nuits = sum(sum(d["par_jour"]) for d in ds)
         R.rotation.append({
-            "unite": x["unite"], "lits": n, "entrees": sum(d["entree_periode"] for d in ds), "sorties": sorties,
-            "proposees": sum(d["sortie_proposee_periode"] for d in ds),
+            "unite": x["unite"], "lits": n, "entrees": sum(d["entree_periode"] for d in ds),
+            "definitives": sum(d["sortie_periode"] for d in ds), "prevues": sum(d["sortie_proposee_periode"] for d in ds),
             "sejours": sum(1 for d in ds if any(d["present_jour"])), "nuits": nuits,
             "rotation": sorties / n if n else None,
             "intervalle": (n * R.ndays - nuits) / sorties if (n and sorties) else None,
             "reprises": sum(k for (u, _), k in reprises.items() if u == x["unite"]),
-            "jour_meme": sum(1 for d in ds if d["entree_periode"] and d["sortie_periode"] and d["entree"] and d["sortie"]
+            "jour_meme": sum(1 for d in ds if d["entree_periode"] and sort(d) and d["entree"] and d["sortie"]
                              and d["entree"].date() == d["sortie"].date()),
         })
     R.rotation_jour = []
@@ -403,7 +405,7 @@ def _rotation(R, chme):
         R.rotation_jour.append({
             "jour": j, "lits": R.lits_occ["jour"][i],
             "entrees": sum(1 for d in chme if d["entree_periode"] and d["entree"] and d["entree"].date() == j.date()),
-            "sorties": sum(1 for d in chme if d["sortie_periode"] and d["sortie"] and d["sortie"].date() == j.date()),
+            "sorties": sum(1 for d in chme if sort(d) and d["sortie"] and d["sortie"].date() == j.date()),
             "presents": sum(d["present_jour"][i] for d in chme),
             "reprises": sum(k for (_, jour), k in reprises.items() if jour == j.date()),
         })
