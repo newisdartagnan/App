@@ -354,11 +354,11 @@ def feuille_chme(wb, R, onglet):
     jours_plus = sum(1 for n in cab if n > R.cabinets_chme)
     haut_de_page(ws, "CHME / CAPACITÉ ET ACTIVITÉS",
                  f"{titre_periode(R)} • GPS + Evolucare • {R.lits_reels} lits réels • {R.cabinets_chme} cabinets de spécialistes", der)
-    kpi(ws, 1, 3, f"OCCUPATION / {R.lits_reels} LITS RÉELS", L["taux"], f"{fr_dec(L['moy'])} lits occupés en moyenne (GPS + Evo)",
+    kpi(ws, 1, 3, f"OCCUPATION / {R.lits_reels} LITS RÉELS", L["taux"], f"{round(L['moy'])} lits occupés en moyenne (recensement de minuit)",
         fmt=PCT, lien_cible="'Dashboard'!A1", lien_texte="Dashboard")
     colorer(ws, 5, 1, L["taux"], R)
-    kpi(ws, 4, 6, "LITS OCCUPÉS / DERNIER JOUR", f"{fr_dec(L['dernier'])} / {R.lits_reels}",
-        f"{fr_pct(L['taux_dernier'] or 0)} le {R.fin.strftime('%d/%m')} ; pic {fr_dec(L['pic'])} le {L['date_pic'].strftime('%d/%m')}",
+    kpi(ws, 4, 6, "LITS OCCUPÉS / DERNIER JOUR", f"{round(L['dernier'])} / {R.lits_reels}",
+        f"{fr_pct(L['taux_dernier'] or 0)} le {R.fin.strftime('%d/%m')} ; pic {round(L['pic'])} le {L['date_pic'].strftime('%d/%m')}",
         taille=23, lien_cible="'CHME médecins'!A1", lien_texte="Médecins par jour")
     kpi(ws, 7, 9, "DOSSIERS HOSPI / GPS - EVO", f"{t['dos_gps']} / {t['dos_evo']}", f"dont {L['sans_entree']} sans date d’entrée (sans durée)",
         lien_cible="'CHME jours'!A1", lien_texte="Jours et séjours")
@@ -371,11 +371,12 @@ def feuille_chme(wb, R, onglet):
     for r in range(10, 27):
         ws.row_dimensions[r].height = 20
     graphique(ws, "A10", wb["_Hospi jour"], 6, R.ndays, [(4, "Lits occupés GPS + Evo"), (2, "dont GPS"), (3, "dont Evo"),
-                                                          (5, "Lits réels")], 12, "Lits occupés (moyenne sur 24 heures)")
+                                                          (5, "Lits réels")], 12, "Lits occupés (recensement de minuit)")
     note_bloc(ws, 27, f"Les séjours entrés avant le {R.debut.strftime('%d/%m')} n’ont pas de date d’entrée dans les exports "
                       f"({L['sans_entree']} dossiers) : les premiers jours sont sous-estimés. Evolucare propose une sortie à 4 jours dès "
-                      "l’admission : une sortie à exactement 4 jours n’est pas confirmée, les autres sont réelles.", 1, der, alerte=True,
-              hauteur=34)
+                      "l’admission : une sortie à exactement 4 jours n’est pas confirmée (patient compté présent), les autres sont réelles. "
+                      "Lits occupés = patients présents à minuit ; rotation dans « Rotation des lits ».", 1, der, alerte=True,
+              hauteur=46)
     section(ws, 29, "HOSPITALISATION / RÉPARTITION PAR UNITÉ", 1, der)
     cols = ["Unité", "Lits réels", "Dossiers\nGPS", "Dossiers\nEvolucare", "Sans entrée\nGPS", "Sans entrée\nEvolucare",
             "Lits occupés\nmoy. / jour", "Occupation\nmoyenne", "Lits occupés\ndernier jour", "Occupation\ndernier jour", "Sorties\nGPS",
@@ -387,9 +388,9 @@ def feuille_chme(wb, R, onglet):
         cellule(ws, r, 2, u["lits"] if u["lits"] else "–")
         for c, v in enumerate([u["dos_gps"], u["dos_evo"], u["sans_gps"], u["sans_evo"]], start=3):
             cellule(ws, r, c, v)
-        cellule(ws, r, 7, u["moy"], fmt="0.0")
+        cellule(ws, r, 7, u["moy"], fmt=NB)
         cellule(ws, r, 8, u["taux"] if u["lits"] else "–", fmt=PCT)
-        cellule(ws, r, 9, u["dernier"], fmt="0.0")
+        cellule(ws, r, 9, u["dernier"], fmt=NB)
         cellule(ws, r, 10, u["taux_dernier"] if u["lits"] else "–", fmt=PCT)
         colorer(ws, r, 8, u["taux"], R)
         colorer(ws, r, 10, u["taux_dernier"], R)
@@ -400,7 +401,7 @@ def feuille_chme(wb, R, onglet):
     r += 1
     ecrire(ws, (r, 1), "TOTAL CHME", gras=True, couleur=BLANC, fond=TEAL)
     for c, (v, f) in enumerate([(t["lits"], NB), (t["dos_gps"], NB), (t["dos_evo"], NB), (t["sans_gps"], NB), (t["sans_evo"], NB),
-                                (L["moy"], "0.0"), (L["taux"], PCT), (L["dernier"], "0.0"), (L["taux_dernier"], PCT),
+                                (L["moy"], NB), (L["taux"], PCT), (L["dernier"], NB), (L["taux_dernier"], PCT),
                                 (t["sorties_gps"], NB), (t["sorties_evo"], NB)], start=2):
         ecrire(ws, (r, c), v, gras=True, couleur=BLANC, fond=TEAL, fmt=f, h="right")
     ws.row_dimensions[r].height = 28
@@ -580,12 +581,13 @@ def termes_capacites(R):
                      "urgences n’est pas mesurable tant que ce champ est vide."),
         "Lits réels": f"Lits disponibles par unité (total {R.lits_reels}). Les lits paramétrés dans les logiciels, fictifs inclus, "
                       "ne sont pas utilisés.",
-        "Lits occupés\nmoy. / jour": "Journées d’hospitalisation GPS + Evolucare de la période ÷ nombre de jours. Les dossiers sans "
-                                     "date d’entrée ne sont pas comptés.",
+        "Lits occupés\nmoy. / jour": "Patients présents à minuit chaque jour (GPS + Evolucare), en moyenne sur la période, arrondi "
+                                     "à l’unité. Les dossiers sans date d’entrée ne sont pas comptés.",
         "Occupation\nmoyenne": "Lits occupés en moyenne ÷ lits réels de l’unité. Au-delà de 100 % : patients enregistrés dans l’unité "
                                "mais couchés ailleurs, ou séjours sans date de sortie restés ouverts.",
-        "Occupation\ndernier jour": "Lits occupés le dernier jour de la période ÷ lits réels. Evolucare : une sortie à "
-                                    "exactement 4 jours de l’entrée est la date proposée à l’admission (non confirmée).",
+        "Occupation\ndernier jour": "Patients présents à minuit le dernier jour de la période ÷ lits réels. Evolucare : une sortie à "
+                                    "exactement 4 jours de l’entrée est la date proposée à l’admission (non confirmée) : le "
+                                    "patient reste compté présent.",
         "Actes": "Actes GPS (datés par Date_V) et prestations Evolucare (datées par DATEHEURE). Les produits (médicaments, "
                  "consommables) ne sont pas comptés.",
         "Semaine": "Du lundi au dimanche, coupée au début et à la fin de la période (colonne Jours).",
@@ -633,9 +635,9 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
     _kpi_compact(ws, 9, 12, "URGENCES CHME · VISITES", urg["total"], f"dont {fr(urg['sans'])} sans médecin renseigné",
                  aide=T["Urgences"])
     _kpi_compact(ws, 13, 16, "OCCUPATION DES LITS CHME", L["taux"],
-                 f"{fr_dec(L['moy'])} lits / jour ; dernier jour {fr_dec(L['dernier'])} ({fr_pct(L['taux_dernier'] or 0, 0)})",
+                 f"{round(L['moy'])} lits / jour ; dernier jour {round(L['dernier'])} ({fr_pct(L['taux_dernier'] or 0, 0)})",
                  fmt=PCT, couleur=alerte(L["taux"], *seuils),
-                 aide=f"Lits occupés en moyenne (GPS + Evolucare) ÷ {R.lits_reels} lits réels. " + T["Occupation\ndernier jour"])
+                 aide=f"Lits occupés (patients présents à minuit, GPS + Evolucare), en moyenne ÷ {R.lits_reels} lits réels. " + T["Occupation\ndernier jour"])
     _kpi_compact(ws, 17, 20, "ACTES GPS / EVOLUCARE", f"{fr(act('CSMKL2', 'GPS') + act('CHME', 'GPS'))} / "
                  f"{fr(act('CSMKL2', 'Evo') + act('CHME', 'Evo'))}",
                  f"CSMKL2 {fr(act('CSMKL2', 'GPS'))} / {fr(act('CSMKL2', 'Evo'))} • CHME {fr(act('CHME', 'GPS'))} / {fr(act('CHME', 'Evo'))}",
@@ -709,7 +711,7 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
     for u in R.unites:
         _val(ws, r, 15, u["unite"].replace("Hors unités / UF absente", "Sans unité"), fmt=None, c2=16, h="left")
         _val(ws, r, 17, u["lits"] if u["lits"] else "–", h="right")
-        _val(ws, r, 18, u["moy"], fmt="0.0")
+        _val(ws, r, 18, u["moy"], fmt=NB)
         _val(ws, r, 19, u["taux"] if u["lits"] else "–", fmt=PCT, h="right")
         _val(ws, r, 20, u["taux_dernier"] if u["lits"] else "–", fmt=PCT, h="right")
         colorer(ws, r, 19, u["taux"], R)
@@ -719,7 +721,7 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
         r += 1
     _total(ws, r, 15, "Total CHME", c2=16, h="left")
     _total(ws, r, 17, R.lits_reels)
-    _total(ws, r, 18, L["moy"], fmt="0.0")
+    _total(ws, r, 18, L["moy"], fmt=NB)
     _total(ws, r, 19, L["taux"], fmt=PCT)
     _total(ws, r, 20, L["taux_dernier"], fmt=PCT)
     r += 1
@@ -749,7 +751,7 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
     for s in R.semaines:
         _val(ws, r, 1, f"S{s['num']} · {s['debut'].strftime('%d/%m')}-{s['fin'].strftime('%d/%m')}", fmt=None, c2=2, h="left")
         vals = [(3, s["n"], NB), (4, s["cs"], NB), (5, s["cs_util"], PCT), (6, s["cab_cs_max"], NB), (7, s["amb"], NB),
-                (8, s["amb_util"], PCT), (9, s["cab_chme_max"], NB), (10, s["urg"], NB), (11, s["lits"], "0.0")]
+                (8, s["amb_util"], PCT), (9, s["cab_chme_max"], NB), (10, s["urg"], NB), (11, s["lits"], NB)]
         for c, v, f in vals:
             _val(ws, r, c, v if v is not None else "N/D", fmt=f)
         _val(ws, r, 12, s["occ"], fmt=PCT, c2=13)
@@ -765,7 +767,7 @@ def feuille_dashboard(wb, R, pos_chme, arbre_chme, arbre_cs, onglet):
     _total(ws, r, 1, "Période", c2=2, h="left")
     for c, v, f in ((3, R.ndays, NB), (4, cs["total"], NB), (5, cs["util"], PCT), (6, max(cab_cs, default=0), NB),
                     (7, amb["total"], NB), (8, amb["util"], PCT), (9, max(cab_ch, default=0), NB), (10, urg["total"], NB),
-                    (11, L["moy"], "0.0")):
+                    (11, L["moy"], NB)):
         _total(ws, r, c, v if v is not None else "N/D", fmt=f)
     _total(ws, r, 12, L["taux"], fmt=PCT, c2=13)
     ws.row_dimensions[r].height = 17

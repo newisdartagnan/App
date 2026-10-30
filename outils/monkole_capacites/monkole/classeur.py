@@ -16,7 +16,7 @@ ONGLET_CHME_DETAIL = "123047"
 ONGLET_REGLES = "657A88"
 
 ORDRE = ["Dashboard", "CSMKL2", "CSMKL2 médecins", "CSMKL2 jours", "CSMKL2 actes", "CHME", "CHME médecins", "CHME jours",
-         "CHME actes", "Capacité horaire", "Plannings", "Séjours", "Prises en charge", "Origine patients", "Qualité saisie",
+         "CHME actes", "Capacité horaire", "Plannings", "Séjours", "Rotation des lits", "Prises en charge", "Origine patients", "Qualité saisie",
          "Historique", "Notez bien", "_Paramètres", "Base visites", "Base hospitalisations", "Dossiers hospitaliers", "Base actes",
          "_Médecins jour", "_Jours", "_Hospi jour"]
 
@@ -48,6 +48,7 @@ def construire(R, chemin):
     FA.feuille_capacite_horaire(wb, R)
     FA.feuille_plannings(wb, R)
     FA.feuille_sejours(wb, R)
+    FA.feuille_rotation(wb, R)
     FA.feuille_prises_en_charge(wb, R)
     FA.feuille_origine(wb, R)
     FA.feuille_qualite(wb, R)

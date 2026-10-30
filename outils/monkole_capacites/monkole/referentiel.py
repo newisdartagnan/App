@@ -18,6 +18,7 @@ PARAMETRES = {
     "capacite_plage_presence": 1,
     "infirmiers_non_consultants": 1,
     "medecins_garde_urgences": 1,
+    "heure_recensement_lits": 0,
 }
 
 # Libellés des paramètres dans Referentiel_Monkole.xlsx (feuille Paramètres), dans l'ordre d'affichage
@@ -34,6 +35,7 @@ LIBELLES_PARAMETRES = [
     ("capacite_plage_presence", "CHME : capacité limitée à la plage de présence du médecin (1 = oui, 0 = non)"),
     ("infirmiers_non_consultants", "Infirmiers Evolucare (nom terminé par INF) : ne consultent pas (1 = oui, 0 = non)"),
     ("medecins_garde_urgences", "Urgences CHME : médecins de garde par jour (capacité = garde × repère ; 0 = médecins nommés)"),
+    ("heure_recensement_lits", "Hospitalisation : heure du recensement des lits occupés (0 = minuit, fin de journée)"),
 ]
 
 # Capacité horaire par médecin, tirée du dernier fichier RDV_Horaire_* (rempli automatiquement, modifiable) :

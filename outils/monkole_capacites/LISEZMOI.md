@@ -65,6 +65,7 @@ Dashboard → toutes les feuilles CSMKL2 → toutes les feuilles CHME → analys
 | Capacité horaire | CHME ambulatoire : capacité de chaque médecin (créneaux de rendez-vous par jour, durée d'une consultation, plage horaire), comparée au repère de 24 ; par spécialité et par médecin, remplissage des créneaux et **présence moyenne par jour** (première visite → fin de la dernière consultation) |
 | Plannings | Moyennes par jour de la semaine (visites, cabinets, médecins programmés), visites par heure d'enregistrement, **spécialistes présents et cabinets occupés en même temps par jour de la semaine**, écart aux 16 cabinets (base des rotations de salles) |
 | Séjours | Par unité : entrées, sorties, durée moyenne de séjour (GPS ; Evolucare sur sorties réelles), séjours sans sortie dont ceux entrés depuis plus de 7 jours |
+| Rotation des lits | Par unité : entrées, sorties confirmées et proposées, patients hospitalisés, journées (nuits), **rotation** (sorties par lit), intervalle de rotation, **lits repris le même jour** ; par jour ; liste des séjours avec **numéro de dossier**, dates, statut de sortie, dossier qui a repris le lit / dont il a pris le lit |
 | Prises en charge | Visites par organisme (MONKOLE AMO, privé, conventions…) et détail des libellés PEC |
 | Origine patients | Dossiers par commune de Kinshasa (adresse des exports) |
 | Qualité saisie | Par utilisateur : visites sans médecin, sans UF, sans motif, sans date de naissance, sans sexe (pour cibler la formation) |
@@ -78,6 +79,11 @@ d'entrée comptés sans durée inventée, produits Evolucare séparés des actes
 Règles fixées avec le directeur des opérations (septembre 2026) :
 
 - **Moyenne / jour actif** = visites du médecin / ses jours actifs (CSMKL2, charge individuelle), sans comparaison au repère ;
+- **Lits occupés** : patients présents au **recensement de minuit** (heure modifiable dans le référentiel) : chaque
+  jour donne un nombre entier de lits ; la moyenne du mois est affichée arrondie à l'unité. Une sortie Evolucare
+  proposée (exactement 4 jours) n'arrête pas le séjour : le patient reste compté présent jusqu'à la fin de la période.
+  Les exports ne donnent pas le numéro du lit : un lit est « repris le même jour » quand, dans la même unité, une entrée
+  suit une sortie confirmée le même jour ;
 - **Lits** : 104 lits réels au CHME — chirurgie 13, gynéco-obstétrique 27, médecine interne 15, néonatologie 12, pédiatrie 13,
   urgences 5, soins intensifs pédiatriques 12, réanimation 7 — d'où un taux d'occupation par unité (les lits paramétrés dans
   GPS et Evolucare comprennent des lits fictifs et ne sont pas utilisés). Les journées GPS

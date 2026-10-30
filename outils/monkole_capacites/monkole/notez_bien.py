@@ -172,10 +172,14 @@ def feuille_notez_bien(wb, R, positions, onglet):
          f"réalisée ni dans la DMS ; {n_prop} séjour(s) concernés), les autres dates sont des sorties réelles. "
          + (f"Toutes les sorties Evo fournies sont postérieures au {fin_j}. " if toutes_apres else "")),
         ("21 / Occupation des lits",
-         f"Lits occupés = journées GPS + journées Evolucare des dossiers CHME datés (toutes unités), divisées par {R.ndays} jours. "
+         "Lits occupés d’un jour = patients présents au recensement de minuit (fin de journée ; heure modifiable dans le "
+         "référentiel), GPS + Evolucare, dossiers CHME datés : c’est un nombre entier. Journées d’hospitalisation = nuits passées "
+         f"à l’hôpital. Lits occupés en moyenne = journées / {R.ndays} jours, affiché arrondi à l’unité. "
          f"Taux = lits occupés / {R.lits_reels} lits réels (somme des lits par unité du référentiel). Les deux séries sont additionnées car un patient "
          "hospitalisé n’est suivi que dans un des deux logiciels (migration en cours). Une sortie Evolucare proposée (non confirmée) "
-         "sert de fin de séjour faute de mieux. Le graphique « dont GPS / dont Evo » reste disponible dans CHME."),
+         "ne termine pas le séjour : le patient est compté présent jusqu’à la fin de la période (à vérifier avec le service, liste "
+         "dans « Rotation des lits »). Un patient entré et sorti le même jour n’occupe pas de lit à minuit mais compte dans la "
+         "rotation. Le graphique « dont GPS / dont Evo » reste disponible dans CHME."),
         ("22 / Occupation incomplète",
          "Aucun jour de séjour n’est inventé pour un dossier sans entrée. Les actes ne servent pas à lui attribuer des jours. Les séjours "
          f"antérieurs au {d:%d/%m} sont intégrés seulement si leurs dates sont effectivement fournies. Le complément d’un taux à 100 % "
