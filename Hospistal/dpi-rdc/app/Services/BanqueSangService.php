@@ -74,6 +74,13 @@ class BanqueSangService
      */
     public function enregistrerDepistage(PocheSang $poche, array $resultats): PocheSang
     {
+        // Une poche détruite, transfusée ou périmée ne revient jamais en rayon.
+        if ($poche->statut !== 'quarantaine') {
+            throw new \LogicException(
+                "Poche {$poche->numero} hors quarantaine ({$poche->statut}) : dépistage refusé."
+            );
+        }
+
         return DB::transaction(function () use ($poche, $resultats) {
             $poche->update([
                 'depistage_vih' => (bool) ($resultats['depistage_vih'] ?? false),

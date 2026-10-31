@@ -160,12 +160,26 @@ class BanqueSangController extends Controller
     {
         $this->autoriser();
 
+        // Seule une poche en quarantaine se dépiste. Sans ce verrou, un
+        // formulaire renvoyé (double clic, retour arrière) sur une poche
+        // détruite pour VIH la remettait en rayon, marqueurs remis à négatif.
+        if ($poche->statut !== 'quarantaine') {
+            return back()->with('error', 'Poche '.$poche->numero.' : dépistage déjà enregistré ('
+                .$poche->libelleStatut().'). Une poche sortie de quarantaine ne se redépiste pas.');
+        }
+
         $request->validate([
             'depistage_vih' => 'nullable|boolean',
             'depistage_hepatite_b' => 'nullable|boolean',
             'depistage_hepatite_c' => 'nullable|boolean',
             'depistage_syphilis' => 'nullable|boolean',
             'depistage_paludisme' => 'nullable|boolean',
+            // Une case non cochée vaut « négatif » : le technicien atteste
+            // avoir lu les cinq résultats avant que la poche passe en rayon.
+            'confirmation' => 'accepted',
+        ], [
+            'confirmation.accepted' => 'Dépistage non enregistré : confirmez avoir lu les cinq résultats '
+                .'(un marqueur non coché vaut négatif). La poche reste en quarantaine.',
         ]);
 
         $poche = $this->banque->enregistrerDepistage($poche, [
