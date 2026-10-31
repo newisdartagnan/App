@@ -164,3 +164,40 @@ PHP et Composer ne sont pas requis sur l'hôte — tout passe par Docker :
 docker compose run --rm app php artisan <commande>
 docker compose run --rm app composer require <package>
 ```
+
+## Lancer les tests
+
+Les tests (PHPUnit, `tests/Feature`) tournent sur **PostgreSQL** : les
+migrations utilisent des instructions que SQLite ne connaît pas. Ils vident et
+recréent la base à chaque passage, c'est pourquoi `phpunit.xml` force toujours
+la base **`dpi_test`**, et `tests/TestCase.php` refuse de démarrer sur une base
+dont le nom ne finit pas par `_test` : la base d'un hôpital ne peut pas être
+effacée par erreur.
+
+Prérequis sur le poste : PHP 8.3 avec `pdo_pgsql`, Composer, et `qpdf` (utilisé
+par les tests des pièces jointes PDF, déjà installé dans l'image Docker).
+
+```bash
+# 1. Créer la base de test, une seule fois, dans le PostgreSQL du conteneur
+docker compose up -d db
+docker compose exec db createdb -U dpi_user dpi_test
+
+# 2. Installer les dépendances de développement et lancer les tests
+composer install
+php artisan test
+```
+
+Par défaut, les tests se branchent sur `localhost:5433` (le conteneur `db`
+publié sur le poste) avec l'utilisateur et le mot de passe du `.env`. Pour un
+autre serveur, surcharger par l'environnement, par exemple sur le PostgreSQL
+du poste :
+
+```bash
+DB_PORT=5432 DB_USERNAME=postgres DB_PASSWORD=secret php artisan test
+```
+
+Couverture du code (nécessite l'extension PCOV ou Xdebug) :
+
+```bash
+php artisan test --coverage
+```

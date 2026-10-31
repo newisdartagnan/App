@@ -20,9 +20,25 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
-        <env name="DB_URL" value=""/>
+        <!-- Les migrations sont écrites pour PostgreSQL (ALTER TABLE ... ADD
+             CONSTRAINT, types et index propres à pgsql) : SQLite ne sait pas
+             les jouer. Les tests vident et recréent la base à chaque passage
+             (RefreshDatabase) : la base est donc FORCÉE sur dpi_test, même
+             dans le conteneur app où DB_DATABASE désigne la base réelle de
+             l'hôpital. Hôte et port restent surchargeables par
+             l'environnement ; par défaut, le PostgreSQL du conteneur db publié
+             sur le poste (localhost:5433). Utilisateur et mot de passe : ceux
+             du .env. Voir « Lancer les tests » dans le README.
+             Laravel lit $_SERVER avant $_ENV : chaque valeur forcée l'est donc
+             aussi en <server>, sinon celle du conteneur reprendrait le dessus. -->
+        <env name="DB_CONNECTION" value="pgsql" force="true"/>
+        <env name="DB_DATABASE" value="dpi_test" force="true"/>
+        <env name="DB_URL" value="" force="true"/>
+        <server name="DB_CONNECTION" value="pgsql" force="true"/>
+        <server name="DB_DATABASE" value="dpi_test" force="true"/>
+        <server name="DB_URL" value="" force="true"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="5433"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
