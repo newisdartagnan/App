@@ -202,7 +202,12 @@
                             @else
                             <details>
                                 <summary class="cursor-pointer text-xs text-blue-700 select-none">Saisir le dépistage</summary>
-                                <form method="POST" action="{{ route('banque-sang.depister', $poche) }}" class="mt-2">
+                                {{-- Une case non cochée vaut « négatif » : un clic trop rapide
+                                     mettrait la poche en rayon. Le technicien atteste donc avoir
+                                     lu les cinq résultats (vérifié aussi côté serveur), puis
+                                     confirme ce que l'envoi va produire. --}}
+                                <form method="POST" action="{{ route('banque-sang.depister', $poche) }}" class="mt-2"
+                                      data-depistage data-poche="{{ $poche->numero }}">
                                     @csrf
                                     <p class="text-xs text-gray-500 mb-1">Cochez uniquement les marqueurs <strong>positifs</strong>.</p>
                                     @foreach([
@@ -213,10 +218,14 @@
                                         'depistage_paludisme' => 'Paludisme',
                                     ] as $champ => $libelle)
                                     <label class="flex items-center gap-2 text-xs text-gray-700">
-                                        <input type="checkbox" name="{{ $champ }}" value="1" class="rounded">
+                                        <input type="checkbox" name="{{ $champ }}" value="1" class="rounded" data-marqueur="{{ $libelle }}">
                                         {{ $libelle }} positif
                                     </label>
                                     @endforeach
+                                    <label class="mt-2 flex items-start gap-2 text-xs text-gray-800 border-t border-gray-200 pt-2">
+                                        <input type="checkbox" name="confirmation" value="1" class="rounded mt-0.5" required>
+                                        <span>J'ai lu les <strong>cinq</strong> résultats : les marqueurs non cochés sont <strong>négatifs</strong>.</span>
+                                    </label>
                                     <button class="mt-2 bg-blue-700 hover:bg-blue-800 text-white rounded px-3 py-1 text-xs font-semibold">
                                         Valider le dépistage
                                     </button>
@@ -235,4 +244,26 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Dernière confirmation avant d'envoyer un dépistage : on dit en clair ce
+    // que l'envoi va produire, poche en rayon ou poche détruite. Le blocage
+    // d'un formulaire renvoyé reste assuré par le serveur.
+    document.querySelectorAll('form[data-depistage]').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            var positifs = Array.from(form.querySelectorAll('input[data-marqueur]:checked'))
+                .map(function (case_) { return case_.dataset.marqueur; });
+            var poche = form.dataset.poche;
+            var message = positifs.length === 0
+                ? 'Poche ' + poche + ' : dépistage NÉGATIF sur les cinq marqueurs.\n\n'
+                    + 'Elle passera en rayon et pourra être transfusée. Confirmer ?'
+                : 'Poche ' + poche + ' : POSITIF (' + positifs.join(', ') + ').\n\n'
+                    + 'La poche sera détruite et le donneur écarté. Confirmer ?';
+
+            if (!window.confirm(message)) {
+                event.preventDefault();
+            }
+        });
+    });
+</script>
 @endsection

@@ -174,6 +174,12 @@ class BanqueSangController extends Controller
             'depistage_hepatite_c' => 'nullable|boolean',
             'depistage_syphilis' => 'nullable|boolean',
             'depistage_paludisme' => 'nullable|boolean',
+            // Une case non cochée vaut « négatif » : le technicien atteste
+            // avoir lu les cinq résultats avant que la poche passe en rayon.
+            'confirmation' => 'accepted',
+        ], [
+            'confirmation.accepted' => 'Dépistage non enregistré : confirmez avoir lu les cinq résultats '
+                .'(un marqueur non coché vaut négatif). La poche reste en quarantaine.',
         ]);
 
         $poche = $this->banque->enregistrerDepistage($poche, [

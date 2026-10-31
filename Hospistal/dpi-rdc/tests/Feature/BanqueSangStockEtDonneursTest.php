@@ -295,13 +295,44 @@ class BanqueSangStockEtDonneursTest extends TestCase
     // Le dépistage
     // ═══════════════════════════════════════════════════════════
 
-    public function test_sans_marqueur_coche_la_poche_passe_en_rayon(): void
+    public function test_le_formulaire_de_depistage_demande_une_confirmation(): void
     {
-        // Le formulaire ne fait cocher que les marqueurs positifs : un envoi
-        // sans case cochée est un dépistage négatif sur les cinq.
+        $this->banque->enregistrerDon($this->donneur(), ['type_produit' => 'sang_total']);
+
+        $this->get(route('banque-sang.index'))
+            ->assertOk()
+            ->assertSee('name="confirmation" value="1" class="rounded mt-0.5" required', false)
+            ->assertSee('data-depistage', false)
+            ->assertSee('window.confirm(message)', false);
+    }
+
+    public function test_sans_confirmation_le_depistage_n_est_pas_enregistre(): void
+    {
+        // Le clic trop rapide : rien coché, pas même la confirmation. La
+        // poche ne doit surtout pas passer en rayon.
         $poche = $this->banque->enregistrerDon($this->donneur(), ['type_produit' => 'sang_total']);
 
         $this->post(route('banque-sang.depister', $poche), [])
+            ->assertSessionHasErrors(['confirmation' => 'Dépistage non enregistré : confirmez avoir lu les cinq '
+                .'résultats (un marqueur non coché vaut négatif). La poche reste en quarantaine.']);
+
+        $this->post(route('banque-sang.depister', $poche), ['depistage_vih' => '1'])
+            ->assertSessionHasErrors('confirmation');
+
+        $poche->refresh();
+        $this->assertSame('quarantaine', $poche->statut);
+        $this->assertNull($poche->depistage_vih);
+        $this->assertNull($poche->date_depistage);
+        $this->assertFalse($poche->estDelivrable());
+    }
+
+    public function test_sans_marqueur_coche_la_poche_passe_en_rayon(): void
+    {
+        // Le formulaire ne fait cocher que les marqueurs positifs : un envoi
+        // confirmé sans case cochée est un dépistage négatif sur les cinq.
+        $poche = $this->banque->enregistrerDon($this->donneur(), ['type_produit' => 'sang_total']);
+
+        $this->post(route('banque-sang.depister', $poche), ['confirmation' => '1'])
             ->assertSessionHas('success', fn ($message) => str_contains($message, 'négatif'));
 
         $poche->refresh();
@@ -316,7 +347,7 @@ class BanqueSangStockEtDonneursTest extends TestCase
         $donneur = $this->donneur('A+');
         $poche = $this->banque->enregistrerDon($donneur, ['type_produit' => 'sang_total']);
 
-        $this->post(route('banque-sang.depister', $poche), ['depistage_hepatite_c' => '1'])
+        $this->post(route('banque-sang.depister', $poche), ['depistage_hepatite_c' => '1', 'confirmation' => '1'])
             ->assertSessionHas('error', fn ($message) => str_contains($message, 'détruite')
                 && str_contains($message, 'Hépatite C'));
 
@@ -334,9 +365,9 @@ class BanqueSangStockEtDonneursTest extends TestCase
         // Double clic ou retour arrière : le même formulaire repart, cette
         // fois sans case cochée. La poche VIH positive doit rester détruite.
         $poche = $this->banque->enregistrerDon($this->donneur('O-'), ['type_produit' => 'sang_total']);
-        $this->post(route('banque-sang.depister', $poche), ['depistage_vih' => '1']);
+        $this->post(route('banque-sang.depister', $poche), ['depistage_vih' => '1', 'confirmation' => '1']);
 
-        $this->post(route('banque-sang.depister', $poche), [])
+        $this->post(route('banque-sang.depister', $poche), ['confirmation' => '1'])
             ->assertSessionHas('error', fn ($message) => str_contains($message, 'ne se redépiste pas'));
 
         $poche->refresh();
@@ -351,7 +382,7 @@ class BanqueSangStockEtDonneursTest extends TestCase
         $poche = $this->pocheEnRayon('O-');
         $datePremierDepistage = $poche->date_depistage;
 
-        $this->post(route('banque-sang.depister', $poche), ['depistage_paludisme' => '1'])
+        $this->post(route('banque-sang.depister', $poche), ['depistage_paludisme' => '1', 'confirmation' => '1'])
             ->assertSessionHas('error');
 
         $poche->refresh();
