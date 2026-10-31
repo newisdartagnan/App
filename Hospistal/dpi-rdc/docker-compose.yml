@@ -145,6 +145,36 @@ services:
     depends_on:
       - app
 
+  # Tests automatisés, lancés à la demande, jamais par `docker compose up` :
+  #   docker compose run --rm tests
+  #   docker compose run --rm tests php artisan test --filter=BanqueSang
+  # Pas de PHP ni de Composer sur le poste : tout tourne ici. Le projet est
+  # monté en entier (tests/ et phpunit.xml compris) ; les dépendances de
+  # développement (PHPUnit) vont dans le volume vendor_tests, ni dans l'image
+  # de production ni sur le disque du poste. La base est forcée sur dpi_test
+  # par phpunit.xml : créer celle-ci une fois avec
+  #   docker compose exec db createdb -U dpi_user dpi_test
+  tests:
+    build: .
+    profiles: ["tests"]
+    init: true
+    env_file: .env
+    environment:
+      APP_KEY: ${APP_KEY}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: dpi_user
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - .:/var/www
+      - vendor_tests:/var/www/vendor
+    entrypoint: ["sh", "-c", "composer install --no-interaction --no-progress --quiet && exec \"$$@\"", "--"]
+    command: ["php", "artisan", "test"]
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   pgdata:
   redisdata:
+  vendor_tests:

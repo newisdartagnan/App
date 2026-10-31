@@ -174,30 +174,42 @@ la base **`dpi_test`**, et `tests/TestCase.php` refuse de démarrer sur une base
 dont le nom ne finit pas par `_test` : la base d'un hôpital ne peut pas être
 effacée par erreur.
 
-Prérequis sur le poste : PHP 8.3 avec `pdo_pgsql`, Composer, et `qpdf` (utilisé
-par les tests des pièces jointes PDF, déjà installé dans l'image Docker).
+Comme le reste du projet, les tests tournent dans Docker : ni PHP ni Composer
+ne sont requis sur le poste. Le service `tests` de `docker-compose.yml` ne
+démarre jamais avec `docker compose up` ; il se lance à la demande.
 
 ```bash
-# 1. Créer la base de test, une seule fois, dans le PostgreSQL du conteneur
+# 1. Une seule fois : créer la base de test dans le PostgreSQL du conteneur
 docker compose up -d db
 docker compose exec db createdb -U dpi_user dpi_test
 
-# 2. Installer les dépendances de développement et lancer les tests
+# 2. Lancer toute la suite (le premier passage construit l'image et installe
+#    PHPUnit : compter plusieurs minutes, les suivants vont plus vite)
+docker compose run --rm tests
+
+# Un seul fichier, ou les tests dont le nom contient un mot :
+docker compose run --rm tests php artisan test tests/Feature/BanqueSangStockEtDonneursTest.php
+docker compose run --rm tests php artisan test --filter=BanqueSang
+```
+
+La suite complète compte plus de 800 tests et prend une vingtaine de minutes :
+pendant le développement, lancer surtout les fichiers du module touché.
+
+Après une modification du `Dockerfile`, reconstruire l'image des tests avec
+`docker compose build tests`.
+
+### Sans Docker (PHP installé sur le poste)
+
+Prérequis : PHP 8.3 avec `pdo_pgsql`, Composer, et `qpdf` (utilisé par les
+tests des pièces jointes PDF). Les tests se branchent par défaut sur
+`localhost:5433`, c'est-à-dire le conteneur `db` publié sur le poste, avec
+l'utilisateur et le mot de passe du `.env` :
+
+```bash
 composer install
 php artisan test
 ```
 
-Par défaut, les tests se branchent sur `localhost:5433` (le conteneur `db`
-publié sur le poste) avec l'utilisateur et le mot de passe du `.env`. Pour un
-autre serveur, surcharger par l'environnement, par exemple sur le PostgreSQL
-du poste :
-
-```bash
-DB_PORT=5432 DB_USERNAME=postgres DB_PASSWORD=secret php artisan test
-```
-
-Couverture du code (nécessite l'extension PCOV ou Xdebug) :
-
-```bash
-php artisan test --coverage
-```
+Pour un autre serveur PostgreSQL, surcharger par l'environnement, par exemple
+`DB_PORT=5432 DB_USERNAME=postgres DB_PASSWORD=secret php artisan test`.
+Couverture du code (extension PCOV ou Xdebug) : `php artisan test --coverage`.
