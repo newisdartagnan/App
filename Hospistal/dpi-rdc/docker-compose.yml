@@ -165,6 +165,18 @@ services:
       DB_PORT: 5432
       DB_USERNAME: dpi_user
       DB_PASSWORD: ${DB_PASSWORD}
+      # Réglages de test dès le démarrage de Laravel, avant PHPUnit (qui les
+      # force aussi) : `composer install` démarre l'application, et Telescope,
+      # installé avec PHPUnit, lit alors le cache ; avec le CACHE_STORE=redis
+      # du .env, il faudrait le conteneur redis rien que pour installer.
+      APP_ENV: testing
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      BROADCAST_CONNECTION: "null"
+      TELESCOPE_ENABLED: "false"
+      PULSE_ENABLED: "false"
     volumes:
       - .:/var/www
       - vendor_tests:/var/www/vendor
