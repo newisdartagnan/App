@@ -20,9 +20,10 @@ Route::middleware('guest')->group(function () {
         ->middleware('throttle:connexion-verification')->name('connexion.verifier');
 });
 
-Route::middleware('auth')->group(function () {
-    Route::post('/deconnexion', [ConnexionController::class, 'destroy'])->name('deconnexion');
+Route::middleware('auth')->post('/deconnexion', [ConnexionController::class, 'destroy'])->name('deconnexion');
 
+// Espace patient : le personnel a son propre espace (routes/personnel.php).
+Route::middleware(['auth', 'role:patient'])->group(function () {
     Route::get('/profil', [ProfilController::class, 'edit'])->name('profil.modifier');
     Route::put('/profil', [ProfilController::class, 'update'])->name('profil.enregistrer');
 
@@ -33,6 +34,12 @@ Route::middleware('auth')->group(function () {
 
         Route::middleware('consentement')->group(function () {
             Route::get('/espace', EspacePatientController::class)->name('espace');
+
+            // Demande de consultation et rendez-vous du patient (lot RDV).
+            require __DIR__.'/rendezvous.php';
         });
     });
 });
+
+// Comptes du personnel et espace médecin (lot RDV).
+require __DIR__.'/personnel.php';

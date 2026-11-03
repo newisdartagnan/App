@@ -6,6 +6,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -33,6 +34,17 @@ class User extends Authenticatable
             'date_naissance' => 'date',
             'password' => 'hashed',
         ];
+    }
+
+    public function medecin(): HasOne
+    {
+        return $this->hasOne(Medecin::class);
+    }
+
+    /** Rôles du personnel : ils se connectent par courriel, mot de passe et double authentification (CPT-06), jamais par code SMS seul. */
+    public function estDuPersonnel(): bool
+    {
+        return $this->roles()->whereIn('name', array_diff(config('doc-and-i.roles'), ['patient']))->exists();
     }
 
     public function consentements(): HasMany

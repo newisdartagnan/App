@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'profil.complet' => ProfilComplet::class,
             'consentement' => ConsentementAJour::class,
+            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
         ]);
 
         $middleware->redirectGuestsTo(fn () => route('connexion'));

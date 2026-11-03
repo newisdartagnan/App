@@ -106,6 +106,12 @@ class ConnexionController extends Controller
             // changer) : il n'est posé qu'ici, une fois le code vérifié.
             $patient = User::where('telephone', $telephone)->lockForUpdate()->first()
                 ?? (new User)->forceFill(['telephone' => $telephone]);
+
+            // Un compte du personnel ne se connecte jamais par code SMS seul :
+            // ce serait contourner sa double authentification (CPT-06).
+            if ($patient->exists && $patient->estDuPersonnel()) {
+                return false;
+            }
             $patient->telephone_verifie_le ??= now();
             $patient->save();
 
@@ -115,6 +121,12 @@ class ConnexionController extends Controller
 
             return $patient;
         });
+
+        if ($patient === false) {
+            throw ValidationException::withMessages([
+                'code' => 'Ce numéro appartient à un compte du personnel : connectez-vous par l\'espace du personnel.',
+            ]);
+        }
 
         if ($patient === null) {
             throw ValidationException::withMessages([

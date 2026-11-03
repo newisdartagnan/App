@@ -51,6 +51,40 @@ return [
     */
     'proxys_de_confiance' => env('TRUSTED_PROXIES'),
 
+    /*
+    | Rendez-vous (RDV-04 à RDV-07, RG-03 à RG-06).
+    */
+    'rendez_vous' => [
+        // RDV-05 / RG-03 : créneau bloqué le temps du paiement.
+        'delai_paiement_minutes' => 15,
+        // Créneaux proposés sur cette période.
+        'horizon_jours' => 14,
+        // On ne réserve pas un créneau qui commence dans moins de N minutes.
+        'delai_minimum_minutes' => 30,
+        // RG-06 : absence constatée N minutes après l'heure.
+        'retard_absence_minutes' => 10,
+        // RDV-06 : rappels avant la consultation, en minutes.
+        'rappels_minutes' => [1440, 60],
+        // RG-04 : annulation par le patient, seuils en heures avant le début.
+        'annulation' => [
+            'remboursement_total_heures' => 24,
+            'remboursement_partiel_heures' => 2,
+            'taux_partiel' => 50,
+        ],
+        // RG-04 : à moins de 2 h, un seul report possible.
+        'reports_max_tardifs' => 1,
+    ],
+
+    /*
+    | Urgences (RDV-02, RG-08) : affichées quand le tri trouve un signe d'alerte.
+    | Le client fournit l'établissement et le numéro ; tant qu'ils manquent,
+    | le message renvoie vers l'hôpital le plus proche.
+    */
+    'urgences' => [
+        'etablissement' => env('DOC_AND_I_URGENCES_ETABLISSEMENT'),
+        'telephone' => env('DOC_AND_I_URGENCES_TELEPHONE'),
+    ],
+
     'roles' => [
         'patient', 'medecin', 'coordinateur', 'laboratoire', 'caisse',
         'support', 'admin_fonctionnel', 'admin_technique', 'auditeur',
