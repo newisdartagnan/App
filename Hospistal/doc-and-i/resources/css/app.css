@@ -1,8 +1,12 @@
-@import 'tailwindcss';
+/* source(none) : Tailwind ne parcourt QUE les fichiers d'interface listés
+   ci-dessous. Sans cela il lit tout le projet (README, tests, PHP) et un mot
+   comme « table » dans un texte changeait le CSS : la compilation dépendait
+   de fichiers sans rapport, et l'intégration continue la trouvait périmée. */
+@import 'tailwindcss' source(none);
 
-@source '../**/*.blade.php';
-@source '../**/*.js';
-@source '../**/*.vue';
+@source '../views/**/*.blade.php';
+@source '../js/**/*.js';
+@source '../js/**/*.vue';
 
 /* Polices du système : rien à télécharger, lisible sur un téléphone d'entrée de gamme. */
 @theme {
