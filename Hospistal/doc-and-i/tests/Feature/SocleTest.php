@@ -31,6 +31,15 @@ class SocleTest extends TestCase
         $this->assertStringContainsString("default-src 'self'", $reponse->headers->get('Content-Security-Policy'));
     }
 
+    public function test_les_en_tetes_couvrent_aussi_les_pages_hors_application(): void
+    {
+        foreach (['/nexiste-pas', '/up'] as $adresse) {
+            $reponse = $this->get($adresse);
+            $reponse->assertHeader('X-Frame-Options', 'DENY');
+            $this->assertNotNull($reponse->headers->get('Content-Security-Policy'), $adresse.' sans CSP');
+        }
+    }
+
     public function test_les_roles_du_cahier_des_charges_existent_et_le_seeder_se_rejoue(): void
     {
         $this->seed(RolesSeeder::class);

@@ -12,12 +12,12 @@ Route::get('/', fn () => Inertia::render('Accueil'))->name('accueil');
 Route::middleware('guest')->group(function () {
     Route::get('/connexion', [ConnexionController::class, 'create'])->name('connexion');
     Route::post('/connexion', [ConnexionController::class, 'demander'])
-        ->middleware('throttle:20,1')->name('connexion.demander');
+        ->middleware('throttle:connexion-demande')->name('connexion.demander');
     Route::get('/connexion/code', [ConnexionController::class, 'code'])->name('connexion.code');
     Route::post('/connexion/code/renvoi', [ConnexionController::class, 'renvoyer'])
-        ->middleware('throttle:10,1')->name('connexion.renvoyer');
+        ->middleware('throttle:connexion-renvoi')->name('connexion.renvoyer');
     Route::post('/connexion/code', [ConnexionController::class, 'verifier'])
-        ->middleware('throttle:30,1')->name('connexion.verifier');
+        ->middleware('throttle:connexion-verification')->name('connexion.verifier');
 });
 
 Route::middleware('auth')->group(function () {

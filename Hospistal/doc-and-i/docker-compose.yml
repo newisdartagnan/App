@@ -52,7 +52,8 @@ services:
     ports:
       # Publiée sur le poste pour pgAdmin / DBeaver, hors du 5432 et du 5433
       # (dpi-rdc).
-      - "${DOC_AND_I_DB_PORT:-5434}:5432"
+      # Sur 127.0.0.1 seulement : la base n'est pas joignable depuis le réseau.
+      - "127.0.0.1:${DOC_AND_I_DB_PORT:-5434}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres:/docker-entrypoint-initdb.d:ro

@@ -92,6 +92,13 @@ class ProfilPatientTest extends TestCase
         $this->assertSame('+243812345678', $patient->refresh()->telephone);
     }
 
+    public function test_le_numero_n_est_pas_affectable_en_masse(): void
+    {
+        // La validation filtre déjà les champs inconnus ; ce test prouve la
+        // seconde barrière : le modèle lui-même refuse de recevoir le numéro.
+        $this->assertNull((new User)->fill(['telephone' => '+243899999999'])->telephone);
+    }
+
     public function test_le_profil_est_ferme_aux_visiteurs(): void
     {
         $this->get(route('profil.modifier'))->assertRedirect(route('connexion'));

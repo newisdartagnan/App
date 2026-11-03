@@ -15,10 +15,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [
-            HandleInertiaRequests::class,
-            EnTetesSecurite::class,
-        ]);
+        // Sur toutes les réponses, 404 et /up compris, pas seulement le groupe web.
+        $middleware->append(EnTetesSecurite::class);
+        $middleware->web(append: [HandleInertiaRequests::class]);
+
+        // Derrière un répartiteur de charge ou un proxy TLS : sans cela,
+        // toutes les requêtes porteraient l'adresse du proxy.
+        $proxys = array_filter(array_map('trim', explode(',', (string) env('TRUSTED_PROXIES'))));
+        if ($proxys !== []) {
+            $middleware->trustProxies(at: $proxys);
+        }
 
         $middleware->alias([
             'profil.complet' => ProfilComplet::class,

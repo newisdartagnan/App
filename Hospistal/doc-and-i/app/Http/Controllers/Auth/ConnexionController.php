@@ -9,6 +9,7 @@ use App\Support\Telephone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -94,22 +95,33 @@ class ConnexionController extends Controller
 
         $code = preg_replace('/\D/', '', (string) $request->input('code'));
 
-        if (! $this->codes->verifier($telephone, $code)) {
+        // Une seule transaction : si la création du compte ou de son rôle
+        // échoue, le code n'est pas consommé et aucun compte sans rôle ne reste.
+        $patient = DB::transaction(function () use ($telephone, $code) {
+            if (! $this->codes->verifier($telephone, $code)) {
+                return null;
+            }
+
+            // Le téléphone n'est pas « fillable » (aucun formulaire ne doit le
+            // changer) : il n'est posé qu'ici, une fois le code vérifié.
+            $patient = User::where('telephone', $telephone)->lockForUpdate()->first()
+                ?? (new User)->forceFill(['telephone' => $telephone]);
+            $patient->telephone_verifie_le ??= now();
+            $patient->save();
+
+            if ($patient->roles()->doesntExist()) {
+                $patient->assignRole('patient');
+            }
+
+            return $patient;
+        });
+
+        if ($patient === null) {
             throw ValidationException::withMessages([
-                'code' => 'Code incorrect ou expiré. Vérifiez le SMS, ou demandez un nouveau code.',
+                'code' => $this->codes->estBloque($telephone)
+                    ? 'Trop de codes incorrects pour ce numéro. Réessayez demain ou contactez le support.'
+                    : 'Code incorrect ou expiré. Vérifiez le SMS, ou demandez un nouveau code.',
             ]);
-        }
-
-        // Le téléphone n'est pas « fillable » (aucun formulaire ne doit le
-        // changer) : il n'est posé qu'ici, une fois le code vérifié.
-        $patient = User::where('telephone', $telephone)->first()
-            ?? (new User)->forceFill(['telephone' => $telephone]);
-        $nouveau = ! $patient->exists;
-        $patient->telephone_verifie_le ??= now();
-        $patient->save();
-
-        if ($nouveau) {
-            $patient->assignRole('patient');
         }
 
         $request->session()->forget('connexion.telephone');

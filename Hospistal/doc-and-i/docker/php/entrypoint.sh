@@ -20,6 +20,9 @@ mkdir -p vendor
 # 2. Fichier .env créé depuis l'exemple, clé générée si absente.
 if [ ! -f .env ]; then
     cp .env.example .env
+    # Même propriétaire que le projet : sous Linux, le développeur doit
+    # pouvoir modifier son .env sans sudo.
+    chown "$(stat -c %u:%g composer.json)" .env 2>/dev/null || true
     echo "Doc&I : .env créé depuis .env.example"
 fi
 if ! grep -q '^APP_KEY=base64:' .env; then
@@ -27,7 +30,9 @@ if ! grep -q '^APP_KEY=base64:' .env; then
 fi
 
 mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache
-chmod -R 777 storage bootstrap/cache 2>/dev/null || true
+# Dossiers seulement : un chmod récursif marquerait aussi les fichiers suivis
+# par Git (.gitignore) comme exécutables, et git status changerait sous Linux.
+find storage bootstrap/cache -type d -exec chmod 777 {} + 2>/dev/null || true
 
 # 3. Migrations et données de référence, seulement si on le demande
 #    (DOC_AND_I_AUTO_MIGRATE=true, réglé par le service app).
