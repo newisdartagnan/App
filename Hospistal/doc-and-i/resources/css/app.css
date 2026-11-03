@@ -1,0 +1,30 @@
+/* source(none) : Tailwind ne parcourt QUE les fichiers d'interface listés
+   ci-dessous. Sans cela il lit tout le projet (README, tests, PHP) et un mot
+   comme « table » dans un texte changeait le CSS : la compilation dépendait
+   de fichiers sans rapport, et l'intégration continue la trouvait périmée. */
+@import 'tailwindcss' source(none);
+
+@source '../views/**/*.blade.php';
+@source '../js/**/*.js';
+@source '../js/**/*.vue';
+
+/* Polices du système : rien à télécharger, lisible sur un téléphone d'entrée de gamme. */
+@theme {
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+}
+
+.champ {
+    @apply mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/30;
+}
+.etiquette {
+    @apply block text-sm font-medium text-slate-700;
+}
+.bouton {
+    @apply inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-teal-700 px-4 py-3 text-base font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60;
+}
+.bouton-secondaire {
+    @apply inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-60;
+}
+.erreur {
+    @apply mt-1 text-sm text-red-700;
+}

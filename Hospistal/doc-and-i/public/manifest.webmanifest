@@ -1,0 +1,13 @@
+{
+    "name": "Doc&I — consultation médicale à distance",
+    "short_name": "Doc&I",
+    "lang": "fr",
+    "start_url": "/espace",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#f8fafc",
+    "theme_color": "#0f766e",
+    "icons": [
+        { "src": "/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    ]
+}

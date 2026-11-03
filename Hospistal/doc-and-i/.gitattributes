@@ -1,0 +1,16 @@
+* text=auto eol=lf
+
+*.blade.php diff=html
+*.css diff=css
+*.html diff=html
+*.md diff=markdown
+*.php diff=php
+
+/.github export-ignore
+CHANGELOG.md export-ignore
+.styleci.yml export-ignore
+
+# Assets compilés versionnés (le poste n'a pas besoin de npm) : pris ou
+# laissés en bloc, jamais fusionnés ligne à ligne.
+/public/build/** binary
+/public/build/** linguist-generated
