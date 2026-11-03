@@ -1,59 +1,89 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Doc&I — consultation médicale à distance
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Plateforme où le patient demande une consultation, réserve un créneau, paie
+d'avance par Mobile Money, est consulté en vidéo par un médecin, puis reçoit
+son ordonnance et ses résultats validés par ce médecin. Le cahier des charges
+complet est dans le document « Cahier des charges — Plateforme de
+téléconsultation SIH (Kinshasa) ».
 
-## About Laravel
+Le dossier s'appelle `doc-and-i` et non `Doc&I` : sous PowerShell `&` est un
+opérateur, et Docker retire ce caractère des noms de projet.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Ce qui fonctionne aujourd'hui
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Exigence | Contenu | État |
+| --- | --- | --- |
+| CPT-01 | Inscription et connexion par numéro de téléphone et code SMS à usage unique | Fait |
+| CPT-02 | Profil du patient (nom, sexe, date de naissance, commune, langue, contact d'urgence) | Fait |
+| CPT-04 | Consentement à la téléconsultation et au traitement des données, horodaté et révocable | Fait |
+| — | Rôles du cahier des charges (patient, médecin, laboratoire, caisse…) | Fait |
+| — | En-têtes de sécurité, identifiants UUID, interface installable (PWA, manifeste) | Fait |
+| RDV-01 et suite | Demande de consultation, créneaux, paiement | Prochain lot |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Lancer l'application (Docker, rien à installer d'autre)
 
-## Learning Laravel
+Dans PowerShell ou Git Bash, depuis `Hospistal\doc-and-i` :
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```bash
+docker compose up -d --build
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Puis ouvrir <http://localhost:8090>. Au premier démarrage, le conteneur
+installe les dépendances, crée le `.env`, génère la clé, crée les tables et les
+rôles (quelques minutes la première fois).
 
-## Laravel Sponsors
+**Le code SMS en développement** : aucun SMS n'est envoyé (`SMS_DRIVER=log`).
+Le code s'écrit dans le journal :
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+docker compose exec app tail -n 5 storage/logs/laravel.log
+```
 
-### Premium Partners
+| Service | Adresse sur le poste |
+| --- | --- |
+| Application | <http://localhost:8090> |
+| PostgreSQL (pgAdmin, DBeaver) | `localhost:5434`, base `doc_and_i`, utilisateur `doc_and_i`, mot de passe `changeme` |
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Les ports diffèrent de ceux de dpi-rdc (8080, 5433) : les deux projets
+tournent en même temps.
 
-## Contributing
+Arrêter : `docker compose down`. Tout effacer, base comprise :
+`docker compose down -v`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Lancer les tests
 
-## Code of Conduct
+```bash
+docker compose run --rm tests
+docker compose run --rm tests php artisan test --filter=Connexion
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Les tests tournent sur PostgreSQL, dans la base `doc_and_i_test`, créée
+automatiquement au premier démarrage du conteneur `db`. `phpunit.xml` impose
+cette base et toutes les valeurs de test ; `tests/TestCase.php` refuse de
+démarrer sur une base dont le nom ne finit pas par `_test`. La base de
+l'application n'est jamais vidée par les tests.
 
-## Security Vulnerabilities
+## Modifier l'interface
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Les écrans sont en Vue 3 avec Inertia (`resources/js/Pages`). Les fichiers
+compilés sont versionnés dans `public/build` : le poste n'a pas besoin de npm
+pour lancer l'application. Après une modification d'un écran :
 
-## License
+```bash
+npm install
+npm run build
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+puis committer `public/build` avec la modification. L'intégration continue
+vérifie que `public/build` correspond aux sources.
+
+## Architecture
+
+- Laravel 12, PHP 8.3, PostgreSQL 16, Redis 7 (sessions, cache, files).
+- Interface patient : Vue 3 + Inertia, Tailwind, sans script ni police externe
+  (politique de sécurité du contenu stricte).
+- Services Docker : `app` (PHP-FPM), `worker` (files d'attente), `nginx`, `db`,
+  `redis`, `tests` (à la demande).
+- Intégration continue : `.github/workflows/doc-and-i.yml` à la racine du dépôt.
+
+Règles de développement : voir `CLAUDE.md`.

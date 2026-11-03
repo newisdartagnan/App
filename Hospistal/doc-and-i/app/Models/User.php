@@ -2,48 +2,64 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasRoles, HasUuids, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
+     * Le téléphone n'est pas modifiable par formulaire : il identifie le
+     * compte et n'est posé qu'après vérification du code.
      */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'nom', 'postnom', 'prenom', 'sexe', 'date_naissance', 'commune', 'langue',
+        'contact_urgence_nom', 'contact_urgence_telephone',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['password', 'remember_token'];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
+            'telephone_verifie_le' => 'datetime',
+            'date_naissance' => 'date',
             'password' => 'hashed',
         ];
+    }
+
+    public function consentements(): HasMany
+    {
+        return $this->hasMany(Consentement::class);
+    }
+
+    /** Ce qu'il faut savoir du patient pour le soigner et le joindre (CPT-02). */
+    public function profilComplet(): bool
+    {
+        return filled($this->nom) && filled($this->prenom)
+            && in_array($this->sexe, ['M', 'F'], true)
+            && $this->date_naissance !== null;
+    }
+
+    /** Le consentement en vigueur : version courante, non retiré. */
+    public function consentementActif(): ?Consentement
+    {
+        return $this->consentements()
+            ->where('version', config('doc-and-i.consentement.version'))
+            ->whereNull('retire_le')
+            ->latest('accepte_le')
+            ->first();
+    }
+
+    public function nomComplet(): string
+    {
+        return trim(mb_strtoupper((string) $this->nom).' '.$this->postnom.' '.$this->prenom);
     }
 }

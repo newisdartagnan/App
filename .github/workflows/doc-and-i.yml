@@ -1,0 +1,54 @@
+name: Doc&I — tests
+
+on:
+  pull_request:
+    paths:
+      - 'Hospistal/doc-and-i/**'
+      - '.github/workflows/doc-and-i.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Hospistal/doc-and-i/**'
+      - '.github/workflows/doc-and-i.yml'
+
+defaults:
+  run:
+    working-directory: Hospistal/doc-and-i
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: doc_and_i_test
+          POSTGRES_USER: doc_and_i
+          POSTGRES_PASSWORD: changeme
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U doc_and_i -d doc_and_i_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_USERNAME: doc_and_i
+      DB_PASSWORD: changeme
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_pgsql, intl, zip, bcmath, mbstring
+          coverage: none
+      - name: Dépendances
+        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Environnement
+        run: cp .env.example .env && php artisan key:generate
+      - name: Tests (PostgreSQL, base doc_and_i_test imposée)
+        run: php artisan test
+      - name: Les assets versionnés correspondent aux sources
+        run: |
+          npm ci
+          npm run build
+          git diff --exit-code -- public/build || (echo "public/build n'est pas à jour : lancer npm run build et committer." && exit 1)

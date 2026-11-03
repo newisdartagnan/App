@@ -4,42 +4,33 @@ namespace Database\Factories;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 /**
  * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
-    /**
-     * The current password being used by the factory.
-     */
-    protected static ?string $password;
-
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
+    /** Patient au profil complet, numéro vérifié. Données fictives uniquement. */
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
+            'telephone' => '+2438'.fake()->unique()->numerify('########'),
+            'telephone_verifie_le' => now(),
+            'nom' => mb_strtoupper(fake()->lastName()),
+            'postnom' => null,
+            'prenom' => fake()->firstName(),
+            'sexe' => fake()->randomElement(['M', 'F']),
+            'date_naissance' => fake()->dateTimeBetween('-80 years', '-18 years')->format('Y-m-d'),
+            'commune' => 'Gombe',
+            'langue' => 'fr',
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
+    /** Juste inscrit : rien d'autre que le numéro. */
+    public function sansProfil(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+        return $this->state(fn () => [
+            'nom' => null, 'prenom' => null, 'sexe' => null, 'date_naissance' => null, 'commune' => null,
         ]);
     }
 }
