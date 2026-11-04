@@ -3,10 +3,12 @@
 use App\Http\Middleware\ConsentementAJour;
 use App\Http\Middleware\EnTetesSecurite;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\PersonnelAuthentifie;
 use App\Http\Middleware\ProfilComplet;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -30,10 +32,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'profil.complet' => ProfilComplet::class,
             'consentement' => ConsentementAJour::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'personnel' => PersonnelAuthentifie::class,
         ]);
 
         $middleware->redirectGuestsTo(fn () => route('connexion'));
-        $middleware->redirectUsersTo(fn () => route('espace'));
+        // Un membre du personnel déjà connecté va dans son espace, pas dans celui du patient (403).
+        $middleware->redirectUsersTo(fn (Request $requete) => $requete->user()?->estDuPersonnel()
+            ? route('personnel.accueil')
+            : route('espace'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
