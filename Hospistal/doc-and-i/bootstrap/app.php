@@ -9,6 +9,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Inertia\EncryptHistoryMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -19,7 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Sur toutes les réponses, 404 et /up compris, pas seulement le groupe web.
         $middleware->append(EnTetesSecurite::class);
-        $middleware->web(append: [HandleInertiaRequests::class]);
+        // Historique chiffré (Inertia garde les props des pages dans
+        // history.state) : après déconnexion, « Précédent » sur un poste partagé
+        // ne réaffiche ni données de santé, ni secret TOTP, ni codes de
+        // récupération. Toutes les pages : l'activation se fait avant connexion.
+        $middleware->web(append: [HandleInertiaRequests::class, EncryptHistoryMiddleware::class]);
 
         // Derrière un répartiteur de charge ou un proxy TLS : sans cela,
         // toutes les requêtes porteraient l'adresse du proxy.
