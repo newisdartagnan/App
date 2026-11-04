@@ -86,7 +86,7 @@ final class CodeConnexionService
         });
 
         $this->sms->envoyer($telephone, sprintf(
-            'Doc&I : votre code de connexion est %s. Il expire dans %d minutes. Ne le communiquez a personne.',
+            'MEDIHOME : votre code de connexion est %s. Il expire dans %d minutes. Ne le communiquez a personne.',
             $code,
             $r['validite_minutes']
         ));

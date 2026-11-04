@@ -86,10 +86,10 @@ class TotpTest extends TestCase
 
     public function test_l_adresse_de_provisionnement_suit_le_format_des_applications(): void
     {
-        $uri = Totp::uriProvisionnement(self::SECRET_RFC, 'Doc&I', 'medecin@exemple.cd');
+        $uri = Totp::uriProvisionnement(self::SECRET_RFC, 'MediHome', 'medecin@exemple.cd');
 
-        $this->assertStringStartsWith('otpauth://totp/Doc%26I:medecin%40exemple.cd?', $uri);
+        $this->assertStringStartsWith('otpauth://totp/MediHome:medecin%40exemple.cd?', $uri);
         parse_str((string) parse_url($uri, PHP_URL_QUERY), $parametres);
-        $this->assertSame(['secret' => self::SECRET_RFC, 'issuer' => 'Doc&I', 'algorithm' => 'SHA1', 'digits' => '6', 'period' => '30'], $parametres);
+        $this->assertSame(['secret' => self::SECRET_RFC, 'issuer' => 'MediHome', 'algorithm' => 'SHA1', 'digits' => '6', 'period' => '30'], $parametres);
     }
 }

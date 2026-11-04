@@ -55,6 +55,23 @@ class SocleTest extends TestCase
         $this->assertMatchesRegularExpression('/^[0-9a-f-]{36}$/', $patient->id);
     }
 
+    public function test_la_marque_medihome_et_ses_icones_sont_en_place(): void
+    {
+        $manifeste = json_decode((string) file_get_contents(public_path('manifest.webmanifest')), true);
+
+        $this->assertSame('MediHome', $manifeste['short_name']);
+        foreach ($manifeste['icons'] as $icone) {
+            $this->assertFileExists(public_path(ltrim($icone['src'], '/')), 'Icône manquante : '.$icone['src']);
+        }
+        $this->assertContains('maskable', array_column($manifeste['icons'], 'purpose'));
+        $this->assertFileExists(public_path('images/medihome-logo.webp'));
+        $this->assertFileExists(public_path('images/embleme-64.png'));
+
+        $this->get(route('accueil'))
+            ->assertSee('/images/favicon-48.png', false)
+            ->assertSee('<title inertia>MediHome</title>', false);
+    }
+
     public function test_les_assets_compiles_sont_versionnes(): void
     {
         $manifeste = json_decode((string) file_get_contents(public_path('build/manifest.json')), true);

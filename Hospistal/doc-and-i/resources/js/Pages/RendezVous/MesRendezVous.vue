@@ -16,7 +16,7 @@ defineProps({ aVenir: Array, passes: Array, demandesOuvertes: Array });
               class="mt-2 block rounded-lg bg-white p-4 shadow-sm">
             <span class="block font-semibold first-letter:uppercase">{{ r.quand }}</span>
             <span class="block text-sm text-slate-700">{{ r.medecin }} · {{ r.type }}</span>
-            <span class="block text-sm" :class="r.en_attente ? 'text-amber-800' : 'text-teal-800'">{{ r.statut_libelle }}</span>
+            <span class="block text-sm" :class="r.en_attente ? 'text-amber-800' : 'text-marque-700'">{{ r.statut_libelle }}</span>
         </Link>
 
         <template v-if="demandesOuvertes.length">

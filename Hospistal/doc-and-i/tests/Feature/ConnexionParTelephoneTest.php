@@ -56,7 +56,7 @@ class ConnexionParTelephoneTest extends TestCase
         $this->demanderCode();
 
         $message = $this->sms->envoyes[0]['message'];
-        $this->assertStringStartsWith('Doc&I : votre code de connexion est', $message);
+        $this->assertStringStartsWith('MEDIHOME : votre code de connexion est', $message);
         $this->assertStringNotContainsString('243812345678', $message);
     }
 

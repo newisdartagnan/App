@@ -34,7 +34,7 @@ const annuler = (rdv) => {
 };
 
 const couleur = (code) => ({
-    confirme: 'bg-teal-50 text-teal-900',
+    confirme: 'bg-vert-50 text-vert-900',
     en_attente_paiement: 'bg-amber-50 text-amber-900',
 }[code] ?? 'bg-slate-100 text-slate-700');
 </script>

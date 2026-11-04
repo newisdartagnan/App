@@ -6,9 +6,11 @@ const connecte = !!usePage().props.utilisateur;
 </script>
 
 <template>
-    <Head title="Consultez un médecin à distance" />
+    <Head title="La médecine vient à vous" />
     <Gabarit>
-        <h1 class="text-2xl font-bold leading-tight">Consultez un médecin sans vous déplacer</h1>
+        <img src="/images/medihome-logo.webp" width="560" height="473"
+             alt="MEDIHOME — La médecine vient à vous." class="mx-auto w-64 max-w-full">
+        <h1 class="mt-6 text-2xl font-bold leading-tight">Consultez un médecin sans vous déplacer</h1>
         <p class="mt-2 text-slate-700">Réservez un créneau, payez par Mobile Money, et parlez à un médecin depuis votre téléphone.</p>
 
         <ol class="mt-6 space-y-3">
