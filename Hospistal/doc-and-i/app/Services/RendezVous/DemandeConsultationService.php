@@ -1,0 +1,93 @@
+<?php
+
+namespace App\Services\RendezVous;
+
+use App\Models\DemandeConsultation;
+use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Throwable;
+
+/**
+ * RDV-01 et RDV-02 : enregistre ce que le patient décrit, ses réponses au tri
+ * et ses pièces jointes. Une alerte au tri oriente la demande vers les
+ * urgences : aucune réservation possible.
+ */
+class DemandeConsultationService
+{
+    /** Disque privé : jamais d'adresse publique, lecture par une route contrôlée. */
+    public const DISQUE = 'local';
+
+    public const PIECES_MAX = 5;
+
+    public const TAILLE_MAX_KO = 5120;
+
+    /** Types MIME lus dans le contenu du fichier, et extensions acceptées. */
+    public const TYPES_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+
+    public const EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+
+    /** « Depuis quand ? » : réponses proposées au patient. */
+    public const DUREES = [
+        'aujourd_hui' => 'Depuis aujourd\'hui',
+        'quelques_jours' => 'Depuis quelques jours',
+        'une_a_quatre_semaines' => 'Depuis 1 à 4 semaines',
+        'plus_d_un_mois' => 'Depuis plus d\'un mois',
+    ];
+
+    /**
+     * @param  array{motif: string, symptomes?: ?string, depuis?: ?string, tri: array<string, string>}  $donnees  validées
+     * @param  list<UploadedFile>  $pieces  validées
+     */
+    public function creer(User $patient, array $donnees, array $pieces = []): DemandeConsultation
+    {
+        $alerte = QuestionnaireTri::alerte($donnees['tri']);
+        $enregistres = [];
+
+        try {
+            return DB::transaction(function () use ($patient, $donnees, $pieces, $alerte, &$enregistres) {
+                $demande = new DemandeConsultation([
+                    'motif' => trim($donnees['motif']),
+                    'symptomes' => filled($donnees['symptomes'] ?? null) ? trim($donnees['symptomes']) : null,
+                    'depuis' => $donnees['depuis'] ?? null,
+                    'tri_reponses' => QuestionnaireTri::trace($donnees['tri']),
+                    'tri_alerte' => $alerte,
+                ]);
+                $demande->patient_id = $patient->id;
+                $demande->statut = $alerte ? 'orientee_urgence' : 'ouverte';
+                $demande->save();
+
+                foreach ($pieces as $fichier) {
+                    // Nom aléatoire, sans extension ni nom d'origine : rien à deviner.
+                    $chemin = $fichier->storeAs('pieces-jointes/'.$demande->id, Str::random(40), self::DISQUE);
+                    if ($chemin === false) {
+                        throw new \RuntimeException('Pièce jointe non enregistrée.');
+                    }
+                    $enregistres[] = $chemin;
+
+                    $demande->piecesJointes()->create([
+                        'chemin' => $chemin,
+                        'nom_original' => $this->nomPropre($fichier->getClientOriginalName()),
+                        'type_mime' => $fichier->getMimeType(),
+                        'taille_octets' => $fichier->getSize(),
+                    ]);
+                }
+
+                return $demande;
+            });
+        } catch (Throwable $e) {
+            // Base annulée : on ne laisse pas de fichier orphelin sur le disque.
+            Storage::disk(self::DISQUE)->delete($enregistres);
+            throw $e;
+        }
+    }
+
+    private function nomPropre(string $nom): string
+    {
+        $nom = trim(str_replace(['/', '\\', "\0"], '-', basename($nom)));
+
+        return mb_substr($nom === '' ? 'piece-jointe' : $nom, 0, 255);
+    }
+}
