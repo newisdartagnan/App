@@ -60,6 +60,7 @@ class MesRendezVousController extends Controller
         $enAttente = $rdv->statut === StatutRendezVous::EnAttentePaiement;
         $avantDebut = $maintenant < $rdv->debut;
         $tardif = $service->estTardif($rdv, $maintenant);
+        $reportsEpuises = $rdv->reports >= (int) config('doc-and-i.rendez_vous.reports_max');
 
         return Inertia::render('RendezVous/Detail', [
             'rendezVous' => [
@@ -82,10 +83,11 @@ class MesRendezVousController extends Controller
             'actions' => [
                 'annuler' => $enAttente || ($confirme && $avantDebut),
                 // Ce que rapporterait une annulation maintenant (RG-04).
-                'taux_si_annulation' => $confirme && $avantDebut ? $service->tauxRemboursement($rdv->debut, $maintenant) : null,
-                'reporter' => $confirme && $avantDebut
+                'taux_si_annulation' => $confirme && $avantDebut ? $service->tauxSiAnnulation($rdv, $maintenant) : null,
+                'reporter' => $confirme && $avantDebut && ! $reportsEpuises
                     && (! $tardif || $rdv->reports_tardifs < (int) config('doc-and-i.rendez_vous.reports_max_tardifs')),
                 'report_tardif' => $confirme && $avantDebut && $tardif,
+                'reports_epuises' => $confirme && $avantDebut && $reportsEpuises,
             ],
         ]);
     }

@@ -73,6 +73,9 @@ return [
         ],
         // RG-04 : à moins de 2 h, un seul report possible.
         'reports_max_tardifs' => 1,
+        // Reports au total pour un même rendez-vous (tardifs compris) : borne
+        // l'agenda du médecin et les SMS de rappel (revue de sécurité).
+        'reports_max' => 3,
     ],
 
     /*
