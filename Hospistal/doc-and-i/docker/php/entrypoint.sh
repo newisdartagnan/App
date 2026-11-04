@@ -11,7 +11,7 @@ mkdir -p vendor
     flock 9
     if [ ! -f vendor/autoload.php ] || [ ! -f vendor/.composer-lock.sha ] \
         || [ "$(sha1sum composer.lock | cut -d' ' -f1)" != "$(cat vendor/.composer-lock.sha)" ]; then
-        echo "Doc&I : installation des dépendances Composer…"
+        echo "MediHome : installation des dépendances Composer…"
         composer install --no-interaction --no-progress --prefer-dist
         sha1sum composer.lock | cut -d' ' -f1 > vendor/.composer-lock.sha
     fi
@@ -23,8 +23,16 @@ if [ ! -f .env ]; then
     # Même propriétaire que le projet : sous Linux, le développeur doit
     # pouvoir modifier son .env sans sudo.
     chown "$(stat -c %u:%g composer.json)" .env 2>/dev/null || true
-    echo "Doc&I : .env créé depuis .env.example"
+    echo "MediHome : .env créé depuis .env.example"
 fi
+# .env créé par une version antérieure : nom et adresse par défaut d'origine
+# remplacés (seulement s'ils n'ont pas été personnalisés). Sans cela, l'ancien
+# nom resterait affiché et les liens d'activation pointeraient vers l'ancien port.
+sed -i \
+    -e 's#^APP_NAME="Doc&I"$#APP_NAME="MediHome"#' \
+    -e 's#^APP_URL=http://localhost:8090$#APP_URL=http://localhost:8097#' \
+    .env
+
 if ! grep -q '^APP_KEY=base64:' .env; then
     php artisan key:generate --force
 fi

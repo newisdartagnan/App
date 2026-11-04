@@ -88,14 +88,14 @@ class TachesPlanifieesTest extends TestCase
         $this->artisan('rdv:envoyer-rappels');
         $this->assertCount(1, $this->sms->envoyes);
         $this->assertSame($patient->telephone, $this->sms->envoyes[0]['telephone']);
-        $this->assertSame('Doc&I : rappel, votre consultation est demain a 10:30. Ouvrez l\'application quelques minutes avant.', $this->sms->envoyes[0]['message']);
+        $this->assertSame('MEDIHOME : rappel, votre consultation est demain a 10:30. Ouvrez l\'application quelques minutes avant.', $this->sms->envoyes[0]['message']);
         $this->assertNotNull($rdv->fresh()->rappel_24h_envoye_le);
 
         $this->travelTo($this->lundi('09:35')->addDay());
         $this->artisan('rdv:envoyer-rappels');
         $this->artisan('rdv:envoyer-rappels');
         $this->assertCount(2, $this->sms->envoyes);
-        $this->assertSame('Doc&I : rappel, votre consultation commence a 10:30. Ouvrez l\'application quelques minutes avant.', $this->sms->envoyes[1]['message']);
+        $this->assertSame('MEDIHOME : rappel, votre consultation commence a 10:30. Ouvrez l\'application quelques minutes avant.', $this->sms->envoyes[1]['message']);
         $this->assertNotNull($rdv->fresh()->rappel_1h_envoye_le);
 
         $this->travelTo($this->lundi('10:25')->addDay());
@@ -121,7 +121,7 @@ class TachesPlanifieesTest extends TestCase
 
         $this->artisan('rdv:envoyer-rappels');
 
-        $this->assertSame('Doc&I : rappel, votre consultation est aujourd\'hui a 15:00. Ouvrez l\'application quelques minutes avant.', $this->sms->envoyes[0]['message']);
+        $this->assertSame('MEDIHOME : rappel, votre consultation est aujourd\'hui a 15:00. Ouvrez l\'application quelques minutes avant.', $this->sms->envoyes[0]['message']);
     }
 
     public function test_aucun_rappel_pour_un_rendez_vous_annule_expire_ou_non_paye(): void

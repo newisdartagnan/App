@@ -1,6 +1,6 @@
-# Doc&I — environnement de développement local.
+# MediHome (projet doc-and-i) — environnement de développement local.
 #
-#   docker compose up -d --build        l'application sur http://localhost:8090
+#   docker compose up -d --build        l'application sur http://localhost:8097
 #   docker compose run --rm tests        toute la suite de tests
 #
 # Les ports diffèrent de ceux de dpi-rdc (8080, 5433) pour que les deux
@@ -44,7 +44,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "${DOC_AND_I_HTTP_PORT:-8090}:80"
+      - "${DOC_AND_I_HTTP_PORT:-8097}:80"
     volumes:
       - ./public:/var/www/public:ro
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
@@ -61,7 +61,7 @@ services:
       # Publiée sur le poste pour pgAdmin / DBeaver, hors du 5432 et du 5433
       # (dpi-rdc).
       # Sur 127.0.0.1 seulement : la base n'est pas joignable depuis le réseau.
-      - "127.0.0.1:${DOC_AND_I_DB_PORT:-5434}:5432"
+      - "127.0.0.1:${DOC_AND_I_DB_PORT:-5437}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres:/docker-entrypoint-initdb.d:ro
@@ -84,7 +84,7 @@ services:
     profiles: ["tests"]
     environment:
       # Le conteneur db : sans ces deux lignes, la valeur par défaut de
-      # phpunit.xml (127.0.0.1:5434, prévue pour le poste) l'emporterait.
+      # phpunit.xml (127.0.0.1:5437, prévue pour le poste) l'emporterait.
       DB_HOST: db
       DB_PORT: "5432"
       APP_ENV: testing

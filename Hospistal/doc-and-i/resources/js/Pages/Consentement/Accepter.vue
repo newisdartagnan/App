@@ -41,7 +41,7 @@ const retirer = () => {
         </form>
 
         <div v-else class="mt-6 space-y-3">
-            <p class="text-sm text-teal-900">Vous avez donné votre accord pour cette version des conditions.</p>
+            <p class="text-sm text-vert-900">Vous avez donné votre accord pour cette version des conditions.</p>
             <button type="button" class="bouton-secondaire" :disabled="retrait.processing" @click="retirer">Retirer mon consentement</button>
         </div>
     </Gabarit>

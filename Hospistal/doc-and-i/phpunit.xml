@@ -58,8 +58,8 @@
         <server name="DB_URL" value="" force="true"/>
         <!-- Hôte et port restent surchargeables : dans le service docker
              « tests », le conteneur db (DB_HOST=db du .env) ; sur le poste,
-             par défaut, ce même conteneur publié sur localhost:5434. -->
+             par défaut, ce même conteneur publié sur localhost:5437. -->
         <env name="DB_HOST" value="127.0.0.1"/>
-        <env name="DB_PORT" value="5434"/>
+        <env name="DB_PORT" value="5437"/>
     </php>
 </phpunit>

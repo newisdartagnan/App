@@ -39,7 +39,7 @@ class AnnulationRendezVousController extends ControleurMedecin
 
         try {
             $sms->envoyer($rdv->patient->telephone, sprintf(
-                'Doc&I : votre consultation du %s a %s est annulee par le medecin. Vous serez rembourse ; ouvrez l\'application pour choisir un autre creneau.',
+                'MEDIHOME : votre consultation du %s a %s est annulee par le medecin. Vous serez rembourse ; ouvrez l\'application pour choisir un autre creneau.',
                 $debut->format('d/m'),
                 $debut->format('H:i')
             ));

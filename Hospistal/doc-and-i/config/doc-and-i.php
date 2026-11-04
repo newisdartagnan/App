@@ -32,7 +32,7 @@ return [
         // Pas de valeur par défaut : un oubli en production doit se voir.
         // « log » (développement, tests) est refusé en production.
         'driver' => env('SMS_DRIVER'),
-        'expediteur' => 'DocAndI',
+        'expediteur' => 'MEDIHOME',
     ],
 
     /*

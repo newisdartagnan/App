@@ -13,7 +13,7 @@ const envoyer = () => form.post('/personnel/activation/mot-de-passe', {
 <template>
     <Head title="Activation du compte" />
     <GabaritPersonnel>
-        <p class="text-sm font-medium text-teal-800">Étape 1 sur 2</p>
+        <p class="text-sm font-medium text-marque-700">Étape 1 sur 2</p>
         <h1 class="text-2xl font-bold">Choisissez votre mot de passe</h1>
         <p class="mt-2 text-slate-700">Compte : <strong>{{ email }}</strong></p>
         <p class="mt-2 text-slate-700">Au moins {{ longueurMin }} caractères. Une phrase de plusieurs mots est plus sûre et plus facile à retenir.</p>

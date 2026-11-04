@@ -103,7 +103,7 @@ const texteRemboursement = computed(() => {
             <p v-if="demande.symptomes" class="mt-2 whitespace-pre-line text-slate-700">{{ demande.symptomes }}</p>
             <ul v-if="demande.pieces.length" class="mt-3 space-y-1">
                 <li v-for="p in demande.pieces" :key="p.id">
-                    <a :href="`/consultation/pieces-jointes/${p.id}`" class="text-teal-800 underline">{{ p.nom }}</a>
+                    <a :href="`/consultation/pieces-jointes/${p.id}`" class="text-marque-700 underline">{{ p.nom }}</a>
                 </li>
             </ul>
         </section>

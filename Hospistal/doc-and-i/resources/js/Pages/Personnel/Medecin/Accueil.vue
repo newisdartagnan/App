@@ -21,15 +21,15 @@ defineProps({ medecin: Object, resume: Object });
 
         <div class="mt-6 grid gap-3 sm:grid-cols-3">
             <Link href="/personnel/medecin/agenda" class="rounded-lg border border-slate-200 bg-white p-4">
-                <span class="block text-3xl font-bold text-teal-800">{{ resume.rendezVousAVenir }}</span>
+                <span class="block text-3xl font-bold text-marque-700">{{ resume.rendezVousAVenir }}</span>
                 <span class="text-sm text-slate-700">rendez-vous à venir</span>
             </Link>
             <Link href="/personnel/medecin/disponibilites" class="rounded-lg border border-slate-200 bg-white p-4">
-                <span class="block text-3xl font-bold text-teal-800">{{ resume.plages }}</span>
+                <span class="block text-3xl font-bold text-marque-700">{{ resume.plages }}</span>
                 <span class="text-sm text-slate-700">plages par semaine</span>
             </Link>
             <Link href="/personnel/medecin/absences" class="rounded-lg border border-slate-200 bg-white p-4">
-                <span class="block text-3xl font-bold text-teal-800">{{ resume.absencesAVenir }}</span>
+                <span class="block text-3xl font-bold text-marque-700">{{ resume.absencesAVenir }}</span>
                 <span class="text-sm text-slate-700">absences prévues</span>
             </Link>
         </div>

@@ -12,7 +12,7 @@ const verifier = () => form.post('/personnel/connexion/code', { onFinish: () => 
     <Head title="Code de vérification" />
     <GabaritPersonnel>
         <h1 class="text-2xl font-bold">Code de vérification</h1>
-        <p v-if="!recuperation" class="mt-2 text-slate-700">Ouvrez votre application d'authentification et saisissez le code à 6 chiffres affiché pour Doc&amp;I.</p>
+        <p v-if="!recuperation" class="mt-2 text-slate-700">Ouvrez votre application d'authentification et saisissez le code à 6 chiffres affiché pour MediHome.</p>
         <p v-else class="mt-2 text-slate-700">Saisissez l'un de vos codes de récupération (format XXXXX-XXXXX). Chaque code ne sert qu'une fois.</p>
 
         <form class="mt-6 space-y-4" @submit.prevent="verifier">

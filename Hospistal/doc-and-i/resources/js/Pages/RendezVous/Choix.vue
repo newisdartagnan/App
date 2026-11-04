@@ -56,7 +56,7 @@ const voirCreneaux = () => {
         <section v-if="mode === 'specialite'" class="mt-4 space-y-2">
             <button v-for="s in specialites" :key="s.id" type="button"
                     class="w-full rounded-lg border p-3 text-left"
-                    :class="s.id === specialiteId ? 'border-teal-700 bg-teal-50' : 'border-slate-300 bg-white'"
+                    :class="s.id === specialiteId ? 'border-marque-700 bg-vert-50' : 'border-slate-300 bg-white'"
                     :disabled="s.nombre_medecins === 0" @click="choisirSpecialite(s.id)">
                 <span class="font-medium">{{ s.nom }}</span>
                 <span v-if="s.nombre_medecins === 0" class="block text-sm text-slate-500">Aucun médecin disponible pour l'instant</span>
@@ -67,7 +67,7 @@ const voirCreneaux = () => {
             <p v-if="medecins.length === 0" class="text-slate-600">Aucun médecin disponible pour l'instant.</p>
             <button v-for="m in medecins" :key="m.id" type="button"
                     class="w-full rounded-lg border p-3 text-left"
-                    :class="m.id === medecinId ? 'border-teal-700 bg-teal-50' : 'border-slate-300 bg-white'"
+                    :class="m.id === medecinId ? 'border-marque-700 bg-vert-50' : 'border-slate-300 bg-white'"
                     @click="choisirMedecin(m)">
                 <span class="font-medium">{{ m.nom }}</span>
                 <span class="block text-sm text-slate-600">

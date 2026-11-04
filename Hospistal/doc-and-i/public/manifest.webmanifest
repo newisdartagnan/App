@@ -1,13 +1,16 @@
 {
-    "name": "Doc&I — consultation médicale à distance",
-    "short_name": "Doc&I",
+    "name": "MediHome — La médecine vient à vous",
+    "short_name": "MediHome",
+    "description": "Consultez un médecin à distance, payez par Mobile Money, recevez ordonnance et résultats.",
     "lang": "fr",
     "start_url": "/espace",
     "scope": "/",
     "display": "standalone",
-    "background_color": "#f8fafc",
-    "theme_color": "#0f766e",
+    "background_color": "#ffffff",
+    "theme_color": "#0050b0",
     "icons": [
-        { "src": "/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+        { "src": "/images/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "/images/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "/images/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
     ]
 }

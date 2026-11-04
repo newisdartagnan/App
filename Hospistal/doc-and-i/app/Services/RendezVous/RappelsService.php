@@ -94,7 +94,7 @@ class RappelsService
         $suite = ' Ouvrez l\'application quelques minutes avant.';
 
         if ($colonne === self::COLONNE_DERNIER) {
-            return "Doc&I : rappel, votre consultation commence a {$heure}.".$suite;
+            return "MEDIHOME : rappel, votre consultation commence a {$heure}.".$suite;
         }
 
         $jour = match (true) {
@@ -103,6 +103,6 @@ class RappelsService
             default => 'le '.$debut->format('d/m'),
         };
 
-        return "Doc&I : rappel, votre consultation est {$jour} a {$heure}.".$suite;
+        return "MEDIHOME : rappel, votre consultation est {$jour} a {$heure}.".$suite;
     }
 }

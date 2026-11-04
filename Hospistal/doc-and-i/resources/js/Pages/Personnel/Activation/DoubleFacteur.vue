@@ -12,7 +12,7 @@ const confirmer = () => form.post('/personnel/activation/double-facteur', { onFi
 <template>
     <Head title="Double authentification" />
     <GabaritPersonnel>
-        <p class="text-sm font-medium text-teal-800">Étape 2 sur 2</p>
+        <p class="text-sm font-medium text-marque-700">Étape 2 sur 2</p>
         <h1 class="text-2xl font-bold">Reliez votre application d'authentification</h1>
         <ol class="mt-3 list-decimal space-y-1 pl-5 text-slate-700">
             <li>Installez une application d'authentification (Google Authenticator, FreeOTP, Aegis…).</li>

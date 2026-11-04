@@ -13,7 +13,7 @@ const emit = defineEmits(['choisir']);
         <div class="mt-2 grid grid-cols-3 gap-2">
             <button v-for="c in jour.creneaux" :key="c.debut + (c.medecin_id ?? '')" type="button"
                     class="rounded-lg border p-2 text-center"
-                    :class="choisi?.debut === c.debut ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 bg-white'"
+                    :class="choisi?.debut === c.debut ? 'border-marque-700 bg-marque-700 text-white' : 'border-slate-300 bg-white'"
                     :aria-pressed="choisi?.debut === c.debut"
                     @click="emit('choisir', c)">
                 <span class="block font-semibold">{{ c.heure }}</span>

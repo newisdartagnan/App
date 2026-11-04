@@ -1,4 +1,4 @@
-# Doc&I — consultation médicale à distance
+# MediHome — La médecine vient à vous
 
 Plateforme où le patient demande une consultation, réserve un créneau, paie
 d'avance par Mobile Money, est consulté en vidéo par un médecin, puis reçoit
@@ -6,8 +6,9 @@ son ordonnance et ses résultats validés par ce médecin. Le cahier des charges
 complet est dans le document « Cahier des charges — Plateforme de
 téléconsultation SIH (Kinshasa) ».
 
-Le dossier s'appelle `doc-and-i` et non `Doc&I` : sous PowerShell `&` est un
-opérateur, et Docker retire ce caractère des noms de projet.
+L'application s'appelle **MediHome** (logo et devise « La médecine vient à
+vous. » dans `public/images`). Le dossier, le projet Docker et le dépôt gardent
+le nom technique `doc-and-i`.
 
 ## Ce qui fonctionne aujourd'hui
 
@@ -34,7 +35,7 @@ Dans PowerShell ou Git Bash, depuis `Hospistal\doc-and-i` :
 docker compose up -d --build
 ```
 
-Puis ouvrir <http://localhost:8090>. Au premier démarrage, le conteneur
+Puis ouvrir <http://localhost:8097>. Au premier démarrage, le conteneur
 installe les dépendances, crée le `.env`, génère la clé, crée les tables et les
 rôles (quelques minutes la première fois).
 
@@ -47,8 +48,8 @@ docker compose exec app tail -n 5 storage/logs/laravel.log
 
 | Service | Adresse sur le poste |
 | --- | --- |
-| Application | <http://localhost:8090> |
-| PostgreSQL (pgAdmin, DBeaver) | `localhost:5434`, base `doc_and_i`, utilisateur `doc_and_i`, mot de passe `changeme` |
+| Application | <http://localhost:8097> |
+| PostgreSQL (pgAdmin, DBeaver) | `localhost:5437`, base `doc_and_i`, utilisateur `doc_and_i`, mot de passe `changeme` |
 
 Les ports diffèrent de ceux de dpi-rdc (8080, 5433) : les deux projets
 tournent en même temps.
@@ -65,7 +66,7 @@ Arrêter : `docker compose down`. Tout effacer, base comprise :
 **HTTPS ou localhost obligatoire** : l'historique du navigateur est chiffré
 (un « Retour » après déconnexion ne réaffiche ni dossier ni clé de double
 authentification). Ce chiffrement n'existe que sur une page sécurisée :
-`http://localhost:8090` fonctionne, une adresse IP du réseau local en HTTP non.
+`http://localhost:8097` fonctionne, une adresse IP du réseau local en HTTP non.
 
 ## Comptes du personnel (médecins)
 
@@ -85,7 +86,7 @@ docker compose exec app php artisan personnel:lien-activation dr.exemple@doc-and
 Par le lien, le médecin choisit son mot de passe (12 caractères au moins),
 relie une application d'authentification (QR code ou clé), puis note ses
 8 codes de récupération. Il se connecte ensuite sur
-<http://localhost:8090/personnel/connexion>. Tant que l'Ordre n'est pas vérifié,
+<http://localhost:8097/personnel/connexion>. Tant que l'Ordre n'est pas vérifié,
 il n'est pas proposé aux patients.
 
 Les médecins de démonstration (`medecin.demo@doc-and-i.local`,

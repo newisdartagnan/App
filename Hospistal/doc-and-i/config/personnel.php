@@ -35,7 +35,7 @@ return [
 
     'totp' => [
         // Nom affiché dans l'application d'authentification.
-        'emetteur' => 'Doc&I',
+        'emetteur' => 'MediHome',
     ],
 
     'codes_recuperation' => [

@@ -1,6 +1,7 @@
-# Doc&I — règles du projet
+# MediHome (projet doc-and-i) — règles du projet
 
-Plateforme de téléconsultation pour Kinshasa : données de santé et paiements.
+Application MediHome (« La médecine vient à vous. »), plateforme de
+téléconsultation pour Kinshasa : données de santé et paiements.
 Le cahier des charges fait foi (exigences CPT-, RDV-, TLC-, DOS-, PRE-, PAY-,
 NOT-, ADM- ; règles RG-). Chaque commit cite les exigences qu'il traite.
 
@@ -40,6 +41,11 @@ Textes destinés au patient : phrases courtes, sans jargon.
   code SMS.
 
 ## Interface
+
+- Marque : nom MEDIHOME (« MEDI » bleu #0060c8, « HOME » vert #009860), couleurs
+  `marque-*` (actions) et `vert-*` (confirmations) définies dans
+  resources/css/app.css ; logo, emblème et icônes dans public/images. Ne pas
+  réintroduire d'autre couleur principale.
 
 - Vue 3 + Inertia, mobile d'abord (Android d'entrée de gamme, 3G).
 - Aucun script, police ou image venant d'un autre domaine (CSP stricte dans

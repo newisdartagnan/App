@@ -36,7 +36,7 @@ const supprimer = (plage) => {
                 <span class="w-24 font-medium">{{ jour.libelle }}</span>
                 <span v-if="jour.plages.length === 0" class="text-sm text-slate-500">Aucune plage</span>
                 <span v-for="plage in jour.plages" :key="plage.id"
-                      class="inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-900">
+                      class="inline-flex items-center gap-2 rounded-full bg-vert-50 px-3 py-1 text-sm text-vert-900">
                     {{ plage.heureDebut }} – {{ plage.heureFin }}
                     <button type="button" class="text-red-700 underline" :disabled="suppression.processing"
                             :aria-label="`Supprimer la plage du ${jour.libelle} de ${plage.heureDebut} à ${plage.heureFin}`"
