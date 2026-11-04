@@ -33,6 +33,20 @@ sed -i \
     -e 's#^APP_URL=http://localhost:8090$#APP_URL=http://localhost:8097#' \
     .env
 
+# Lot paiement : un .env plus ancien n'a pas ces lignes.
+grep -q '^PAIEMENT_FOURNISSEUR=' .env || printf '\nPAIEMENT_FOURNISSEUR=simulation\n' >> .env
+grep -q '^DOC_AND_I_COMMISSION_POURCENT=' .env || printf 'DOC_AND_I_COMMISSION_POURCENT=20\n' >> .env
+# Secret des rappels de paiement : généré une fois, propre à ce poste.
+if ! grep -q '^PAIEMENT_SECRET_RAPPEL=.\{32,\}' .env; then
+    secret=$(php -r 'echo bin2hex(random_bytes(32));')
+    if grep -q '^PAIEMENT_SECRET_RAPPEL=' .env; then
+        sed -i "s#^PAIEMENT_SECRET_RAPPEL=.*#PAIEMENT_SECRET_RAPPEL=${secret}#" .env
+    else
+        printf 'PAIEMENT_SECRET_RAPPEL=%s\n' "$secret" >> .env
+    fi
+    echo "MediHome : secret des rappels de paiement généré"
+fi
+
 if ! grep -q '^APP_KEY=base64:' .env; then
     php artisan key:generate --force
 fi

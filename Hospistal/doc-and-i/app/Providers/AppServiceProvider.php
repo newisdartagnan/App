@@ -3,6 +3,9 @@
 namespace App\Providers;
 
 use App\Services\CodeConnexionService;
+use App\Services\Paiement\Fournisseur\FournisseurPaiement;
+use App\Services\Paiement\Fournisseur\FournisseurSimulation;
+use App\Services\Paiement\Fournisseur\SignatureRappel;
 use App\Sms\EnvoyeurSms;
 use App\Sms\EnvoyeurSmsJournal;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -29,6 +32,25 @@ class AppServiceProvider extends ServiceProvider
                 'log' => new EnvoyeurSmsJournal,
                 null, '' => throw new InvalidArgumentException('SMS_DRIVER n\'est pas défini (voir .env.example).'),
                 default => throw new InvalidArgumentException('Pilote SMS inconnu : '.$pilote.' (voir SMS_DRIVER).'),
+            };
+        });
+
+        $this->app->singleton(FournisseurPaiement::class, function () {
+            $pilote = config('doc-and-i.paiement.fournisseur');
+
+            // La simulation confirme des paiements sans argent : en production,
+            // ce serait des consultations gratuites pour qui connaît le secret.
+            if ($pilote === FournisseurSimulation::NOM && $this->app->isProduction()) {
+                throw new RuntimeException('PAIEMENT_FOURNISSEUR=simulation est interdit en production : configurer l\'agrégateur.');
+            }
+
+            return match ($pilote) {
+                FournisseurSimulation::NOM => new FournisseurSimulation(new SignatureRappel(
+                    (string) config('doc-and-i.paiement.secret_rappel'),
+                    (int) config('doc-and-i.paiement.tolerance_signature_secondes'),
+                )),
+                null, '' => throw new InvalidArgumentException('PAIEMENT_FOURNISSEUR n\'est pas défini (voir .env.example).'),
+                default => throw new InvalidArgumentException('Pilote de paiement inconnu : '.$pilote.' (voir PAIEMENT_FOURNISSEUR).'),
             };
         });
     }

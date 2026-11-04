@@ -98,6 +98,28 @@ return [
         'telephone' => env('DOC_AND_I_URGENCES_TELEPHONE'),
     ],
 
+    /*
+    | Paiement (PAY-01 à PAY-09, RG-01 à RG-03).
+    */
+    'paiement' => [
+        // Pas de valeur par défaut : un oubli en production doit se voir.
+        // « simulation » (développement, tests) est refusé en production.
+        'fournisseur' => env('PAIEMENT_FOURNISSEUR'),
+        'secret_rappel' => env('PAIEMENT_SECRET_RAPPEL'),
+        // Écart toléré entre l'horodatage signé d'un rappel et notre horloge.
+        'tolerance_signature_secondes' => 300,
+        'devises' => ['USD', 'CDF'],
+        // Tentative sans réponse de l'opérateur : close après ce délai, le
+        // patient peut réessayer tant que son créneau est bloqué (RG-03).
+        'delai_confirmation_minutes' => 10,
+        // Tentatives par rendez-vous : borne les demandes de débit (et les
+        // messages de confirmation envoyés au téléphone du payeur).
+        'tentatives_par_rendez_vous' => 5,
+        // PAY-09 : part de la plateforme sur les honoraires, en pourcentage.
+        // Pas de valeur par défaut : décision du client.
+        'commission_pourcent' => env('DOC_AND_I_COMMISSION_POURCENT'),
+    ],
+
     'roles' => [
         'patient', 'medecin', 'coordinateur', 'laboratoire', 'caisse',
         'support', 'admin_fonctionnel', 'admin_technique', 'auditeur',
