@@ -62,6 +62,11 @@ par le client. Le paiement arrive au prochain lot : une réservation reste
 Arrêter : `docker compose down`. Tout effacer, base comprise :
 `docker compose down -v`.
 
+**HTTPS ou localhost obligatoire** : l'historique du navigateur est chiffré
+(un « Retour » après déconnexion ne réaffiche ni dossier ni clé de double
+authentification). Ce chiffrement n'existe que sur une page sécurisée :
+`http://localhost:8090` fonctionne, une adresse IP du réseau local en HTTP non.
+
 ## Comptes du personnel (médecins)
 
 En attendant l'écran d'administration, un administrateur crée le compte d'un

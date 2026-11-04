@@ -120,7 +120,9 @@ class DemandeConsultationService
 
     private function nomPropre(string $nom): string
     {
-        $nom = trim(str_replace(['/', '\\', "\0"], '-', basename($nom)));
+        // Ni séparateur de chemin, ni caractère de contrôle (retours à la ligne
+        // compris) : le nom est réaffiché et renvoyé dans un en-tête HTTP.
+        $nom = trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', str_replace(['/', '\\'], '-', basename($nom))) ?? '');
 
         return mb_substr($nom === '' ? 'piece-jointe' : $nom, 0, 255);
     }

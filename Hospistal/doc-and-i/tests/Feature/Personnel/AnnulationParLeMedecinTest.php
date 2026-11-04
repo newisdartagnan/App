@@ -83,6 +83,21 @@ class AnnulationParLeMedecinTest extends TestCase
         $this->assertSame(StatutRendezVous::AnnuleParMedecin, $rdv->fresh()->statut);
     }
 
+    public function test_un_envoi_direct_n_annule_pas_une_consultation_deja_commencee(): void
+    {
+        // Le bouton n'apparaît pas pour un rendez-vous passé ; un POST direct
+        // doit être refusé par le serveur (constat 2 de la revue du lot).
+        $medecin = $this->medecinActive();
+        $rdv = $this->rendezVousExistant($medecin, $this->patient(), $this->lundi('10:00'));
+        $this->travelTo($this->lundi('10:05'));
+
+        $this->annuler($medecin, $rdv)->assertSessionHasErrors('motif');
+
+        $this->assertSame(StatutRendezVous::Confirme, $rdv->fresh()->statut);
+        $this->assertNull($rdv->fresh()->taux_remboursement);
+        $this->assertSame([], $this->sms->envoyes);
+    }
+
     public function test_le_motif_est_exige(): void
     {
         $medecin = $this->medecinActive();

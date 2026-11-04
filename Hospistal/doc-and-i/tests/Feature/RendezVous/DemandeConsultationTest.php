@@ -245,6 +245,18 @@ class DemandeConsultationTest extends TestCase
         $this->assertSame([], Storage::disk('public')->allFiles());
     }
 
+    public function test_le_nom_d_une_piece_jointe_perd_ses_caracteres_de_controle(): void
+    {
+        $patient = $this->patient();
+
+        $this->actingAs($patient)->envoyer(['pieces' => [$this->pdf("analyse\r\nSet-Cookie: x=1.pdf")]])
+            ->assertSessionHasNoErrors();
+
+        $nom = PieceJointeDemande::sole()->nom_original;
+        $this->assertDoesNotMatchRegularExpression('/[\x00-\x1F\x7F]/', $nom);
+        $this->assertSame('analyse Set-Cookie: x=1.pdf', $nom);
+    }
+
     public function test_le_type_reel_du_fichier_compte_pas_son_extension(): void
     {
         $patient = $this->patient();
