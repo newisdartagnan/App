@@ -26,6 +26,19 @@ class UserFactory extends Factory
         ];
     }
 
+    /** Par défaut un patient (rôle créé au besoin) : c'est ce que produit l'inscription par téléphone. */
+    public function configure(): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->assignRole(\Spatie\Permission\Models\Role::findOrCreate('patient', 'web')));
+    }
+
+    /** Aucun rôle (comptes du personnel, qui reçoivent ensuite le leur ; cas d'erreur). */
+    public function sansRole(): static
+    {
+        // Les rappels afterCreating s'exécutent dans l'ordre : celui-ci passe après configure().
+        return $this->afterCreating(fn (User $user) => $user->syncRoles([]));
+    }
+
     /** Juste inscrit : rien d'autre que le numéro. */
     public function sansProfil(): static
     {

@@ -33,6 +33,14 @@ services:
     command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=10"]
     restart: unless-stopped
 
+  # Tâches planifiées (routes/console.php) : expiration des créneaux non
+  # payés, rappels de rendez-vous.
+  scheduler:
+    <<: *php
+    entrypoint: ["sh", "-c", "until [ -f vendor/.composer-lock.sha ]; do sleep 2; done; exec \"$$@\"", "--"]
+    command: ["php", "artisan", "schedule:work"]
+    restart: unless-stopped
+
   nginx:
     image: nginx:alpine
     ports:

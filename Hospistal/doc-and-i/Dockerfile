@@ -14,6 +14,7 @@ RUN apk add --no-cache \
     && apk del autoconf g++ make linux-headers
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY docker/php/doc-and-i.ini /usr/local/etc/php/conf.d/doc-and-i.ini
 
 WORKDIR /var/www
 

@@ -43,5 +43,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('connexion-demande', $parIp('demande', 30));
         RateLimiter::for('connexion-renvoi', $parIp('renvoi', 15));
         RateLimiter::for('connexion-verification', $parIp('verification', 60));
+
+        // Personnel (CPT-06) : une limite par étape et par IP ; la limite par
+        // courriel et le verrouillage du compte sont dans ConnexionPersonnelService.
+        $parIpPersonnel = fn (string $nom) => fn (Request $requete) => Limit::perMinute(config('personnel.connexion.tentatives_par_ip_par_minute'))
+            ->by('personnel-'.$nom.'|'.CodeConnexionService::cleIp($requete->ip()));
+
+        RateLimiter::for('personnel-connexion', $parIpPersonnel('connexion'));
+        RateLimiter::for('personnel-code', $parIpPersonnel('code'));
+        RateLimiter::for('personnel-activation', $parIpPersonnel('activation'));
     }
 }
