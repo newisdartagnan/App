@@ -64,6 +64,25 @@ class AnnulationParLeMedecinTest extends TestCase
         $this->assertStringNotContainsString($medecin->specialite->nom, $message);
     }
 
+    public function test_une_panne_sms_n_empeche_pas_l_annulation_ni_n_affiche_d_erreur(): void
+    {
+        $this->app->instance(EnvoyeurSms::class, new class implements EnvoyeurSms
+        {
+            public function envoyer(string $telephone, string $message): void
+            {
+                throw new \RuntimeException('Fournisseur SMS indisponible');
+            }
+        });
+        $medecin = $this->medecinActive();
+        $rdv = $this->rendezVousExistant($medecin, $this->patient(), $this->lundi('10:00'));
+
+        $this->annuler($medecin, $rdv)
+            ->assertRedirect(route('personnel.medecin.agenda'))
+            ->assertSessionHas('succes', fn ($m) => str_contains($m, 'n\'a pas pu partir'));
+
+        $this->assertSame(StatutRendezVous::AnnuleParMedecin, $rdv->fresh()->statut);
+    }
+
     public function test_le_motif_est_exige(): void
     {
         $medecin = $this->medecinActive();
