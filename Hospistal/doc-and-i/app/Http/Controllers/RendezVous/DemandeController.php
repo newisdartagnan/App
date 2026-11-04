@@ -10,6 +10,7 @@ use App\Models\TypeConsultation;
 use App\Services\RendezVous\Affichage;
 use App\Services\RendezVous\DemandeConsultationService;
 use App\Services\RendezVous\QuestionnaireTri;
+use App\Services\RendezVous\ReservationRefusee;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -65,7 +66,12 @@ class DemandeController extends Controller
             ...QuestionnaireTri::messages(),
         ]);
 
-        $demande = $service->creer($request->user(), $donnees, $request->file('pieces', []));
+        try {
+            $demande = $service->creer($request->user(), $donnees, $request->file('pieces', []));
+        } catch (ReservationRefusee $refus) {
+            // Quota de pièces jointes : la demande peut repartir sans fichier.
+            return back()->withErrors(['pieces' => $refus->getMessage()]);
+        }
 
         return $demande->tri_alerte
             ? redirect()->route('rdv.demande.urgence', $demande)

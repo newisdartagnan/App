@@ -3,7 +3,9 @@
 namespace App\Services\RendezVous;
 
 use App\Models\DemandeConsultation;
+use App\Models\PieceJointeDemande;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -48,6 +50,10 @@ class DemandeConsultationService
 
         try {
             return DB::transaction(function () use ($patient, $donnees, $pieces, $alerte, &$enregistres) {
+                if ($pieces !== []) {
+                    $this->verifierQuota($patient, $pieces);
+                }
+
                 $demande = new DemandeConsultation([
                     'motif' => trim($donnees['motif']),
                     'symptomes' => filled($donnees['symptomes'] ?? null) ? trim($donnees['symptomes']) : null,
@@ -81,6 +87,34 @@ class DemandeConsultationService
             // Base annulée : on ne laisse pas de fichier orphelin sur le disque.
             Storage::disk(self::DISQUE)->delete($enregistres);
             throw $e;
+        }
+    }
+
+    /**
+     * Quota de stockage par patient sur 24 heures glissantes : nombre de
+     * demandes portant des fichiers, et volume total. Sous verrou du patient :
+     * deux envois simultanés ne dépassent pas le quota ensemble.
+     *
+     * @param  list<UploadedFile>  $pieces
+     *
+     * @throws ReservationRefusee
+     */
+    private function verifierQuota(User $patient, array $pieces): void
+    {
+        $patient->newQuery()->whereKey($patient->getKey())->lockForUpdate()->first();
+
+        $recentes = PieceJointeDemande::query()
+            ->join('demandes_consultation', 'demandes_consultation.id', '=', 'pieces_jointes_demande.demande_id')
+            ->where('demandes_consultation.patient_id', $patient->id)
+            ->where('pieces_jointes_demande.created_at', '>', CarbonImmutable::now()->subDay());
+
+        $demandes = (clone $recentes)->distinct()->count('pieces_jointes_demande.demande_id');
+        $octets = (int) (clone $recentes)->sum('pieces_jointes_demande.taille_octets');
+        $nouveaux = array_sum(array_map(fn (UploadedFile $f) => (int) $f->getSize(), $pieces));
+
+        if ($demandes >= (int) config('doc-and-i.pieces_jointes.demandes_par_jour')
+            || $octets + $nouveaux > (int) config('doc-and-i.pieces_jointes.octets_par_jour')) {
+            throw new ReservationRefusee('Vous avez déjà envoyé beaucoup de fichiers aujourd\'hui. Envoyez votre demande sans fichier, ou réessayez demain.');
         }
     }
 

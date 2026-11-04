@@ -79,6 +79,16 @@ return [
     ],
 
     /*
+    | Pièces jointes des demandes (RDV-01) : quota par patient sur 24 heures
+    | glissantes, en plus des 5 fichiers de 5 Mo par demande. Une demande sans
+    | fichier n'est jamais bloquée par ce quota.
+    */
+    'pieces_jointes' => [
+        'demandes_par_jour' => 5,
+        'octets_par_jour' => 50 * 1024 * 1024,
+    ],
+
+    /*
     | Urgences (RDV-02, RG-08) : affichées quand le tri trouve un signe d'alerte.
     | Le client fournit l'établissement et le numéro ; tant qu'ils manquent,
     | le message renvoie vers l'hôpital le plus proche.
