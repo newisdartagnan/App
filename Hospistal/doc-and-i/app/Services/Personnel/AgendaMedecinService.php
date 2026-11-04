@@ -37,6 +37,8 @@ final class AgendaMedecinService
                     'motif' => $rdv->demande?->motif,
                     'statut' => self::libelle($rdv->statut),
                     'statutCode' => $rdv->statut->value,
+                    // RG-05 : seul un rendez-vous confirmé, pas encore commencé, s'annule.
+                    'annulable' => $rdv->statut === StatutRendezVous::Confirme && $rdv->debut->isFuture(),
                 ];
             })->all();
     }

@@ -21,7 +21,10 @@ opérateur, et Docker retire ce caractère des noms de projet.
 | RDV-04 | Côté médecin : plages hebdomadaires, absences, agenda en lecture | Fait |
 | — | Rôles du cahier des charges (patient, médecin, laboratoire, caisse…) | Fait |
 | — | En-têtes de sécurité, identifiants UUID, interface installable (PWA, manifeste) | Fait |
-| RDV-01 et suite | Demande de consultation, créneaux, paiement | Prochain lot |
+| RDV-01, RDV-02 | Demande de consultation (motif, symptômes, pièces jointes) et tri des urgences, chaque question à répondre explicitement | Fait |
+| RDV-03 à RDV-05 | Choix par spécialité, médecin ou premier disponible ; créneaux libres ; réservation bloquée 15 min en attente de paiement | Fait |
+| RDV-06, RDV-07 | Rappels SMS 24 h et 1 h avant ; annulation et report selon RG-04/05/06 ; annulation par le médecin depuis son agenda | Fait |
+| PAY-01 et suite | Paiement Mobile Money et carte, confirmation du rendez-vous | Prochain lot |
 
 ## Lancer l'application (Docker, rien à installer d'autre)
 
@@ -49,6 +52,12 @@ docker compose exec app tail -n 5 storage/logs/laravel.log
 
 Les ports diffèrent de ceux de dpi-rdc (8080, 5433) : les deux projets
 tournent en même temps.
+
+**Données de démonstration** (en local seulement) : deux médecins fictifs
+(médecine générale, pédiatrie) avec des plages du lundi au vendredi et un prix
+indicatif de 10 USD, pour tester la réservation. Les vrais prix sont à fixer
+par le client. Le paiement arrive au prochain lot : une réservation reste
+« en attente de paiement » 15 minutes, puis le créneau est libéré.
 
 Arrêter : `docker compose down`. Tout effacer, base comprise :
 `docker compose down -v`.

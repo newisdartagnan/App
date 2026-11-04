@@ -12,6 +12,7 @@ use App\Http\Controllers\Personnel\ConnexionPersonnelController;
 use App\Http\Controllers\Personnel\Medecin\AbsenceController;
 use App\Http\Controllers\Personnel\Medecin\AccueilMedecinController;
 use App\Http\Controllers\Personnel\Medecin\AgendaController;
+use App\Http\Controllers\Personnel\Medecin\AnnulationRendezVousController;
 use App\Http\Controllers\Personnel\Medecin\PlageController;
 use Illuminate\Support\Facades\Route;
 
@@ -58,6 +59,8 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
             Route::delete('/absences/{absence}', [AbsenceController::class, 'destroy'])->whereUuid('absence')->name('absences.supprimer');
 
             Route::get('/agenda', AgendaController::class)->name('agenda');
+            Route::post('/rendez-vous/{rendezVous}/annulation', AnnulationRendezVousController::class)
+                ->whereUuid('rendezVous')->middleware('throttle:30,1,annulation-medecin')->name('rendez-vous.annuler');
         });
     });
 });

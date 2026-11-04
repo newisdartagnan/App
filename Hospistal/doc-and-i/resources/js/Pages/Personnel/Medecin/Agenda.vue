@@ -1,6 +1,6 @@
 <script setup>
-import { Head } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Head, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
 
 const props = defineProps({ rendezVous: Array });
@@ -18,6 +18,20 @@ const parJour = computed(() => {
     }
     return groupes;
 });
+
+// Un seul formulaire d'annulation ouvert à la fois.
+const enAnnulation = ref(null);
+const annulation = useForm({ motif: '' });
+const ouvrir = (id) => { enAnnulation.value = id; annulation.reset(); annulation.clearErrors(); };
+const annuler = (rdv) => {
+    if (!window.confirm(`Annuler le rendez-vous de ${rdv.heure} avec ${rdv.patient} ? Le patient sera remboursé et prévenu par SMS.`)) {
+        return;
+    }
+    annulation.post(`/personnel/medecin/rendez-vous/${rdv.id}/annulation`, {
+        preserveScroll: true,
+        onSuccess: () => { enAnnulation.value = null; },
+    });
+};
 
 const couleur = (code) => ({
     confirme: 'bg-teal-50 text-teal-900',
@@ -43,6 +57,20 @@ const couleur = (code) => ({
                     </div>
                     <p class="mt-1">{{ rdv.patient }}</p>
                     <p v-if="rdv.motif" class="text-sm text-slate-600">{{ rdv.motif }}</p>
+
+                    <button v-if="rdv.annulable && enAnnulation !== rdv.id" type="button"
+                            class="mt-2 text-sm text-red-700 underline" @click="ouvrir(rdv.id)">
+                        Annuler ce rendez-vous
+                    </button>
+                    <form v-if="enAnnulation === rdv.id" class="mt-3 space-y-2" @submit.prevent="annuler(rdv)">
+                        <label :for="`motif-${rdv.id}`" class="etiquette">Motif de l'annulation</label>
+                        <input :id="`motif-${rdv.id}`" v-model="annulation.motif" class="champ" maxlength="255" required>
+                        <p v-if="annulation.errors.motif" class="erreur">{{ annulation.errors.motif }}</p>
+                        <div class="flex gap-2">
+                            <button type="submit" class="bouton bg-red-700 hover:bg-red-800" :disabled="annulation.processing">Confirmer l'annulation</button>
+                            <button type="button" class="bouton-secondaire" @click="enAnnulation = null">Garder</button>
+                        </div>
+                    </form>
                 </li>
             </ul>
         </section>
