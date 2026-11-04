@@ -18,30 +18,29 @@ final class DoubleFacteurService
     private const ALPHABET_RECUPERATION = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
     /**
-     * Vrai si le code TOTP est bon ET plus récent que le dernier accepté.
-     * Sous verrou : deux envois simultanés du même code n'en font passer qu'un.
+     * Vrai si le code TOTP est bon ET plus récent que le dernier accepté ;
+     * le pas accepté est alors enregistré (rejeu refusé).
+     *
+     * L'appelant DOIT tenir le verrou de la ligne (lue par lockForUpdate dans
+     * la transaction en cours) : verrouillage, vérification et comptage des
+     * échecs sont une seule décision (ConnexionPersonnelService).
      */
-    public function verifierTotp(AuthentificationPersonnel $auth, string $code): bool
+    public function verifierTotpSousVerrou(AuthentificationPersonnel $verrouillee, string $code): bool
     {
-        return DB::transaction(function () use ($auth, $code) {
-            $verrouillee = AuthentificationPersonnel::whereKey($auth->id)->lockForUpdate()->firstOrFail();
+        if ($verrouillee->totp_secret === null) {
+            return false;
+        }
 
-            if ($verrouillee->totp_secret === null) {
-                return false;
-            }
+        $pas = Totp::verifier($verrouillee->totp_secret, $code, $verrouillee->totp_dernier_pas);
 
-            $pas = Totp::verifier($verrouillee->totp_secret, $code, $verrouillee->totp_dernier_pas);
+        if ($pas === null) {
+            return false;
+        }
 
-            if ($pas === null) {
-                return false;
-            }
+        $verrouillee->totp_dernier_pas = $pas;
+        $verrouillee->save();
 
-            $verrouillee->totp_dernier_pas = $pas;
-            $verrouillee->save();
-            $auth->setRawAttributes($verrouillee->getAttributes(), true);
-
-            return true;
-        });
+        return true;
     }
 
     /**

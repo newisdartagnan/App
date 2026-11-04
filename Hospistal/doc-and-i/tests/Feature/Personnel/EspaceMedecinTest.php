@@ -370,8 +370,28 @@ class EspaceMedecinTest extends TestCase
                 ->where('rendezVous.0.motif', 'Fièvre depuis trois jours')
                 ->where('rendezVous.0.statut', 'Confirmé')
                 ->where('rendezVous.1.id', $tard->id)
-                ->where('rendezVous.1.motif', 'Toux')
+                ->where('rendezVous.1.heure', '15:00')
                 ->where('rendezVous.1.statut', 'En attente de paiement'));
+    }
+
+    public function test_le_patient_et_le_motif_ne_sont_montres_que_pour_un_rendez_vous_confirme(): void
+    {
+        // Un créneau bloqué le temps du paiement, ou annulé, n'est pas (ou plus)
+        // une relation de soin : le médecin n'en voit que l'heure et le statut.
+        $patient = User::factory()->create(['prenom' => 'Grâce', 'nom' => 'KABILA']);
+        foreach ([StatutRendezVous::EnAttentePaiement, StatutRendezVous::AnnuleParPatient, StatutRendezVous::AnnuleParMedecin] as $i => $statut) {
+            $this->rendezVous($this->medecin, $patient, '2026-11-1'.($i + 1).' 10:00:00', $statut, 'Douleurs abdominales');
+        }
+
+        $reponse = $this->moi()->get(route('personnel.medecin.agenda'))
+            ->assertInertia(fn ($page) => $page->has('rendezVous', 3)
+                ->where('rendezVous.0.patient', null)->where('rendezVous.0.motif', null)
+                ->where('rendezVous.1.patient', null)->where('rendezVous.1.motif', null)
+                ->where('rendezVous.2.patient', null)->where('rendezVous.2.motif', null));
+
+        $page = json_encode($reponse->viewData('page'));
+        $this->assertStringNotContainsString('KABILA', $page);
+        $this->assertStringNotContainsString('Douleurs abdominales', $page);
     }
 
     public function test_l_agenda_donne_les_libelles_du_point_de_vue_du_medecin(): void
@@ -380,7 +400,9 @@ class EspaceMedecinTest extends TestCase
         $this->rendezVous($this->medecin, User::factory()->create(), '2026-11-10 10:30:00', StatutRendezVous::Expire);
 
         $this->moi()->get(route('personnel.medecin.agenda'))
-            ->assertInertia(fn ($page) => $page->has('rendezVous', 1)->where('rendezVous.0.statut', 'Annulé par le patient'));
+            ->assertInertia(fn ($page) => $page->has('rendezVous', 1)
+                ->where('rendezVous.0.statut', 'Annulé par le patient')
+                ->where('rendezVous.0.heure', '09:30'));
     }
 
     public function test_l_agenda_ne_montre_au_medecin_que_le_strict_necessaire_du_patient(): void

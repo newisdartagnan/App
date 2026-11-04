@@ -55,7 +55,8 @@ const couleur = (code) => ({
                         <span class="font-semibold">{{ rdv.heure }} – {{ rdv.heureFin }}</span>
                         <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="couleur(rdv.statutCode)">{{ rdv.statut }}</span>
                     </div>
-                    <p class="mt-1">{{ rdv.patient }}</p>
+                    <p v-if="rdv.patient" class="mt-1">{{ rdv.patient }}</p>
+                    <p v-else class="mt-1 text-sm text-slate-500">Patient et motif affichés seulement pour un rendez-vous confirmé.</p>
                     <p v-if="rdv.motif" class="text-sm text-slate-600">{{ rdv.motif }}</p>
 
                     <button v-if="rdv.annulable && enAnnulation !== rdv.id" type="button"

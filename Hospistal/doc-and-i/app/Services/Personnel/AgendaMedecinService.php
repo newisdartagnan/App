@@ -27,14 +27,19 @@ final class AgendaMedecinService
             ->get()
             ->map(function (RendezVous $rdv) {
                 $debut = $rdv->debut->setTimezone(DisponibilitesMedecinService::FUSEAU);
+                // Revue de sécurité : un créneau bloqué le temps du paiement, ou
+                // annulé, n'est pas (ou plus) une relation de soin. Le médecin
+                // n'en voit que l'heure et le statut ; nom et motif seulement
+                // pour un rendez-vous confirmé.
+                $relationDeSoin = $rdv->statut === StatutRendezVous::Confirme;
 
                 return [
                     'id' => $rdv->id,
                     'date' => $debut->locale('fr')->translatedFormat('l j F Y'),
                     'heure' => $debut->format('H:i'),
                     'heureFin' => $rdv->fin->setTimezone(DisponibilitesMedecinService::FUSEAU)->format('H:i'),
-                    'patient' => trim($rdv->patient->prenom.' '.mb_strtoupper((string) $rdv->patient->nom)),
-                    'motif' => $rdv->demande?->motif,
+                    'patient' => $relationDeSoin ? trim($rdv->patient->prenom.' '.mb_strtoupper((string) $rdv->patient->nom)) : null,
+                    'motif' => $relationDeSoin ? $rdv->demande?->motif : null,
                     'statut' => self::libelle($rdv->statut),
                     'statutCode' => $rdv->statut->value,
                     // RG-05 : seul un rendez-vous confirmé, pas encore commencé, s'annule.

@@ -12,8 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Disponibilités du médecin (RDV-04) : plages hebdomadaires et absences,
- * en heure de Kinshasa. Chaque écriture se fait sous verrou du médecin :
- * deux envois simultanés ne créent pas deux plages qui se chevauchent.
+ * en heure de Kinshasa. Chaque écriture se fait sous le verrou consultatif
+ * du médecin, celui de la réservation : deux envois simultanés ne créent pas
+ * deux plages qui se chevauchent, et aucune réservation ne se glisse dans une
+ * absence en cours d'enregistrement.
  */
 final class DisponibilitesMedecinService
 {
@@ -29,7 +31,7 @@ final class DisponibilitesMedecinService
         }
 
         return DB::transaction(function () use ($medecin, $jour, $debut, $fin) {
-            Medecin::whereKey($medecin->id)->lockForUpdate()->first();
+            self::verrouillerMedecin($medecin);
 
             $chevauche = $medecin->plages()
                 ->where('jour_semaine', $jour)
@@ -68,7 +70,7 @@ final class DisponibilitesMedecinService
         }
 
         return DB::transaction(function () use ($medecin, $debut, $fin, $motif) {
-            Medecin::whereKey($medecin->id)->lockForUpdate()->first();
+            self::verrouillerMedecin($medecin);
 
             $chevauche = $medecin->absences()->where('debut', '<', $fin)->where('fin', '>', $debut)->exists();
 
@@ -124,6 +126,19 @@ final class DisponibilitesMedecinService
                 'motif' => $a->motif,
                 'supprimable' => $a->debut->isFuture(),
             ])->all();
+    }
+
+    /**
+     * Le MÊME verrou consultatif que la réservation
+     * (ReservationService::verrouillerMedecin, clé « medecin:<id> ») : une
+     * réservation et une nouvelle plage ou absence du même médecin se
+     * sérialisent, aucun créneau ne se glisse dans une absence en cours
+     * d'enregistrement (revue de sécurité). Un verrou de ligne sur medecins
+     * ne suffisait pas : la réservation ne le prend pas.
+     */
+    private static function verrouillerMedecin(Medecin $medecin): void
+    {
+        DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['medecin:'.$medecin->id]);
     }
 
     private static function formater(\DateTimeInterface $date): string

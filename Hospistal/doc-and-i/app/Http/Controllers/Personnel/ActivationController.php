@@ -110,6 +110,8 @@ class ActivationController extends Controller
         $request->session()->put(PersonnelAuthentifie::CLE_AUTHENTIFIE, $jeton->user_id);
         $request->session()->put(PersonnelAuthentifie::CLE_ACTIVITE, now()->getTimestamp());
         $request->session()->put(self::CLE_CODES, $codes);
+        // L'historique contient la page du secret TOTP : effacé (et sa clé changée).
+        Inertia::clearHistory();
 
         return redirect()->route('personnel.codes-recuperation');
     }

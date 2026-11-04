@@ -88,6 +88,8 @@ class ConnexionPersonnelController extends Controller
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        // Après la session neuve : la page suivante efface l'historique chiffré.
+        Inertia::clearHistory();
 
         return redirect()->route('personnel.connexion');
     }
