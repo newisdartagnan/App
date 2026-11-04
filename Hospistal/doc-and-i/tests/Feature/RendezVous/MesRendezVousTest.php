@@ -117,6 +117,20 @@ class MesRendezVousTest extends TestCase
                 ->where('actions.reporter', true));
     }
 
+    public function test_apres_report_le_detail_annonce_le_remboursement_plafonne_et_la_fin_des_reports(): void
+    {
+        // Lundi 07:00, rendez-vous à 11:00 : 50 %. Déplacé à mardi : toujours 50 % au plus.
+        $rdv = $this->confirme('11:00', 0);
+        $this->post(route('rdv.reporter', $rdv), ['debut' => $this->lundi('11:00')->addDay()->toIso8601String()])->assertSessionHasNoErrors();
+
+        $this->get(route('rdv.voir', $rdv))
+            ->assertInertia(fn ($page) => $page->where('actions.taux_si_annulation', 50)->where('actions.reports_epuises', false));
+
+        $rdv->forceFill(['reports' => (int) config('doc-and-i.rendez_vous.reports_max')])->save();
+        $this->get(route('rdv.voir', $rdv))
+            ->assertInertia(fn ($page) => $page->where('actions.reporter', false)->where('actions.reports_epuises', true));
+    }
+
     public function test_annuler_un_rendez_vous_confirme(): void
     {
         $rdv = $this->confirme('11:00', 0);

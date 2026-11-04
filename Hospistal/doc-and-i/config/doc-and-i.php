@@ -73,6 +73,19 @@ return [
         ],
         // RG-04 : à moins de 2 h, un seul report possible.
         'reports_max_tardifs' => 1,
+        // Reports au total pour un même rendez-vous (tardifs compris) : borne
+        // l'agenda du médecin et les SMS de rappel (revue de sécurité).
+        'reports_max' => 3,
+    ],
+
+    /*
+    | Pièces jointes des demandes (RDV-01) : quota par patient sur 24 heures
+    | glissantes, en plus des 5 fichiers de 5 Mo par demande. Une demande sans
+    | fichier n'est jamais bloquée par ce quota.
+    */
+    'pieces_jointes' => [
+        'demandes_par_jour' => 5,
+        'octets_par_jour' => 50 * 1024 * 1024,
     ],
 
     /*

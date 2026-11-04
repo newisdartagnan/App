@@ -66,6 +66,9 @@ const texteRemboursement = computed(() => {
             <Link v-if="actions.reporter" :href="`/mes-rendez-vous/${rendezVous.id}/report`" class="bouton-secondaire">
                 Changer l'heure
             </Link>
+            <p v-else-if="actions.reports_epuises" class="text-sm text-slate-600">
+                Ce rendez-vous a déjà été déplacé plusieurs fois : il ne peut plus l'être.
+            </p>
             <p v-else-if="actions.report_tardif" class="text-sm text-slate-600">
                 À moins de 2 heures du rendez-vous, vous l'avez déjà déplacé une fois : ce n'est plus possible.
             </p>

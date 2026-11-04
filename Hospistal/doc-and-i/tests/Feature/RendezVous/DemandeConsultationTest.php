@@ -329,4 +329,43 @@ class DemandeConsultationTest extends TestCase
         $this->get('/consultation/demandes/1/choix')->assertNotFound();
         $this->get('/mes-rendez-vous/1')->assertNotFound();
     }
+
+    // --- Revue de sécurité du lot : quota de stockage des pièces jointes ---
+
+    public function test_le_nombre_de_demandes_avec_fichiers_par_jour_est_plafonne(): void
+    {
+        config(['doc-and-i.pieces_jointes.demandes_par_jour' => 2]);
+        $patient = $this->patient();
+        $this->actingAs($patient);
+
+        $this->envoyer(['pieces' => [$this->pdf()]])->assertSessionHasNoErrors();
+        $this->envoyer(['pieces' => [$this->pdf()]])->assertSessionHasNoErrors();
+        $this->envoyer(['pieces' => [$this->pdf()]])
+            ->assertSessionHasErrors(['pieces' => 'Vous avez déjà envoyé beaucoup de fichiers aujourd\'hui. Envoyez votre demande sans fichier, ou réessayez demain.']);
+        $this->assertSame(2, DemandeConsultation::count());
+        $this->assertSame(2, PieceJointeDemande::count());
+        $this->assertCount(2, Storage::disk('local')->allFiles());
+
+        // Sans fichier, la demande passe : le quota ne bloque jamais l'accès aux soins.
+        $this->envoyer()->assertSessionHasNoErrors();
+        $this->assertSame(3, DemandeConsultation::count());
+
+        // Un autre patient n'est pas concerné ; le lendemain, le quota repart.
+        $this->actingAs($this->patient())->envoyer(['pieces' => [$this->pdf()]])->assertSessionHasNoErrors();
+        $this->travel(25)->hours();
+        $this->actingAs($patient)->envoyer(['pieces' => [$this->pdf()]])->assertSessionHasNoErrors();
+    }
+
+    public function test_le_volume_de_fichiers_par_jour_est_plafonne(): void
+    {
+        config(['doc-and-i.pieces_jointes.octets_par_jour' => 1000]);
+        $patient = $this->patient();
+        $this->actingAs($patient);
+
+        $this->envoyer(['pieces' => [$this->pdf('a.pdf', 500)]])->assertSessionHasNoErrors();
+        $this->envoyer(['pieces' => [$this->pdf('b.pdf', 500)]])->assertSessionHasErrors('pieces');
+
+        $this->assertSame(1, DemandeConsultation::count());
+        $this->assertSame(['a.pdf'], PieceJointeDemande::pluck('nom_original')->all());
+    }
 }

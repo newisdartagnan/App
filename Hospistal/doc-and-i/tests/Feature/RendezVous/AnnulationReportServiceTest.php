@@ -158,7 +158,7 @@ class AnnulationReportServiceTest extends TestCase
     {
         $this->travelTo($this->mardi('07:00'));
         $rdv = $this->confirme('10:00');
-        $rdv->forceFill(['rappel_24h_envoye_le' => now(), 'prix' => '20.00'])->save();
+        $rdv->forceFill(['prix' => '20.00'])->save();
         $this->type->update(['prix' => '35.00']);
 
         $this->service->reporter($rdv, $this->mardi('11:00'));
@@ -170,7 +170,6 @@ class AnnulationReportServiceTest extends TestCase
         $this->assertSame('2026-12-08 11:40', $rdv->fin->format('Y-m-d H:i'));
         $this->assertSame('20.00', $rdv->prix, 'Le prix payé ne change pas.');
         $this->assertSame(2, $rdv->reports);
-        $this->assertNull($rdv->rappel_24h_envoye_le, 'Nouvelle heure : nouveaux rappels.');
         // L'ancien créneau est libre.
         $this->service->reserver($this->demande(User::factory()->create()), $this->medecin, $this->type, $this->mardi('10:00'));
     }
@@ -239,5 +238,113 @@ class AnnulationReportServiceTest extends TestCase
         $this->travelTo($this->mardi('10:05'));
 
         $this->refus(fn () => $this->service->reporter($this->confirme('10:00'), $this->mardi('11:00')), 'a déjà commencé');
+    }
+
+    // --- Revue de sécurité du lot : un report ne doit pas contourner RG-04 / RG-05 ---
+
+    public function test_un_report_tardif_puis_une_annulation_ne_rembourse_pas_ce_qui_ne_l_etait_plus(): void
+    {
+        // 70 minutes avant : annuler ne rembourserait rien. Le report tardif
+        // vers la semaine suivante ne doit pas rendre l'annulation remboursée.
+        $this->travelTo($this->mardi('08:50'));
+        $rdv = $this->confirme('10:00');
+        $this->assertSame(0, $this->service->tauxSiAnnulation($rdv, now()));
+
+        $this->service->reporter($rdv, $this->mardi('10:00')->addWeek());
+        $this->assertSame(0, $this->service->tauxSiAnnulation($rdv->fresh(), now()));
+
+        $this->assertSame(0, $this->service->annulerParPatient($rdv)->taux_remboursement);
+    }
+
+    public function test_un_report_dans_la_tranche_a_moitie_ne_rend_pas_le_remboursement_total(): void
+    {
+        $this->travelTo($this->mardi('05:00'));
+        $rdv = $this->confirme('10:00');
+
+        $this->service->reporter($rdv, $this->mardi('11:00')->addWeek());
+        $this->travel(1)->hour();
+
+        $this->assertSame(50, $this->service->annulerParPatient($rdv)->taux_remboursement);
+    }
+
+    public function test_un_report_plus_de_24_heures_avant_garde_le_remboursement_total(): void
+    {
+        $this->travelTo($this->mardi('10:00')->subDays(3));
+        $rdv = $this->confirme('10:00');
+
+        $this->service->reporter($rdv, $this->mardi('11:00')->addWeek());
+
+        $this->assertSame(100, $this->service->annulerParPatient($rdv)->taux_remboursement);
+    }
+
+    public function test_apres_un_report_le_taux_baisse_encore_a_l_approche_du_nouvel_horaire(): void
+    {
+        $this->travelTo($this->mardi('10:00')->subDays(3));
+        $rdv = $this->confirme('10:00');
+        $this->service->reporter($rdv, $this->mardi('11:00'));
+
+        $this->travelTo($this->mardi('10:00'));
+
+        $this->assertSame(0, $this->service->annulerParPatient($rdv)->taux_remboursement);
+    }
+
+    public function test_le_medecin_ne_peut_pas_annuler_un_rendez_vous_commence_ou_passe(): void
+    {
+        $this->travelTo($this->mardi('10:00'));
+        $commence = $this->confirme('10:00');
+        $passe = $this->rendezVousExistant($this->medecin, User::factory()->create(), $this->mardi('08:00'), 20, StatutRendezVous::Confirme, null, $this->type);
+
+        foreach ([$commence, $passe] as $rdv) {
+            $this->refus(fn () => $this->service->annulerParMedecin($rdv, 'Oubli'), 'a déjà commencé');
+            $this->assertSame(StatutRendezVous::Confirme, $rdv->fresh()->statut);
+            $this->assertNull($rdv->fresh()->taux_remboursement);
+        }
+
+        // Juste avant le début, l'annulation reste possible.
+        $this->travelTo($this->mardi('10:39'));
+        $this->assertSame(100, $this->service->annulerParMedecin($this->confirme('10:40'), 'Urgence')->taux_remboursement);
+    }
+
+    public function test_le_nombre_total_de_reports_d_un_rendez_vous_est_plafonne(): void
+    {
+        config(['doc-and-i.rendez_vous.reports_max' => 3]);
+        $this->travelTo($this->mardi('07:00'));
+        $rdv = $this->confirme('10:00');
+
+        foreach (['10:20', '10:40', '11:00'] as $heure) {
+            $this->service->reporter($rdv, $this->mardi($heure));
+        }
+
+        $this->refus(fn () => $this->service->reporter($rdv, $this->mardi('11:20')), 'déjà été déplacé 3 fois');
+        $this->assertSame('11:00', $rdv->fresh()->debut->format('H:i'));
+        $this->assertSame(3, $rdv->fresh()->reports);
+    }
+
+    public function test_un_report_proche_garde_les_rappels_deja_envoyes(): void
+    {
+        // Rappel de la veille envoyé lundi 10:30 (il couvre jusqu'à mardi 10:30),
+        // dernier rappel envoyé à 09:30 (il couvre jusqu'à 10:30).
+        $this->travelTo($this->mardi('09:30'));
+        $rdv = $this->confirme('10:20');
+        $rdv->forceFill(['rappel_24h_envoye_le' => $this->mardi('10:30')->subDay(), 'rappel_1h_envoye_le' => now()])->save();
+
+        $this->service->reporter($rdv, $this->mardi('10:00'));
+
+        $rdv->refresh();
+        $this->assertNotNull($rdv->rappel_24h_envoye_le, 'Le rappel de la veille couvre encore 10:00.');
+        $this->assertNotNull($rdv->rappel_1h_envoye_le, 'Le dernier rappel couvre encore 10:00.');
+    }
+
+    public function test_un_report_hors_de_la_fenetre_deja_prevenue_rearme_les_rappels(): void
+    {
+        $this->travelTo($this->mardi('09:15'));
+        $rdv = $this->confirme('10:00');
+        $rdv->forceFill(['rappel_24h_envoye_le' => $this->mardi('10:00')->subDay(), 'rappel_1h_envoye_le' => now()])->save();
+
+        $this->service->reporter($rdv, $this->mardi('10:00')->addWeek());
+
+        $rdv->refresh();
+        $this->assertNull($rdv->rappel_24h_envoye_le, 'Une semaine plus tard : un nouveau rappel la veille.');
+        $this->assertNull($rdv->rappel_1h_envoye_le);
     }
 }

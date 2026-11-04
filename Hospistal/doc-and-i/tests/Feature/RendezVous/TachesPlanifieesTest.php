@@ -185,4 +185,29 @@ class TachesPlanifieesTest extends TestCase
         $this->assertCount(1, $this->sms->envoyes);
         $this->assertNotNull($rdv->fresh()->rappel_1h_envoye_le);
     }
+
+    public function test_des_reports_en_boucle_ne_font_pas_pleuvoir_les_sms(): void
+    {
+        // Revue de sécurité : chaque report remettait les rappels à zéro, et
+        // les reports à plus de 2 h étaient illimités.
+        $medecin = $this->medecin([[2, '10:00', '12:00']]);
+        $type = $this->typeConsultation($medecin, '20.00', 20);
+        $patient = $this->patient();
+        $this->voyagerAuLundi('12:00');
+        $rdv = $this->rendezVousExistant($medecin, $patient, $this->lundi('10:00')->addDay(), 20, StatutRendezVous::Confirme, null, $type);
+        $this->artisan('rdv:envoyer-rappels');
+        $this->assertCount(1, $this->sms->envoyes);
+
+        foreach (['10:20', '10:00', '10:20', '10:00', '10:20'] as $heure) {
+            $this->actingAs($patient)->post(route('rdv.reporter', $rdv), ['debut' => $this->lundi($heure)->addDay()->toIso8601String()])
+                ->assertRedirect();
+            $this->travel(5)->minutes();
+            $this->artisan('rdv:envoyer-rappels');
+        }
+
+        $this->assertCount(1, $this->sms->envoyes, 'Le rappel de la veille couvre déjà ces horaires.');
+        $this->assertSame(3, (int) config('doc-and-i.rendez_vous.reports_max'));
+        $this->assertSame(3, $rdv->fresh()->reports, 'Au-delà de 3 reports, le rendez-vous ne bouge plus.');
+        $this->assertSame('10:20', $rdv->fresh()->debut->format('H:i'));
+    }
 }

@@ -151,7 +151,8 @@ class ReservationService
     /**
      * RDV-07, RG-04 : annulation par le patient. Une attente de paiement
      * s'annule sans question de remboursement ; un rendez-vous confirmé reçoit
-     * son taux de remboursement selon le délai avant le début.
+     * son taux de remboursement selon le délai avant le début, plafonné par
+     * ses reports éventuels (tauxSiAnnulation).
      *
      * @throws ReservationRefusee
      */
@@ -166,7 +167,7 @@ class ReservationService
                 StatutRendezVous::EnAttentePaiement => null,
                 StatutRendezVous::Confirme => $maintenant >= $rdv->debut
                     ? throw new ReservationRefusee('La consultation a déjà commencé : elle ne peut plus être annulée.')
-                    : $this->tauxRemboursement($rdv->debut, $maintenant),
+                    : $this->tauxSiAnnulation($rdv, $maintenant),
                 default => throw new ReservationRefusee('Ce rendez-vous est déjà annulé ou terminé.'),
             };
             $etaitConfirme = $rdv->statut === StatutRendezVous::Confirme;
@@ -205,6 +206,13 @@ class ReservationService
                 throw new ReservationRefusee('Seul un rendez-vous confirmé peut être annulé par le médecin.');
             }
 
+            // Une consultation commencée ou passée ne s'annule plus : ce serait
+            // rembourser en entier une consultation peut-être faite (revue de
+            // sécurité). Son issue (terminée, absence) relève du lot téléconsultation.
+            if (CarbonImmutable::now() >= $rdv->debut) {
+                throw new ReservationRefusee('Ce rendez-vous a déjà commencé : il ne peut plus être annulé.');
+            }
+
             $rdv->transitionVers(StatutRendezVous::AnnuleParMedecin);
             $rdv->forceFill([
                 'annule_le' => CarbonImmutable::now(),
@@ -220,8 +228,10 @@ class ReservationService
 
     /**
      * RDV-07, RG-04 : le patient déplace un rendez-vous confirmé vers un autre
-     * créneau libre du même médecin et du même type, au même prix. Librement
-     * plus de 2 h avant ; à moins de 2 h, reports_max_tardifs fois.
+     * créneau libre du même médecin et du même type, au même prix. Au plus
+     * reports_max fois au total ; à moins de 2 h, reports_max_tardifs fois.
+     * Le remboursement en cas d'annulation ultérieure reste plafonné au taux
+     * du moment du report (tauxSiAnnulation).
      *
      * @throws ReservationRefusee
      */
@@ -240,6 +250,11 @@ class ReservationService
 
             if ($maintenant >= $rdv->debut) {
                 throw new ReservationRefusee('La consultation a déjà commencé : elle ne peut plus être déplacée.');
+            }
+
+            $maxTotal = (int) config('doc-and-i.rendez_vous.reports_max');
+            if ($rdv->reports >= $maxTotal) {
+                throw new ReservationRefusee("Ce rendez-vous a déjà été déplacé {$maxTotal} fois : il ne peut plus l'être. Vous pouvez l'annuler.");
             }
 
             $tardif = $this->estTardif($rdv, $maintenant);
@@ -268,18 +283,52 @@ class ReservationService
                 throw new ReservationRefusee('Ce créneau n\'est plus disponible. Choisissez-en un autre.');
             }
 
+            [$minutesVeille, $minutesDernier] = array_map('intval', config('doc-and-i.rendez_vous.rappels_minutes'));
+
             $rdv->forceFill([
                 'debut' => $nouveauDebut,
                 'fin' => $nouveauDebut->addMinutes($type->duree_minutes),
                 'reports' => $rdv->reports + 1,
                 'reports_tardifs' => (int) $rdv->reports_tardifs + ($tardif ? 1 : 0),
-                // Nouvelle heure : les rappels (RDV-06) repartent de zéro.
-                'rappel_24h_envoye_le' => null,
-                'rappel_1h_envoye_le' => null,
+                // RG-04 : le taux qu'une annulation aurait donné maintenant devient
+                // un plafond ; reporter ne peut pas améliorer le remboursement.
+                'taux_remboursement_plafond' => $this->tauxSiAnnulation($rdv, $maintenant),
+                // RDV-06 : un rappel déjà envoyé reste valable si le nouvel horaire
+                // tombe encore dans la fenêtre qu'il annonçait ; sinon il repartira.
+                'rappel_24h_envoye_le' => $this->rappelEncoreValable($rdv->rappel_24h_envoye_le, $nouveauDebut, $minutesVeille),
+                'rappel_1h_envoye_le' => $this->rappelEncoreValable($rdv->rappel_1h_envoye_le, $nouveauDebut, $minutesDernier),
             ])->save();
 
             return $rdv;
         }));
+    }
+
+    /**
+     * RG-04 : taux de remboursement d'une annulation par le patient à cet
+     * instant. Règle : le plus bas entre le taux calculé sur l'horaire actuel
+     * et le plafond retenu au dernier report (le taux qui s'appliquait au
+     * moment de chaque report). Ainsi un rendez-vous déplacé à moins de 2 h,
+     * puis annulé, n'est pas remboursé ; déplacé dans la tranche à 50 %, il
+     * reste au plus à 50 % ; déplacé plus de 24 h avant, il garde 100 %.
+     */
+    public function tauxSiAnnulation(RendezVous $rdv, DateTimeInterface $maintenant): int
+    {
+        return min(
+            $this->tauxRemboursement($rdv->debut, $maintenant),
+            $rdv->taux_remboursement_plafond ?? 100,
+        );
+    }
+
+    /** Un rappel envoyé à $envoyeLe annonçait les débuts jusqu'à $envoyeLe + $fenetre minutes. */
+    private function rappelEncoreValable(?DateTimeInterface $envoyeLe, CarbonImmutable $nouveauDebut, int $fenetre): ?DateTimeInterface
+    {
+        if ($envoyeLe === null) {
+            return null;
+        }
+
+        return $nouveauDebut->getTimestamp() <= CarbonImmutable::instance($envoyeLe)->addMinutes($fenetre)->getTimestamp()
+            ? $envoyeLe
+            : null;
     }
 
     /** RG-04 : part remboursable selon le délai entre maintenant et le début. */
