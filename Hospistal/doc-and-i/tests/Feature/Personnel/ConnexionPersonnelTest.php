@@ -122,13 +122,27 @@ class ConnexionPersonnelTest extends TestCase
 
     public function test_tout_role_du_personnel_se_connecte_de_la_meme_facon(): void
     {
+        // Un rôle sans écrans propres pour l'instant : l'accueil générique du personnel.
+        $support = $this->personnelActive('support');
+
+        $this->identifiants($support->email);
+        $this->code($this->codeTotpCourant())->assertRedirect(route('personnel.accueil'));
+
+        $this->assertAuthenticatedAs($support);
+        $this->get(route('personnel.accueil'))->assertOk()->assertInertia(fn ($page) => $page->component('Personnel/Accueil'));
+        $this->get(route('personnel.medecin.accueil'))->assertForbidden();
+        $this->get(route('personnel.caisse.accueil'))->assertForbidden();
+    }
+
+    public function test_un_agent_de_caisse_connecte_arrive_dans_l_espace_caisse(): void
+    {
         $caissier = $this->personnelActive('caisse');
 
         $this->identifiants($caissier->email);
         $this->code($this->codeTotpCourant())->assertRedirect(route('personnel.accueil'));
 
-        $this->assertAuthenticatedAs($caissier);
-        $this->get(route('personnel.accueil'))->assertOk()->assertInertia(fn ($page) => $page->component('Personnel/Accueil'));
+        $this->get(route('personnel.accueil'))->assertRedirect(route('personnel.caisse.accueil'));
+        $this->get(route('personnel.caisse.accueil'))->assertOk()->assertInertia(fn ($page) => $page->component('Personnel/Caisse/Accueil'));
         $this->get(route('personnel.medecin.accueil'))->assertForbidden();
     }
 

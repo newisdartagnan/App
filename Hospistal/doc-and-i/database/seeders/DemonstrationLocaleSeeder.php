@@ -11,7 +11,7 @@ use Spatie\Permission\Models\Role;
 
 /**
  * Données de DÉMONSTRATION pour tester en local : deux médecins fictifs avec
- * des plages, et des prix indicatifs. Jamais exécuté hors APP_ENV=local
+ * des plages, des prix indicatifs et deux agents de caisse. Jamais exécuté hors APP_ENV=local
  * (voir DatabaseSeeder) : aucune donnée fictive n'atteint une base réelle.
  */
 class DemonstrationLocaleSeeder extends Seeder
@@ -56,6 +56,26 @@ class DemonstrationLocaleSeeder extends Seeder
                     $medecin->plages()->create(['jour_semaine' => $jour, 'heure_debut' => '14:00', 'heure_fin' => '17:00']);
                 }
             }
+        }
+
+        // Deux agents de caisse fictifs : de quoi essayer les quatre yeux
+        // (l'un demande ou prépare, l'autre valide ou paie). Comme les médecins
+        // de démonstration, à activer : php artisan personnel:lien-activation <courriel>.
+        $caisse = [
+            ['caisse1.demo@doc-and-i.local', '+243810000011', 'KABONGO', 'Rose'],
+            ['caisse2.demo@doc-and-i.local', '+243810000012', 'MBUYI', 'Patrick'],
+        ];
+
+        foreach ($caisse as [$email, $telephone, $nom, $prenom]) {
+            $user = User::where('email', $email)->first() ?? tap(new User)->forceFill([
+                'email' => $email,
+                'telephone' => $telephone,
+                'telephone_verifie_le' => now(),
+                'nom' => $nom,
+                'prenom' => $prenom,
+            ]);
+            $user->save();
+            $user->syncRoles([Role::findOrCreate('caisse', 'web')]);
         }
     }
 }

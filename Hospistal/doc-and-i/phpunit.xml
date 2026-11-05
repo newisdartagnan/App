@@ -35,6 +35,9 @@
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>
         <env name="SMS_DRIVER" value="log" force="true"/>
+        <env name="PAIEMENT_FOURNISSEUR" value="simulation" force="true"/>
+        <env name="PAIEMENT_SECRET_RAPPEL" value="secret-de-test-des-rappels-de-paiement-0123456789" force="true"/>
+        <env name="DOC_AND_I_COMMISSION_POURCENT" value="20" force="true"/>
         <env name="PULSE_ENABLED" value="false" force="true"/>
         <env name="TELESCOPE_ENABLED" value="false" force="true"/>
         <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>
@@ -50,6 +53,9 @@
         <server name="QUEUE_CONNECTION" value="sync" force="true"/>
         <server name="SESSION_DRIVER" value="array" force="true"/>
         <server name="SMS_DRIVER" value="log" force="true"/>
+        <server name="PAIEMENT_FOURNISSEUR" value="simulation" force="true"/>
+        <server name="PAIEMENT_SECRET_RAPPEL" value="secret-de-test-des-rappels-de-paiement-0123456789" force="true"/>
+        <server name="DOC_AND_I_COMMISSION_POURCENT" value="20" force="true"/>
         <server name="PULSE_ENABLED" value="false" force="true"/>
         <server name="TELESCOPE_ENABLED" value="false" force="true"/>
         <server name="NIGHTWATCH_ENABLED" value="false" force="true"/>

@@ -2,22 +2,39 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-// Gabarit de l'espace du personnel : navigation du médecin, déconnexion du personnel.
-const props = defineProps({ navigation: { type: Boolean, default: false } });
+// Gabarit de l'espace du personnel : navigation du médecin ou de la caisse, déconnexion du personnel.
+const props = defineProps({
+    navigation: { type: Boolean, default: false },
+    espace: { type: String, default: 'medecin' },
+});
 
 const page = usePage();
 const utilisateur = computed(() => page.props.utilisateur);
 const succes = computed(() => page.props.flash?.succes);
 const deconnexionEnCours = ref(false);
 
-const liens = [
-    { href: '/personnel/medecin', libelle: 'Accueil' },
-    { href: '/personnel/medecin/agenda', libelle: 'Agenda' },
-    { href: '/personnel/medecin/disponibilites', libelle: 'Disponibilités' },
-    { href: '/personnel/medecin/absences', libelle: 'Absences' },
-];
+const menus = {
+    medecin: [
+        { href: '/personnel/medecin', libelle: 'Accueil' },
+        { href: '/personnel/medecin/agenda', libelle: 'Agenda' },
+        { href: '/personnel/medecin/disponibilites', libelle: 'Disponibilités' },
+        { href: '/personnel/medecin/absences', libelle: 'Absences' },
+        { href: '/personnel/medecin/reversements', libelle: 'Reversements' },
+    ],
+    caisse: [
+        { href: '/personnel/caisse', libelle: 'Accueil' },
+        { href: '/personnel/caisse/taux', libelle: 'Taux du jour' },
+        { href: '/personnel/caisse/remboursements', libelle: 'Remboursements' },
+        { href: '/personnel/caisse/journal', libelle: 'Journal' },
+        { href: '/personnel/caisse/reversements', libelle: 'Reversements' },
+        { href: '/personnel/caisse/rapprochement', libelle: 'Rapprochement' },
+        { href: '/personnel/caisse/factures', libelle: 'Factures' },
+    ],
+};
+const liens = computed(() => menus[props.espace] ?? menus.medecin);
+const accueil = computed(() => liens.value[0].href);
 
-const actif = (href) => page.url === href || (href !== '/personnel/medecin' && page.url.startsWith(href));
+const actif = (href) => page.url.split('?')[0] === href || (href !== accueil.value && page.url.startsWith(href));
 
 const deconnecter = () => {
     router.post('/personnel/deconnexion', {}, {
@@ -41,7 +58,7 @@ const deconnecter = () => {
                     Se déconnecter
                 </button>
             </div>
-            <nav v-if="props.navigation" class="mx-auto flex max-w-2xl gap-4 overflow-x-auto px-4 pb-2 text-sm" aria-label="Espace médecin">
+            <nav v-if="props.navigation" class="mx-auto flex max-w-2xl gap-4 overflow-x-auto px-4 pb-2 text-sm" :aria-label="espace === 'caisse' ? 'Espace caisse' : 'Espace médecin'">
                 <Link v-for="lien in liens" :key="lien.href" :href="lien.href"
                       class="whitespace-nowrap py-1"
                       :class="actif(lien.href) ? 'border-b-2 border-marque-700 font-semibold text-marque-700' : 'text-slate-600'">

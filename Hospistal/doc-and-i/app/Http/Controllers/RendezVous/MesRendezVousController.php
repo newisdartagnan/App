@@ -5,12 +5,15 @@ namespace App\Http\Controllers\RendezVous;
 use App\Enums\StatutRendezVous;
 use App\Http\Controllers\Controller;
 use App\Models\DemandeConsultation;
+use App\Models\Paiement;
 use App\Models\RendezVous;
+use App\Services\Paiement\PaiementRefuse;
 use App\Services\RendezVous\Affichage;
 use App\Services\RendezVous\CreneauxService;
 use App\Services\RendezVous\DemandeConsultationService;
 use App\Services\RendezVous\ReservationRefusee;
 use App\Services\RendezVous\ReservationService;
+use App\Support\Montant;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -88,7 +91,26 @@ class MesRendezVousController extends Controller
                     && (! $tardif || $rdv->reports_tardifs < (int) config('doc-and-i.rendez_vous.reports_max_tardifs')),
                 'report_tardif' => $confirme && $avantDebut && $tardif,
                 'reports_epuises' => $confirme && $avantDebut && $reportsEpuises,
+                'payer' => $enAttente && $rdv->expire_le > $maintenant,
             ],
+            // PAY-05, RG-04/05 : paiements du rendez-vous et état des remboursements.
+            'paiements' => Paiement::where('rendez_vous_id', $rdv->id)
+                ->with(['facture', 'remboursements'])
+                ->orderBy('created_at')
+                ->get()
+                ->map(fn (Paiement $p) => [
+                    'id' => $p->id,
+                    'statut' => $p->statut->value,
+                    'statut_libelle' => $p->statut->libelle(),
+                    'en_cours' => $p->statut->estEnCours(),
+                    'montant' => Montant::afficher((string) $p->montant, $p->devise),
+                    'facture' => $p->facture ? ['id' => $p->facture->id, 'numero' => $p->facture->numero] : null,
+                    'remboursements' => $p->remboursements->map(fn ($r) => [
+                        'montant' => Montant::afficher((string) $r->montant, $r->devise),
+                        'statut' => $r->statut->libelle(),
+                        'motif' => $r->motif->libelle(),
+                    ])->values(),
+                ]),
         ]);
     }
 
@@ -102,7 +124,9 @@ class MesRendezVousController extends Controller
 
         try {
             $rdv = $service->annulerParPatient($rendezVous, $donnees['motif'] ?? null);
-        } catch (ReservationRefusee $e) {
+        } catch (ReservationRefusee|PaiementRefuse $e) {
+            // Refus métier (y compris de la demande de remboursement) : rien
+            // n'est annulé, le patient lit le message ; jamais d'erreur 500.
             return back()->withErrors(['annulation' => $e->getMessage()]);
         }
 

@@ -3,6 +3,9 @@
 namespace App\Providers;
 
 use App\Services\CodeConnexionService;
+use App\Services\Paiement\Fournisseur\FournisseurPaiement;
+use App\Services\Paiement\Fournisseur\FournisseurSimulation;
+use App\Services\Paiement\Fournisseur\SignatureRappel;
 use App\Sms\EnvoyeurSms;
 use App\Sms\EnvoyeurSmsJournal;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -31,6 +34,27 @@ class AppServiceProvider extends ServiceProvider
                 default => throw new InvalidArgumentException('Pilote SMS inconnu : '.$pilote.' (voir SMS_DRIVER).'),
             };
         });
+
+        $this->app->singleton(FournisseurPaiement::class, function () {
+            $pilote = config('doc-and-i.paiement.fournisseur');
+
+            // La simulation confirme des paiements sans argent : hors du poste
+            // du développeur et des tests (production, mais aussi recette ou
+            // pilote ouverts à de vrais patients), ce serait des consultations
+            // gratuites. Liste blanche, pas liste noire (revue de sécurité).
+            if ($pilote === FournisseurSimulation::NOM && ! FournisseurSimulation::environnementAutorise()) {
+                throw new RuntimeException('PAIEMENT_FOURNISSEUR=simulation est interdit en production et hors des environnements local et testing : configurer l\'agrégateur.');
+            }
+
+            return match ($pilote) {
+                FournisseurSimulation::NOM => new FournisseurSimulation(new SignatureRappel(
+                    (string) config('doc-and-i.paiement.secret_rappel'),
+                    (int) config('doc-and-i.paiement.tolerance_signature_secondes'),
+                )),
+                null, '' => throw new InvalidArgumentException('PAIEMENT_FOURNISSEUR n\'est pas défini (voir .env.example).'),
+                default => throw new InvalidArgumentException('Pilote de paiement inconnu : '.$pilote.' (voir PAIEMENT_FOURNISSEUR).'),
+            };
+        });
     }
 
     public function boot(): void
@@ -52,5 +76,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('personnel-connexion', $parIpPersonnel('connexion'));
         RateLimiter::for('personnel-code', $parIpPersonnel('code'));
         RateLimiter::for('personnel-activation', $parIpPersonnel('activation'));
+
+        // PAY-04 : rappels de l'agrégateur, large (ses serveurs sont peu
+        // nombreux et rejouent leurs rappels) mais borné contre l'inondation.
+        RateLimiter::for('paiement-rappel', $parIp('paiement-rappel', 300));
     }
 }

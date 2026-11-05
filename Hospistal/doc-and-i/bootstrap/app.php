@@ -33,6 +33,10 @@ return Application::configure(basePath: dirname(__DIR__))
             $middleware->trustProxies(at: $proxys);
         }
 
+        // PAY-04 : l'agrégateur n'a pas de jeton CSRF ; son rappel est
+        // authentifié par sa signature (RappelPaiementController).
+        $middleware->validateCsrfTokens(except: ['paiement/rappel/*']);
+
         $middleware->alias([
             'profil.complet' => ProfilComplet::class,
             'consentement' => ConsentementAJour::class,

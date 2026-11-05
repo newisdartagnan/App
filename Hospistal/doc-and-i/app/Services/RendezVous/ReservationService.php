@@ -2,11 +2,16 @@
 
 namespace App\Services\RendezVous;
 
+use App\Enums\MotifRemboursement;
+use App\Enums\StatutPaiement;
 use App\Enums\StatutRendezVous;
 use App\Models\DemandeConsultation;
 use App\Models\Medecin;
+use App\Models\Paiement;
 use App\Models\RendezVous;
 use App\Models\TypeConsultation;
+use App\Services\Paiement\RemboursementService;
+use App\Support\Montant;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -29,7 +34,83 @@ class ReservationService
 
     private const INDEX_ATTENTE_PATIENT = 'rendez_vous_une_attente_par_patient';
 
-    public function __construct(private readonly CreneauxService $creneaux) {}
+    /** Issues de confirmerApresPaiement(). */
+    public const CONFIRME = 'confirme';
+
+    public const DEJA_CONFIRME = 'deja_confirme';
+
+    public const REPRIS = 'repris';
+
+    public const IMPOSSIBLE = 'impossible';
+
+    public function __construct(
+        private readonly CreneauxService $creneaux,
+        private readonly ?RemboursementService $remboursements = null,
+    ) {}
+
+    /**
+     * Paiement encaissé (rappel signé de l'opérateur, lot paiement) : le
+     * rendez-vous est confirmé, ou repris s'il a expiré entre-temps (RG-03).
+     *
+     * - en attente, dans le délai : confirmé ;
+     * - en attente échue, ou expiré : repris si le créneau est encore libre,
+     *   la demande toujours ouverte et l'heure encore réservable ; sinon
+     *   IMPOSSIBLE (le paiement sera remboursé) ;
+     * - déjà confirmé : DEJA_CONFIRME ; annulé ou autre : IMPOSSIBLE.
+     *
+     * Sous verrou du médecin et du rendez-vous ; ne lève pas d'exception de
+     * refus : l'argent est déjà encaissé, l'appelant décide du remboursement.
+     */
+    public function confirmerApresPaiement(RendezVous $rendezVous): string
+    {
+        return DB::transaction(function () use ($rendezVous) {
+            $this->verrouillerMedecin($rendezVous->medecin_id);
+            $rdv = RendezVous::whereKey($rendezVous->id)->lockForUpdate()->firstOrFail();
+
+            if ($rdv->statut === StatutRendezVous::Confirme) {
+                return self::DEJA_CONFIRME;
+            }
+
+            if ($rdv->statut === StatutRendezVous::EnAttentePaiement && ! $this->estEchue($rdv)) {
+                $rdv->transitionVers(StatutRendezVous::Confirme);
+                $rdv->save();
+
+                return self::CONFIRME;
+            }
+
+            if ($rdv->statut === StatutRendezVous::EnAttentePaiement) {
+                $this->expirer($rdv);
+            }
+
+            if ($rdv->statut !== StatutRendezVous::Expire) {
+                return self::IMPOSSIBLE;
+            }
+
+            $demande = DemandeConsultation::whereKey($rdv->demande_id)->lockForUpdate()->firstOrFail();
+            $medecin = Medecin::findOrFail($rdv->medecin_id);
+            $type = TypeConsultation::findOrFail($rdv->type_consultation_id);
+            $this->expirerAttentesEchues($medecin->id);
+
+            if ($demande->statut !== 'ouverte'
+                || ! $medecin->estReservable()
+                || ! $this->creneaux->estPropose($medecin, $type, $rdv->debut, $rdv->id)) {
+                return self::IMPOSSIBLE;
+            }
+
+            $rdv->reprendreApresPaiementTardif();
+            $rdv->save();
+            $demande->statut = 'reservee';
+            $demande->save();
+
+            return self::REPRIS;
+        });
+    }
+
+    /** Verrou de l'agenda du médecin, pour l'ordre des verrous des autres lots (médecin, puis lignes). */
+    public function verrouillerAgenda(string $medecinId): void
+    {
+        $this->verrouillerMedecin($medecinId);
+    }
 
     /**
      * Bloque le créneau le temps du paiement : rendez-vous en attente de
@@ -179,6 +260,12 @@ class ReservationService
                 'taux_remboursement' => $taux,
             ])->save();
 
+            // RG-04 : la demande de remboursement naît dans la même transaction
+            // que l'annulation ; la caisse la valide (PAY-07).
+            if ($etaitConfirme && $taux > 0) {
+                $this->demanderRemboursement($rdv, $taux, MotifRemboursement::AnnulationPatient);
+            }
+
             // Une attente annulée laisse la demande ouverte (autre créneau) ;
             // un rendez-vous confirmé annulé clôt la demande.
             $this->changerDemande($rdv, $etaitConfirme ? 'annulee' : 'ouverte');
@@ -219,6 +306,9 @@ class ReservationService
                 'motif_annulation' => $motif,
                 'taux_remboursement' => 100,
             ])->save();
+
+            // RG-05 : remboursement total, demandé dans la même transaction.
+            $this->demanderRemboursement($rdv, 100, MotifRemboursement::AnnulationMedecin);
 
             $this->changerDemande($rdv, 'ouverte');
 
@@ -357,6 +447,38 @@ class ReservationService
         return $rdv->statut === StatutRendezVous::EnAttentePaiement
             && $rdv->expire_le !== null
             && $rdv->expire_le <= CarbonImmutable::now();
+    }
+
+    /**
+     * Demande de remboursement d'une annulation (RG-04, RG-05) sur le paiement
+     * encaissé du rendez-vous (le premier, s'il y en a eu deux : le second est
+     * déjà rendu comme paiement en double). Sans paiement encaissé, rien à
+     * rendre. Idempotent par motif (RemboursementService::demander).
+     */
+    private function demanderRemboursement(RendezVous $rdv, int $taux, MotifRemboursement $motif): void
+    {
+        $paiement = Paiement::where('rendez_vous_id', $rdv->id)
+            ->where('statut', StatutPaiement::Reussi->value)
+            ->orderBy('confirme_le')->orderBy('id')
+            ->first();
+
+        if (! $paiement) {
+            return;
+        }
+
+        $remboursements = $this->remboursements ?? app(RemboursementService::class);
+
+        // Plafonné à ce qui reste remboursable (un geste commercial a pu en
+        // rendre une partie) ; rien à demander si tout est déjà rendu. Sinon
+        // la demande serait refusée et l'annulation avec elle (revue de sécurité).
+        $centimes = min(
+            Montant::enCentimes($remboursements->montantPourTaux($paiement, $taux)),
+            Paiement::whereKey($paiement->id)->lockForUpdate()->firstOrFail()->resteRemboursableEnCentimes(),
+        );
+
+        if ($centimes > 0) {
+            $remboursements->demander($paiement, Montant::depuisCentimes($centimes), $motif);
+        }
     }
 
     /** Verrou consultatif du médecin, rendu à la fin de la transaction. */

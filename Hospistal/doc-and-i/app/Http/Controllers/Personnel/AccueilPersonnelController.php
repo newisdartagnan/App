@@ -17,6 +17,10 @@ class AccueilPersonnelController extends Controller
             return redirect()->route('personnel.medecin.accueil');
         }
 
+        if ($request->user()->hasRole('caisse')) {
+            return redirect()->route('personnel.caisse.accueil');
+        }
+
         return Inertia::render('Personnel/Accueil', [
             'roles' => $request->user()->getRoleNames()->values(),
         ]);

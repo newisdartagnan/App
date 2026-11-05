@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Personnel\Medecin;
 
+use App\Services\Paiement\PaiementRefuse;
 use App\Services\RendezVous\ReservationRefusee;
 use App\Services\RendezVous\ReservationService;
 use App\Sms\EnvoyeurSms;
@@ -30,7 +31,8 @@ class AnnulationRendezVousController extends ControleurMedecin
 
         try {
             $rdv = $reservations->annulerParMedecin($rdv, $donnees['motif']);
-        } catch (ReservationRefusee $refus) {
+        } catch (ReservationRefusee|PaiementRefuse $refus) {
+            // Refus métier, y compris de la demande de remboursement : rien n'est annulé, jamais d'erreur 500.
             throw ValidationException::withMessages(['motif' => $refus->getMessage()]);
         }
 
