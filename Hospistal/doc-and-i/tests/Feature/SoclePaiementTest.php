@@ -67,7 +67,7 @@ class SoclePaiementTest extends TestCase
         $this->assertSame(-250, Montant::enCentimes('-2.50'));
         $this->assertSame('0.07', Montant::depuisCentimes(7));
         $this->assertSame('-12.30', Montant::depuisCentimes(-1230));
-        $this->assertSame("28\u{202F}500 CDF", Montant::afficher('28500.00', 'CDF'));
+        $this->assertSame('28 500 CDF', Montant::afficher('28500.00', 'CDF'));
         $this->assertSame('10,00 USD', Montant::afficher('10.00', 'USD'));
 
         $this->expectException(\InvalidArgumentException::class);

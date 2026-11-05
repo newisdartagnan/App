@@ -473,7 +473,7 @@ class PaiementService
     /** Montant lisible dans un SMS : espaces ordinaires (alphabet GSM). */
     private function montantSms(Paiement $paiement): string
     {
-        return str_replace("\u{202F}", ' ', Montant::afficher((string) $paiement->montant, $paiement->devise));
+        return Montant::afficher((string) $paiement->montant, $paiement->devise);
     }
 
     private function envoyerSms(User $patient, string $texte, string $paiementId): void

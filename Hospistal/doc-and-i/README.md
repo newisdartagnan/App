@@ -25,7 +25,13 @@ le nom technique `doc-and-i`.
 | RDV-01, RDV-02 | Demande de consultation (motif, symptômes, pièces jointes) et tri des urgences, chaque question à répondre explicitement | Fait |
 | RDV-03 à RDV-05 | Choix par spécialité, médecin ou premier disponible ; créneaux libres ; réservation bloquée 15 min en attente de paiement | Fait |
 | RDV-06, RDV-07 | Rappels SMS 24 h et 1 h avant ; annulation et report selon RG-04/05/06 ; annulation par le médecin depuis son agenda | Fait |
-| PAY-01 et suite | Paiement Mobile Money et carte, confirmation du rendez-vous | Prochain lot |
+| PAY-01 | Tarif en USD ou en CDF au taux du jour, saisi par la caisse (bornes, second agent au-delà de 10 % d'écart) | Fait |
+| PAY-02 à PAY-04 | Paiement Mobile Money et carte par l'agrégateur ; rendez-vous confirmé seulement par le rappel signé de l'opérateur, une seule fois | Fait (pilote « simulation » ; agrégateur réel à choisir) |
+| PAY-05, PAY-08 | Factures et avoirs numérotés, non modifiables, reçu par SMS et en PDF | Fait |
+| PAY-06 | Rapprochement quotidien avec le relevé de l'agrégateur, écarts à traiter | Fait |
+| PAY-07 | Remboursement validé par un second agent de caisse, rendu sur le même moyen | Fait |
+| PAY-09 | Journal de caisse ; reversement des honoraires préparé et payé par deux agents | Fait |
+| RG-01 à RG-05 | Paiement d'avance, idempotence, paiement tardif (créneau repris ou remboursé), remboursement à l'annulation | Fait |
 
 ## Lancer l'application (Docker, rien à installer d'autre)
 
@@ -57,8 +63,14 @@ tournent en même temps.
 **Données de démonstration** (en local seulement) : deux médecins fictifs
 (médecine générale, pédiatrie) avec des plages du lundi au vendredi et un prix
 indicatif de 10 USD, pour tester la réservation. Les vrais prix sont à fixer
-par le client. Le paiement arrive au prochain lot : une réservation reste
-« en attente de paiement » 15 minutes, puis le créneau est libéré.
+par le client. Une réservation reste « en attente de paiement » 15 minutes,
+puis le créneau est libéré.
+
+**Le paiement en développement** : aucun argent ne circule
+(`PAIEMENT_FOURNISSEUR=simulation`, interdit hors local et tests). Après
+« Payer », la page d'attente propose « Simuler : paiement réussi / échoué » :
+le rappel signé qu'enverrait l'opérateur suit le même chemin qu'un vrai. Le
+paiement en CDF demande d'abord un taux du jour saisi par la caisse.
 
 Arrêter : `docker compose down`. Tout effacer, base comprise :
 `docker compose down -v`.

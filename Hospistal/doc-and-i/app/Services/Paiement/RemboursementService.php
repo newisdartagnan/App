@@ -420,7 +420,7 @@ class RemboursementService
         $paiement = $r->paiement()->with('patient')->first();
         // Espaces ordinaires : l'espace fine insécable n'est pas dans l'alphabet GSM des SMS.
         $texte = sprintf('MEDIHOME : remboursement de %s envoyé sur %s.',
-            str_replace("\u{202F}", ' ', Montant::afficher((string) $r->montant, $r->devise)),
+            Montant::afficher((string) $r->montant, $r->devise),
             $paiement->moyen === MoyenPaiement::Carte ? 'votre carte' : 'votre compte '.$paiement->moyen->libelle());
         $telephone = $paiement->patient?->telephone;
 

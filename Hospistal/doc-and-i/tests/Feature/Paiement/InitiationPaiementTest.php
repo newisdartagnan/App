@@ -354,7 +354,7 @@ class InitiationPaiementTest extends TestCase
         $this->tauxDuJour('2850.0000');
         $this->get(route('paiement.payer', $this->rdv))
             ->assertInertia(fn ($page) => $page->has('devises', 2)->where('devises.1.code', 'CDF')
-                ->where('devises.1.montant', "28\u{202F}500 CDF")->where('devises.1.valeur', '28500.00'));
+                ->where('devises.1.montant', '28 500 CDF')->where('devises.1.valeur', '28500.00'));
     }
 
     public function test_la_page_de_paiement_renvoie_vers_le_suivi_d_une_tentative_en_cours_ou_vers_le_rendez_vous(): void

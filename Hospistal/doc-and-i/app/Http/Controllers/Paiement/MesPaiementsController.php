@@ -60,7 +60,7 @@ class MesPaiementsController extends Controller
                 'emise' => $facture->emise_le->setTimezone('Africa/Kinshasa')->format('d/m/Y à H:i'),
                 'patient' => $facture->patient->nomComplet(),
                 // Espaces ordinaires : la police du PDF n'a pas l'espace fine insécable.
-                'montant' => str_replace("\u{202F}", ' ', Montant::afficher((string) $facture->montant, $facture->devise)),
+                'montant' => Montant::afficher((string) $facture->montant, $facture->devise),
                 'moyen' => MoyenPaiement::tryFrom($facture->moyen)?->libelle() ?? $facture->moyen,
             ]);
 

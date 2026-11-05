@@ -41,7 +41,9 @@ final class Montant
         $centimes = self::enCentimes($montant);
         $signe = $centimes < 0 ? '-' : '';
         $centimes = abs($centimes);
-        $entier = number_format(intdiv($centimes, 100), 0, ',', "\u{202F}");
+        // Espace ordinaire entre les milliers : l'espace fine insécable manque
+        // à la police des PDF et sort de l'alphabet GSM des SMS.
+        $entier = number_format(intdiv($centimes, 100), 0, ',', ' ');
 
         return $devise === 'CDF'
             ? $signe.$entier.' CDF'

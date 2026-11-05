@@ -101,7 +101,7 @@ class TauxEtJournalTest extends TestCase
             ->assertInertia(fn ($page) => $page->component('Personnel/Caisse/Journal')
                 ->has('journal.totaux', 2)
                 ->where('journal.totaux.0.devise', 'CDF')
-                ->where('journal.totaux.0.net', "28\u{202F}500 CDF")
+                ->where('journal.totaux.0.net', '28 500 CDF')
                 ->where('journal.totaux.1.devise', 'USD')
                 ->where('journal.totaux.1.encaisse', '30,00 USD')
                 ->where('journal.totaux.1.rembourse', '4,00 USD')
