@@ -14,7 +14,9 @@ defineProps({ reversements: Array });
         <ul class="mt-6 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
             <li v-for="r in reversements" :key="r.id" class="px-4 py-3">
                 <div class="flex justify-between gap-2"><strong>{{ r.periode }}</strong><span :class="r.paye ? 'text-vert-700' : 'text-amber-800'">{{ r.statut }}</span></div>
+                <p>Solde de la période {{ r.solde }}<span v-if="r.detteReprise"> − remboursements déjà reversés {{ r.detteReprise }}</span></p>
                 <p>Brut {{ r.brut }} − commission {{ r.commission }} = <strong>{{ r.net }}</strong></p>
+                <p v-if="r.detteReportee" class="text-red-700">Reste à déduire du prochain reversement : {{ r.detteReportee }}</p>
                 <p v-if="r.paye" class="text-slate-600">Virement {{ r.referenceVirement }}, le {{ r.payeLe }}</p>
             </li>
             <li v-if="reversements.length === 0" class="px-4 py-3 text-slate-500">Aucun reversement pour le moment.</li>

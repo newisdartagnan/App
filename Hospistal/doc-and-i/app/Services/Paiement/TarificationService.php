@@ -38,9 +38,10 @@ final class TarificationService
         return new Tarif($this->convertir($prix, $rdv->devise, $devise, $taux), $devise, $prix, $rdv->devise, $taux);
     }
 
+    /** Le taux ACTIF du jour : ni un taux remplacé, ni un taux qui attend la confirmation d'un second agent. */
     public function tauxDuJour(): ?TauxChange
     {
-        return TauxChange::where('jour', CarbonImmutable::now('Africa/Kinshasa')->toDateString())->first();
+        return TauxChange::where('jour', CarbonImmutable::now('Africa/Kinshasa')->toDateString())->where('statut', 'actif')->first();
     }
 
     public function convertir(string $montant, string $de, string $vers, TauxChange $taux): string

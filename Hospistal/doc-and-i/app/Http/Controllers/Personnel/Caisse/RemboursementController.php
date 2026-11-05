@@ -43,6 +43,16 @@ class RemboursementController extends ControleurCaisse
         return Inertia::render('Personnel/Caisse/Remboursements', [
             'aValider' => Remboursement::with($relations)->where('statut', StatutRemboursement::AValider->value)
                 ->orderBy('created_at')->limit(200)->get()->map($presenter)->all(),
+            // À suivre : bloqués (relances épuisées, autre prestataire) et refusés par
+            // l'opérateur, remboursements de règle (RG-03, RG-04/05) compris.
+            'aSuivre' => Remboursement::with($relations)
+                ->where(fn ($q) => $q->where('statut', StatutRemboursement::Echoue->value)
+                    ->orWhere(fn ($q) => $q->where('statut', StatutRemboursement::Valide->value)->whereNotNull('blocage')))
+                ->orderByDesc('updated_at')->limit(100)->get()
+                ->map(fn (Remboursement $r) => $presenter($r) + [
+                    'raison' => $r->blocage ?? 'Refusé par l\'opérateur : '.$r->motif_echec,
+                    'automatique' => $r->automatique,
+                ])->all(),
             'recents' => Remboursement::with($relations)->where('statut', '!=', StatutRemboursement::AValider->value)
                 ->orderByDesc('updated_at')->limit(30)->get()->map($presenter)->all(),
             'numero' => $numero,
@@ -60,9 +70,13 @@ class RemboursementController extends ControleurCaisse
             // planifiée de la minute suivante s'en charge.
             $envoye = $this->remboursements->executer($valide);
 
-            return $envoye->statut === StatutRemboursement::Echoue
-                ? 'Remboursement validé, mais refusé par l\'opérateur : '.$envoye->motif_echec
-                : 'Remboursement validé et envoyé à l\'opérateur.';
+            // Seul un refus explicite est un refus ; une erreur technique n'en est pas un.
+            return match (true) {
+                $envoye->statut === StatutRemboursement::Echoue => 'Remboursement validé, mais refusé par l\'opérateur : '.$envoye->motif_echec,
+                $envoye->blocage !== null => 'Remboursement validé, à traiter à la main : '.$envoye->blocage,
+                $envoye->statut === StatutRemboursement::Valide => 'Remboursement validé ; l\'opérateur n\'a pas répondu, nouvel essai automatique dans quelques minutes.',
+                default => 'Remboursement validé et envoyé à l\'opérateur.',
+            };
         }, 'remboursement', 'Remboursement validé.');
     }
 

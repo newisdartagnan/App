@@ -22,17 +22,27 @@ class ExecuterRemboursements extends Command
     {
         $envoyes = 0;
         $echoues = 0;
+        $enAttente = 0;
+
+        // Après une erreur technique : relance avec la même clé, pas avant
+        // l'intervalle ; un remboursement bloqué attend la caisse.
+        $relanceAvant = now()->subMinutes((int) config('caisse.remboursements.intervalle_minutes'));
 
         Remboursement::where('statut', StatutRemboursement::Valide->value)
+            ->whereNull('blocage')
+            ->where(fn ($q) => $q->whereNull('derniere_tentative_le')->orWhere('derniere_tentative_le', '<=', $relanceAvant))
             ->orderBy('valide_le')->orderBy('created_at')
             ->limit(max(1, (int) $this->option('limite')))
             ->get()
-            ->each(function (Remboursement $r) use ($remboursements, &$envoyes, &$echoues) {
-                $resultat = $remboursements->executer($r);
-                $resultat->statut === StatutRemboursement::Echoue ? $echoues++ : $envoyes++;
+            ->each(function (Remboursement $r) use ($remboursements, &$envoyes, &$echoues, &$enAttente) {
+                match ($remboursements->executer($r)->statut) {
+                    StatutRemboursement::EnCours => $envoyes++,
+                    StatutRemboursement::Echoue => $echoues++,
+                    default => $enAttente++,
+                };
             });
 
-        $this->info("{$envoyes} remboursement(s) envoyé(s), {$echoues} en échec.");
+        $this->info("{$envoyes} remboursement(s) envoyé(s), {$echoues} refusé(s) par l'opérateur, {$enAttente} à relancer ou bloqué(s).");
 
         return self::SUCCESS;
     }

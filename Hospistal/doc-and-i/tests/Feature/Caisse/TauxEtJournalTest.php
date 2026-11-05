@@ -59,18 +59,19 @@ class TauxEtJournalTest extends TestCase
         $this->assertSame(2, TauxChange::count(), 'Un nouveau jour, un nouveau taux.');
     }
 
-    public function test_un_taux_qui_a_servi_a_un_paiement_ne_se_modifie_plus(): void
+    public function test_un_taux_qui_a_servi_a_un_paiement_ne_se_modifie_plus_il_est_remplace(): void
     {
         $this->saisir('2850');
         $taux = TauxChange::sole();
         $paiement = $this->paiementEncaisse(prix: '28500.00', devise: 'CDF');
         DB::table('paiements')->where('id', $paiement->id)->update(['taux_change_id' => $taux->id]);
 
-        $this->saisir('2900')->assertSessionHasErrors('taux');
-        $this->assertSame('2850.0000', (string) $taux->fresh()->cdf_par_usd);
+        $this->saisir('2900')->assertSessionHasNoErrors();
+        $this->assertSame(['2850.0000', 'remplace'], [(string) $taux->fresh()->cdf_par_usd, $taux->fresh()->statut]);
 
         $this->commePersonnel($this->agent)->get(route('personnel.caisse.taux'))
-            ->assertInertia(fn ($page) => $page->component('Personnel/Caisse/Taux')->where('aujourdhui.modifiable', false));
+            ->assertInertia(fn ($page) => $page->component('Personnel/Caisse/Taux')
+                ->where('aujourdhui.taux', '2900.0000')->where('aujourdhui.utilise', false)->has('historique', 2));
 
         // La base aussi, quel que soit le code.
         $this->expectException(QueryException::class);

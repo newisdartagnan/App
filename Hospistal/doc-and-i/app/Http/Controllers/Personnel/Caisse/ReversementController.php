@@ -34,7 +34,7 @@ class ReversementController extends ControleurCaisse
             'medecins' => Medecin::with('user')->get()->map(fn (Medecin $m) => ['id' => $m->id, 'nom' => Affichage::medecin($m)])->sortBy('nom')->values()->all(),
             'reversements' => array_map(
                 // Quatre yeux : pas de bouton « Payer » pour qui l'a préparé.
-                fn (array $r) => array_diff_key($r, ['preparePar' => true]) + ['peutPayer' => ! $r['paye'] && $r['preparePar'] !== $moi],
+                fn (array $r) => array_diff_key($r, ['preparePar' => true]) + ['peutPayer' => $r['aPayer'] && $r['preparePar'] !== $moi],
                 $this->reversements->lister(),
             ),
         ]);

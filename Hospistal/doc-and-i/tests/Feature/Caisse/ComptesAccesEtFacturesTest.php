@@ -90,6 +90,7 @@ class ComptesAccesEtFacturesTest extends TestCase
             'accueil' => ['get', route_caisse('accueil')],
             'taux' => ['get', route_caisse('taux')],
             'saisie du taux' => ['post', route_caisse('taux')],
+            'confirmation du taux' => ['post', route_caisse("taux/{$id}/confirmation")],
             'remboursements' => ['get', route_caisse('remboursements')],
             'validation' => ['post', route_caisse("remboursements/{$id}/validation")],
             'refus' => ['post', route_caisse("remboursements/{$id}/refus")],

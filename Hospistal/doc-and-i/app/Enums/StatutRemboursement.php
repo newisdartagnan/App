@@ -35,7 +35,10 @@ enum StatutRemboursement: string
             self::AValider => [self::Valide, self::Refuse],
             self::Valide => [self::EnCours, self::Echoue],
             self::EnCours => [self::Reussi, self::Echoue],
-            self::Reussi, self::Echoue, self::Refuse => [],
+            // Rappel signé réussi reçu après un échec de notre côté : l'argent
+            // est parti, le remboursement est constaté (revue de sécurité).
+            self::Echoue => [self::Reussi],
+            self::Reussi, self::Refuse => [],
         };
     }
 

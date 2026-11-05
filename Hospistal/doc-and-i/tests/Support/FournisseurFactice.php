@@ -27,12 +27,17 @@ final class FournisseurFactice implements FournisseurPaiement
 
     public ?string $erreurRemboursement = null;
 
+    /** Vrai : refus explicite (rien n'est parti) ; faux : erreur technique (la demande est peut-être partie). */
+    public bool $refusDefinitif = false;
+
+    public string $nom = FournisseurSimulation::NOM;
+
     /** @var list<string> clés d'idempotence des remboursements demandés */
     public array $remboursementsDemandes = [];
 
     public function nom(): string
     {
-        return FournisseurSimulation::NOM;
+        return $this->nom;
     }
 
     public function initier(Paiement $paiement): InitiationPaiement
@@ -50,7 +55,7 @@ final class FournisseurFactice implements FournisseurPaiement
         $this->remboursementsDemandes[] = $remboursement->cle_idempotence;
 
         if ($this->erreurRemboursement !== null) {
-            throw new ErreurFournisseur($this->erreurRemboursement);
+            throw new ErreurFournisseur($this->erreurRemboursement, $this->refusDefinitif);
         }
 
         return new InitiationRemboursement('FACT-R-'.substr($remboursement->cle_idempotence, 0, 8));
