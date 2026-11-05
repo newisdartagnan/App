@@ -9,14 +9,17 @@ use App\Models\Facture;
 use App\Models\OperationCaisse;
 use App\Models\Remboursement;
 use App\Models\User;
+use App\Services\Paiement\Fournisseur\RappelFournisseur;
 use App\Services\Paiement\PaiementRefuse;
 use App\Services\Paiement\RemboursementService;
 use App\Sms\EnvoyeurSms;
 use Database\Seeders\RolesSeeder;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Testing\TestResponse;
 use LogicException;
 use RuntimeException;
 use Tests\Support\EnvoyeurSmsFactice;
@@ -58,7 +61,7 @@ class RemboursementsCaisseTest extends TestCase
         return $this->service()->gesteCommercial($this->paiementEncaisse(), $montant, $this->agentA, 'Attente de 40 minutes');
     }
 
-    private function valider(User $agent, Remboursement $r): \Illuminate\Testing\TestResponse
+    private function valider(User $agent, Remboursement $r): TestResponse
     {
         return $this->commePersonnel($agent)->post(route('personnel.caisse.remboursements.valider', $r->id));
     }
@@ -230,7 +233,7 @@ class RemboursementsCaisseTest extends TestCase
 
     public function test_la_tache_est_planifiee_chaque_minute(): void
     {
-        $evenements = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+        $evenements = collect(app(Schedule::class)->events())
             ->filter(fn ($e) => str_contains($e->command, 'paiement:executer-remboursements'));
 
         $this->assertCount(1, $evenements);
@@ -344,7 +347,7 @@ class RemboursementsCaisseTest extends TestCase
     {
         $r = $this->service()->demander($this->paiementEncaisse(), '10.00', MotifRemboursement::PaiementTardif);
         [$rappel, $evt] = $this->rappelRemboursement($r);
-        $inconnu = new \App\Services\Paiement\Fournisseur\RappelFournisseur($rappel->identifiantEvenement, 'remboursement', 'cle-inconnue', 'X', true, '10.00', 'USD', null, []);
+        $inconnu = new RappelFournisseur($rappel->identifiantEvenement, 'remboursement', 'cle-inconnue', 'X', true, '10.00', 'USD', null, []);
 
         $this->service()->traiterRappel($inconnu, $evt);
 

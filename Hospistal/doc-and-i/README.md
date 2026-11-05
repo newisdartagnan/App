@@ -93,6 +93,26 @@ Les médecins de démonstration (`medecin.demo@doc-and-i.local`,
 `pediatre.demo@doc-and-i.local`) doivent eux aussi être activés :
 `php artisan personnel:lien-activation medecin.demo@doc-and-i.local`.
 
+### Caisse
+
+Un agent de caisse se crée de la même façon, avec son rôle :
+
+```bash
+docker compose exec app php artisan personnel:creer-compte --role=caisse \
+  --email=caisse@doc-and-i.local --telephone=0810000013 --nom=Exemple --prenom=Rose
+```
+
+La démonstration locale crée deux agents (`caisse1.demo@doc-and-i.local`,
+`caisse2.demo@doc-and-i.local`), à activer par `personnel:lien-activation` :
+deux personnes sont nécessaires, un remboursement n'étant jamais validé par
+celui qui l'a demandé, ni un reversement payé par celui qui l'a préparé.
+L'espace caisse est sur <http://localhost:8097/personnel/caisse>.
+
+Tâches planifiées (service `scheduler`) : `paiement:executer-remboursements`
+chaque minute, `paiement:rapprocher` chaque nuit pour la veille (relançable
+pour un jour : `php artisan paiement:rapprocher 2026-12-07`). Les reversements
+exigent `DOC_AND_I_COMMISSION_POURCENT` (décision du client, pas de défaut).
+
 ## Lancer les tests
 
 ```bash

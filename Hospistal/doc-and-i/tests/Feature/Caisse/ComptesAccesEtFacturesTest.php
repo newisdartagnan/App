@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Caisse;
 
+use App\Models\Facture;
 use App\Models\JetonActivation;
 use App\Models\User;
 use Database\Seeders\DemonstrationLocaleSeeder;
@@ -181,7 +182,7 @@ class ComptesAccesEtFacturesTest extends TestCase
     public function test_le_pdf_d_un_avoir_cite_sa_facture(): void
     {
         $paiement = $this->paiementEncaisse();
-        $avoir = \App\Models\Facture::where('remboursement_id', $this->remboursementReussi($paiement, '10.00')->id)->sole();
+        $avoir = Facture::where('remboursement_id', $this->remboursementReussi($paiement, '10.00')->id)->sole();
 
         $this->commePersonnel($this->personnelActive('caisse'))->get(route('personnel.caisse.factures.pdf', $avoir->id))
             ->assertOk()->assertHeader('content-type', 'application/pdf');

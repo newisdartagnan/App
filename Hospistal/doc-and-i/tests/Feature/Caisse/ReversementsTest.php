@@ -12,6 +12,7 @@ use Database\Seeders\RolesSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\ParcoursCaisse;
 use Tests\Support\ParcoursPaiement;
@@ -104,7 +105,7 @@ class ReversementsTest extends TestCase
 
         // La base aussi.
         $this->expectException(QueryException::class);
-        DB::table('reversements')->insert(Reversement::where('devise', 'USD')->sole()->only(['medecin_id', 'periode_debut', 'periode_fin', 'devise', 'montant_brut', 'commission', 'montant_net', 'statut', 'prepare_par']) + ['id' => (string) \Illuminate\Support\Str::uuid()]);
+        DB::table('reversements')->insert(Reversement::where('devise', 'USD')->sole()->only(['medecin_id', 'periode_debut', 'periode_fin', 'devise', 'montant_brut', 'commission', 'montant_net', 'statut', 'prepare_par']) + ['id' => (string) Str::uuid()]);
     }
 
     public function test_seule_une_periode_close_se_reverse(): void

@@ -9,6 +9,7 @@ use Database\Seeders\RolesSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
 use Tests\Support\ParcoursCaisse;
 use Tests\Support\ParcoursPaiement;
 use Tests\Support\ParcoursRendezVous;
@@ -30,7 +31,7 @@ class TauxEtJournalTest extends TestCase
         $this->agent = $this->personnelActive('caisse');
     }
 
-    private function saisir(string $taux): \Illuminate\Testing\TestResponse
+    private function saisir(string $taux): TestResponse
     {
         return $this->commePersonnel($this->agent)->post(route('personnel.caisse.taux.enregistrer'), ['taux' => $taux]);
     }
