@@ -15,5 +15,8 @@ Artisan::command('inspire', function () {
 // RDV-05 : créneaux non payés à temps libérés.
 Schedule::command('rdv:expirer-attentes')->everyMinute()->withoutOverlapping();
 
+// PAY-04 : tentatives de paiement restées sans réponse de l'opérateur.
+Schedule::command('paiement:expirer-tentatives')->everyMinute()->withoutOverlapping();
+
 // RDV-06 : rappels SMS la veille et une heure avant.
 Schedule::command('rdv:envoyer-rappels')->everyFiveMinutes()->withoutOverlapping();

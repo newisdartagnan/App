@@ -3,7 +3,8 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import Gabarit from '../../Composants/Gabarit.vue';
 
-const props = defineProps({ rendezVous: Object, demande: Object, actions: Object });
+const props = defineProps({ rendezVous: Object, demande: Object, actions: Object, paiements: Array });
+const paiementEnCours = computed(() => props.paiements.find((p) => p.en_cours) ?? null);
 
 // Compte à rebours depuis la durée donnée par le serveur : l'horloge du téléphone peut être fausse.
 const restantes = ref(props.rendezVous.secondes_restantes);
@@ -48,11 +49,29 @@ const texteRemboursement = computed(() => {
         <p class="mt-1 text-sm text-slate-500">Heure de Kinshasa.</p>
 
         <div v-if="rendezVous.en_attente" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900" role="status">
-            <p class="font-semibold">En attente de paiement — le paiement en ligne arrive dans le prochain lot.</p>
-            <p v-if="restantes > 0" class="mt-1">Créneau gardé encore {{ minutesSecondes }}.</p>
+            <p class="font-semibold">En attente de paiement</p>
+            <p v-if="restantes > 0" class="mt-1">Créneau gardé encore {{ minutesSecondes }}. Payez pour confirmer le rendez-vous.</p>
             <p v-else class="mt-1">Le délai est dépassé : le créneau va être libéré.</p>
+            <Link v-if="paiementEnCours" :href="`/paiements/${paiementEnCours.id}`" class="bouton mt-3">Suivre mon paiement</Link>
+            <Link v-else-if="actions.payer && restantes > 0" :href="`/mes-rendez-vous/${rendezVous.id}/paiement`" class="bouton mt-3">
+                Payer {{ rendezVous.prix }}
+            </Link>
         </div>
         <p v-else class="mt-4 rounded-lg bg-white p-3 font-medium shadow-sm">{{ rendezVous.statut_libelle }}</p>
+        <p v-if="$page.props.errors.paiement" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ $page.props.errors.paiement }}</p>
+
+        <section v-if="paiements.some((p) => p.statut === 'reussi')" class="mt-4 rounded-lg bg-white p-4 shadow-sm">
+            <h2 class="font-semibold">Paiement</h2>
+            <template v-for="p in paiements" :key="p.id">
+                <div v-if="p.statut === 'reussi'" class="mt-2">
+                    <p class="text-vert-700">{{ p.montant }} — {{ p.statut_libelle }}</p>
+                    <a v-if="p.facture" :href="`/factures/${p.facture.id}`" class="text-sm text-marque-800 underline">Reçu {{ p.facture.numero }}</a>
+                    <p v-for="(r, i) in p.remboursements" :key="i" class="mt-1 text-sm text-slate-700">
+                        Remboursement de {{ r.montant }} ({{ r.motif }}) : {{ r.statut }}
+                    </p>
+                </div>
+            </template>
+        </section>
 
         <p v-if="rendezVous.taux_remboursement !== null" class="mt-3 text-slate-700">
             Remboursement prévu : {{ rendezVous.taux_remboursement }} % du prix.
