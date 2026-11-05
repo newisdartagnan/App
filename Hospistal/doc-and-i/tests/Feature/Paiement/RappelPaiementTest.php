@@ -26,7 +26,6 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Event;
-use LogicException;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\EnvoyeurSmsFactice;
@@ -241,7 +240,8 @@ class RappelPaiementTest extends TestCase
 
         $this->assertSame(StatutPaiement::Echoue, $this->paiement->fresh()->statut, 'Transition interdite : échoué → réussi.');
         $this->assertSame(0, Facture::count());
-        $this->assertStringContainsString('écart à rapprocher', EvenementPaiement::whereNotNull('resultat')->get()->last()->resultat);
+        // Pas d'ordre entre les deux événements (même horodatage figé, identifiants UUID) : on cherche le second par son contenu.
+        $this->assertStringContainsString('écart à rapprocher', EvenementPaiement::whereNotNull('resultat')->pluck('resultat')->implode(' | '));
     }
 
     public function test_rg03_paiement_tardif_creneau_encore_libre_le_rendez_vous_est_repris(): void
@@ -388,16 +388,25 @@ class RappelPaiementTest extends TestCase
         $this->assertSame(StatutPaiement::EnAttente, $this->paiement->fresh()->statut, 'Un rappel de remboursement ne touche pas au paiement.');
     }
 
-    public function test_tant_que_le_lot_caisse_manque_un_rappel_de_remboursement_n_est_pas_enregistre(): void
+    public function test_un_rappel_de_remboursement_signe_passe_par_la_meme_adresse_et_ne_rembourse_qu_une_fois(): void
     {
-        $this->withoutExceptionHandling();
-        $this->expectException(LogicException::class);
+        // Intégration des deux lots : paiement confirmé par rappel, remboursement
+        // exécuté par la caisse, puis rappel signé du remboursement.
+        $this->envoyerRappel($this->rappel())->assertOk();
+        $service = app(RemboursementService::class);
+        $remboursement = $service->executer($service->demander($this->paiement->fresh(), '10.00', MotifRemboursement::PaiementTardif));
+        $this->assertSame(StatutRemboursement::EnCours, $remboursement->statut);
 
-        try {
-            $this->envoyerRappel($this->rappel(type: RappelFournisseur::REMBOURSEMENT));
-        } finally {
-            $this->assertSame(0, EvenementPaiement::count());
-        }
+        $rappel = $this->simulation()->rappelSigne(RappelFournisseur::REMBOURSEMENT, $remboursement->cle_idempotence,
+            (string) $remboursement->reference_fournisseur, true, '10.00', 'USD', evenement: 'evt-remboursement-1');
+        $this->envoyerRappel($rappel)->assertOk();
+        $this->envoyerRappel($rappel)->assertOk();
+
+        $this->assertSame(StatutRemboursement::Reussi, $remboursement->fresh()->statut);
+        $this->assertSame(1, Facture::where('type', 'avoir')->count());
+        $this->assertSame(1, OperationCaisse::where('type', 'remboursement')->count());
+        $this->assertSame(1, EvenementPaiement::where('type', 'remboursement')->count());
+        $this->assertSame(1, collect($this->sms->envoyes)->filter(fn ($sms) => str_contains($sms['message'], 'remboursement de 10,00 USD'))->count());
     }
 
     public function test_ni_numero_de_telephone_ni_donnee_de_sante_dans_les_journaux_et_les_sms(): void
