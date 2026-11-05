@@ -22,7 +22,11 @@ final readonly class RappelFournisseur
         public string $montant,
         public string $devise,
         public ?string $motifEchec,
-        /** Charge utile décodée, gardée dans evenements_paiement. */
+        /**
+         * Charge utile décodée, gardée dans evenements_paiement. Le pilote en
+         * RETIRE ou masque le numéro du payeur et toute donnée personnelle
+         * (Telephone::masquer) : la table n'est pas un registre de numéros.
+         */
         public array $chargeUtile,
     ) {}
 }

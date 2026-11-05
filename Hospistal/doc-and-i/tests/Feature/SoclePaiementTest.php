@@ -10,6 +10,7 @@ use App\Models\OperationCaisse;
 use App\Models\Paiement;
 use App\Models\Remboursement;
 use App\Services\Paiement\FacturationService;
+use App\Services\Paiement\Fournisseur\ErreurFournisseur;
 use App\Services\Paiement\Fournisseur\FournisseurPaiement;
 use App\Services\Paiement\Fournisseur\FournisseurSimulation;
 use App\Services\Paiement\Fournisseur\RappelInvalide;
@@ -17,6 +18,7 @@ use App\Services\Paiement\Fournisseur\SignatureRappel;
 use App\Services\Paiement\JournalCaisse;
 use App\Services\Paiement\PaiementRefuse;
 use App\Services\Paiement\RemboursementService;
+use App\Services\Paiement\SimulationPaiement;
 use App\Services\Paiement\TarificationService;
 use App\Support\Montant;
 use Database\Seeders\RolesSeeder;
@@ -136,7 +138,8 @@ class SoclePaiementTest extends TestCase
     public function test_un_debit_confirme_apres_expiration_reste_encaissable(): void
     {
         $this->assertTrue(StatutPaiement::Expire->peutPasserA(StatutPaiement::Reussi));
-        $this->assertFalse(StatutPaiement::Echoue->peutPasserA(StatutPaiement::Reussi));
+        $this->assertTrue(StatutPaiement::Echoue->peutPasserA(StatutPaiement::Reussi), 'Rappel signé reçu après un échec de notre côté : l\'argent est parti.');
+        $this->assertFalse(StatutPaiement::Echoue->peutPasserA(StatutPaiement::Expire));
         $this->assertSame([], StatutPaiement::Reussi->transitionsAutorisees());
     }
 
@@ -453,6 +456,30 @@ class SoclePaiementTest extends TestCase
         } finally {
             $this->app->detectEnvironment(fn () => 'testing');
         }
+    }
+
+    public function test_la_simulation_est_interdite_sur_un_serveur_de_recette(): void
+    {
+        // Un serveur de recette ouvert à de vrais patients n'est pas en
+        // « production » mais ne doit pas confirmer de paiements sans argent.
+        $this->app->forgetInstance(FournisseurPaiement::class);
+        $this->app->detectEnvironment(fn () => 'staging');
+
+        try {
+            $this->assertFalse(FournisseurSimulation::environnementAutorise());
+            $this->assertFalse(SimulationPaiement::disponible());
+            $this->expectException(RuntimeException::class);
+            app(FournisseurPaiement::class);
+        } finally {
+            $this->app->detectEnvironment(fn () => 'testing');
+        }
+    }
+
+    public function test_une_erreur_du_prestataire_est_technique_sauf_refus_explicite(): void
+    {
+        $this->assertFalse((new ErreurFournisseur('délai'))->refusDefinitif);
+        $this->assertFalse(ErreurFournisseur::injoignable('coupure')->refusDefinitif);
+        $this->assertTrue(ErreurFournisseur::refus('solde insuffisant')->refusDefinitif);
     }
 
     public function test_sans_pilote_configure_rien_ne_se_paie(): void

@@ -23,6 +23,12 @@ final class FournisseurSimulation implements FournisseurPaiement
 
     public function __construct(private readonly SignatureRappel $signature) {}
 
+    /** Seuls le poste du développeur et les tests peuvent simuler. */
+    public static function environnementAutorise(): bool
+    {
+        return app()->environment(['local', 'testing']);
+    }
+
     public function nom(): string
     {
         return self::NOM;

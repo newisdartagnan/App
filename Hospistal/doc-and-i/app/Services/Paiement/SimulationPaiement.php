@@ -21,7 +21,7 @@ final class SimulationPaiement
     public static function disponible(): bool
     {
         return config('doc-and-i.paiement.fournisseur') === FournisseurSimulation::NOM
-            && ! app()->isProduction();
+            && FournisseurSimulation::environnementAutorise();
     }
 
     /** @return int code HTTP du traitement du rappel */

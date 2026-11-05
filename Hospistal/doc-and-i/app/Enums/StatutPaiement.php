@@ -35,10 +35,11 @@ enum StatutPaiement: string
         return match ($this) {
             self::Initie => [self::EnAttente, self::Reussi, self::Echoue, self::Expire],
             self::EnAttente => [self::Reussi, self::Echoue, self::Expire],
-            // L'opérateur fait foi : un débit confirmé après notre délai reste
-            // un débit, il est encaissé puis traité (RG-03).
-            self::Expire => [self::Reussi],
-            self::Reussi, self::Echoue => [],
+            // L'opérateur fait foi : un débit confirmé par rappel signé après
+            // notre délai, ou après une erreur de notre côté, reste un débit. Il
+            // est encaissé puis traité (RG-03 : repris, ou remboursé).
+            self::Expire, self::Echoue => [self::Reussi],
+            self::Reussi => [],
         };
     }
 

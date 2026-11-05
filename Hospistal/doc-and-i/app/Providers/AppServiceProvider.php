@@ -38,10 +38,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(FournisseurPaiement::class, function () {
             $pilote = config('doc-and-i.paiement.fournisseur');
 
-            // La simulation confirme des paiements sans argent : en production,
-            // ce serait des consultations gratuites pour qui connaît le secret.
-            if ($pilote === FournisseurSimulation::NOM && $this->app->isProduction()) {
-                throw new RuntimeException('PAIEMENT_FOURNISSEUR=simulation est interdit en production : configurer l\'agrégateur.');
+            // La simulation confirme des paiements sans argent : hors du poste
+            // du développeur et des tests (production, mais aussi recette ou
+            // pilote ouverts à de vrais patients), ce serait des consultations
+            // gratuites. Liste blanche, pas liste noire (revue de sécurité).
+            if ($pilote === FournisseurSimulation::NOM && ! FournisseurSimulation::environnementAutorise()) {
+                throw new RuntimeException('PAIEMENT_FOURNISSEUR=simulation est interdit en production et hors des environnements local et testing : configurer l\'agrégateur.');
             }
 
             return match ($pilote) {
