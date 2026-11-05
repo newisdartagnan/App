@@ -8,12 +8,20 @@
 
 use App\Http\Controllers\Personnel\AccueilPersonnelController;
 use App\Http\Controllers\Personnel\ActivationController;
+use App\Http\Controllers\Personnel\Caisse\AccueilCaisseController;
+use App\Http\Controllers\Personnel\Caisse\FactureController;
+use App\Http\Controllers\Personnel\Caisse\JournalController;
+use App\Http\Controllers\Personnel\Caisse\RapprochementController;
+use App\Http\Controllers\Personnel\Caisse\RemboursementController;
+use App\Http\Controllers\Personnel\Caisse\ReversementController;
+use App\Http\Controllers\Personnel\Caisse\TauxController;
 use App\Http\Controllers\Personnel\ConnexionPersonnelController;
 use App\Http\Controllers\Personnel\Medecin\AbsenceController;
 use App\Http\Controllers\Personnel\Medecin\AccueilMedecinController;
 use App\Http\Controllers\Personnel\Medecin\AgendaController;
 use App\Http\Controllers\Personnel\Medecin\AnnulationRendezVousController;
 use App\Http\Controllers\Personnel\Medecin\PlageController;
+use App\Http\Controllers\Personnel\Medecin\ReversementsMedecinController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('personnel')->name('personnel.')->group(function () {
@@ -59,8 +67,40 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
             Route::delete('/absences/{absence}', [AbsenceController::class, 'destroy'])->whereUuid('absence')->name('absences.supprimer');
 
             Route::get('/agenda', AgendaController::class)->name('agenda');
+            // PAY-09 : ses reversements, en lecture.
+            Route::get('/reversements', ReversementsMedecinController::class)->name('reversements');
             Route::post('/rendez-vous/{rendezVous}/annulation', AnnulationRendezVousController::class)
                 ->whereUuid('rendezVous')->middleware('throttle:30,1,annulation-medecin')->name('rendez-vous.annuler');
+        });
+
+        // Espace caisse (PAY-01, PAY-05 à PAY-09). Quatre yeux et plafonds
+        // vérifiés par les services, jamais par l'écran seul.
+        Route::middleware(['role:caisse', 'throttle:120,1,caisse'])->prefix('caisse')->name('caisse.')->group(function () {
+            Route::get('/', AccueilCaisseController::class)->name('accueil');
+
+            Route::get('/taux', [TauxController::class, 'index'])->name('taux');
+            Route::post('/taux', [TauxController::class, 'store'])->name('taux.enregistrer');
+
+            Route::get('/remboursements', [RemboursementController::class, 'index'])->name('remboursements');
+            Route::post('/remboursements/geste', [RemboursementController::class, 'geste'])->name('remboursements.geste');
+            Route::post('/remboursements/{remboursement}/validation', [RemboursementController::class, 'valider'])
+                ->whereUuid('remboursement')->name('remboursements.valider');
+            Route::post('/remboursements/{remboursement}/refus', [RemboursementController::class, 'refuser'])
+                ->whereUuid('remboursement')->name('remboursements.refuser');
+
+            Route::get('/journal', JournalController::class)->name('journal');
+
+            Route::get('/reversements', [ReversementController::class, 'index'])->name('reversements');
+            Route::post('/reversements', [ReversementController::class, 'store'])->name('reversements.preparer');
+            Route::post('/reversements/{reversement}/paiement', [ReversementController::class, 'payer'])
+                ->whereUuid('reversement')->name('reversements.payer');
+
+            Route::get('/rapprochement', [RapprochementController::class, 'index'])->name('rapprochement');
+            Route::post('/rapprochement/{ecart}/traitement', [RapprochementController::class, 'traiter'])
+                ->whereUuid('ecart')->name('rapprochement.traiter');
+
+            Route::get('/factures', [FactureController::class, 'index'])->name('factures');
+            Route::get('/factures/{facture}/pdf', [FactureController::class, 'pdf'])->whereUuid('facture')->name('factures.pdf');
         });
     });
 });
