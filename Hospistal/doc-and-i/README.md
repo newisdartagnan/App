@@ -113,6 +113,11 @@ chaque minute, `paiement:rapprocher` chaque nuit pour la veille (relançable
 pour un jour : `php artisan paiement:rapprocher 2026-12-07`). Les reversements
 exigent `DOC_AND_I_COMMISSION_POURCENT` (décision du client, pas de défaut).
 
+Garde-fous réglables dans `config/caisse.php` : bornes du taux du jour (500 à
+10 000 CDF pour un dollar), écart au-delà duquel un second agent confirme le
+taux (10 %), relances d'un remboursement resté sans réponse de l'opérateur
+(12 essais, toutes les 5 minutes, puis « À suivre » pour la caisse).
+
 ## Lancer les tests
 
 ```bash

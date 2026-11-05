@@ -98,7 +98,14 @@ class RemboursementService
     /** Part remboursable d'un paiement pour un taux (RG-04/05), arrondie au centime inférieur. */
     public function montantPourTaux(Paiement $paiement, int $taux): string
     {
-        return Montant::depuisCentimes(intdiv(Montant::enCentimes((string) $paiement->montant) * $taux, 100));
+        return Montant::depuisCentimes(self::arrondiPourLaDevise(
+            intdiv(Montant::enCentimes((string) $paiement->montant) * $taux, 100), $paiement->devise));
+    }
+
+    /** Mobile Money en francs congolais : pas de centimes, arrondi au franc inférieur. */
+    private static function arrondiPourLaDevise(int $centimes, string $devise): int
+    {
+        return $devise === 'CDF' ? intdiv($centimes, 100) * 100 : $centimes;
     }
 
     /**
@@ -131,6 +138,8 @@ class RemboursementService
         if (trim($justification) === '') {
             throw new PaiementRefuse('Le motif du geste commercial est obligatoire.');
         }
+
+        $montant = Montant::depuisCentimes(self::arrondiPourLaDevise(Montant::enCentimes($montant), $paiement->devise));
 
         return $this->demander($paiement, $montant, MotifRemboursement::GesteCommercial, $agent, $justification);
     }
@@ -201,20 +210,32 @@ class RemboursementService
      * HORS transaction (aucun verrou tenu pendant l'attente) ; le prestataire
      * est idempotent par la clé du remboursement, une reprise ne rembourse
      * pas deux fois. Le résultat final arrive par rappel signé.
+     *
+     * Revue de sécurité : seul un refus EXPLICITE met en échec (et rend le
+     * montant). Une erreur technique laisse le remboursement « validé » et
+     * son montant engagé, car l'argent est peut-être parti : la tâche
+     * planifiée le relance avec la même clé, un nombre borné de fois, puis le
+     * bloque pour la caisse. Un paiement passé par un autre prestataire que
+     * le pilote actif n'est jamais envoyé à ce dernier.
      */
     public function executer(Remboursement $remboursement): Remboursement
     {
-        $r = Remboursement::findOrFail($remboursement->id);
-        if ($r->statut !== StatutRemboursement::Valide) {
+        $r = Remboursement::with('paiement')->findOrFail($remboursement->id);
+        if ($r->statut !== StatutRemboursement::Valide || $r->blocage !== null) {
             return $r;
         }
 
+        $fournisseur = app(FournisseurPaiement::class);
+        if ($r->paiement->fournisseur !== $fournisseur->nom()) {
+            return $this->bloquer($r, sprintf('Paiement passé par « %s », prestataire actif « %s » : à rembourser à la main.', $r->paiement->fournisseur, $fournisseur->nom()));
+        }
+
         try {
-            $initiation = app(FournisseurPaiement::class)->rembourser($r);
+            $initiation = $fournisseur->rembourser($r);
             $erreur = null;
         } catch (ErreurFournisseur $e) {
             $initiation = null;
-            $erreur = $e->getMessage();
+            $erreur = $e;
         }
 
         return DB::transaction(function () use ($r, $initiation, $erreur) {
@@ -226,19 +247,53 @@ class RemboursementService
                 return $r;
             }
 
+            $r->tentatives_envoi++;
+            $r->derniere_tentative_le = CarbonImmutable::now();
+
             if ($initiation !== null) {
                 $r->transitionVers(StatutRemboursement::EnCours);
                 $r->reference_fournisseur = $initiation->referenceFournisseur;
+                $r->derniere_erreur = null;
                 $r->save();
 
                 return $r;
             }
 
-            $r->transitionVers(StatutRemboursement::Echoue);
-            $r->motif_echec = mb_substr((string) $erreur, 0, 255);
-            $r->termine_le = CarbonImmutable::now();
+            if ($erreur->refusDefinitif) {
+                // Le prestataire a dit non : rien n'est parti.
+                $r->transitionVers(StatutRemboursement::Echoue);
+                $r->motif_echec = mb_substr($erreur->getMessage(), 0, 255);
+                $r->termine_le = CarbonImmutable::now();
+                $r->save();
+                $this->desengager($r);
+
+                return $r;
+            }
+
+            // Erreur technique : la demande est peut-être partie. Rien n'est clos.
+            $r->derniere_erreur = mb_substr($erreur->getMessage(), 0, 255);
+            if ($r->tentatives_envoi >= (int) config('caisse.remboursements.tentatives_max')) {
+                $r->blocage = sprintf('Sans réponse de l\'opérateur après %d essais : vérifier auprès de lui avant toute nouvelle demande.', $r->tentatives_envoi);
+            }
             $r->save();
-            $this->desengager($r);
+            Log::warning('Remboursement : erreur technique du prestataire, nouvel essai prévu.', [
+                'remboursement_id' => $r->id, 'tentatives' => $r->tentatives_envoi, 'bloque' => $r->blocage !== null,
+            ]);
+
+            return $r;
+        });
+    }
+
+    /** Plus d'envoi automatique : la caisse voit la raison et traite à la main. */
+    private function bloquer(Remboursement $remboursement, string $raison): Remboursement
+    {
+        return DB::transaction(function () use ($remboursement, $raison) {
+            $r = Remboursement::whereKey($remboursement->id)->lockForUpdate()->firstOrFail();
+            if ($r->statut === StatutRemboursement::Valide && $r->blocage === null) {
+                $r->blocage = mb_substr($raison, 0, 255);
+                $r->save();
+                Log::warning('Remboursement bloqué : envoi automatique impossible.', ['remboursement_id' => $r->id]);
+            }
 
             return $r;
         });
@@ -259,21 +314,32 @@ class RemboursementService
         $resultat = $paiementId === null
             ? 'remboursement inconnu'
             : DB::transaction(function () use ($rappel, $evenement, $paiementId) {
-                Paiement::whereKey($paiementId)->lockForUpdate()->firstOrFail();
+                $paiement = Paiement::whereKey($paiementId)->lockForUpdate()->firstOrFail();
                 $r = Remboursement::where('cle_idempotence', $rappel->referenceMarchand)->lockForUpdate()->firstOrFail();
                 $evenement->forceFill(['remboursement_id' => $r->id])->save();
+                // Identifiants seulement dans le journal : ni téléphone, ni donnée de santé.
+                $trace = ['remboursement_id' => $r->id, 'evenement_id' => $evenement->id];
 
-                if (! in_array($r->statut, [StatutRemboursement::Valide, StatutRemboursement::EnCours], true)) {
+                if ($paiement->fournisseur !== app(FournisseurPaiement::class)->nom()) {
+                    Log::warning('Rappel de remboursement pour un paiement d\'un autre prestataire : ignoré.', $trace);
+
+                    return 'prestataire différent : à traiter à la main';
+                }
+
+                $ouvert = in_array($r->statut, [StatutRemboursement::Valide, StatutRemboursement::EnCours], true);
+                $echoueMaisReussi = $r->statut === StatutRemboursement::Echoue && $rappel->reussi;
+                if (! $ouvert && ! $echoueMaisReussi) {
                     return 'déjà traité ('.$r->statut->value.')';
                 }
 
                 if ($rappel->devise !== $r->devise || Montant::enCentimes($rappel->montant) !== Montant::enCentimes((string) $r->montant)) {
-                    // Identifiants seulement : ni téléphone, ni donnée de santé.
-                    Log::warning('Rappel de remboursement : montant ou devise différent, ignoré.', [
-                        'remboursement_id' => $r->id, 'evenement_id' => $evenement->id,
-                    ]);
+                    Log::warning('Rappel de remboursement : montant ou devise différent, ignoré.', $trace);
 
                     return 'montant ou devise différent : ignoré';
+                }
+
+                if ($echoueMaisReussi) {
+                    return $this->constaterReussiteApresEchec($r, $paiement, $rappel, $trace);
                 }
 
                 if ($r->statut === StatutRemboursement::Valide) {
@@ -293,21 +359,81 @@ class RemboursementService
 
                 $r->transitionVers(StatutRemboursement::Reussi);
                 $r->save();
-                app(FacturationService::class)->emettreAvoir($r);
-                app(JournalCaisse::class)->sortie($r);
-
-                $paiement = $r->paiement()->with('patient')->first();
-                $texte = sprintf('MEDIHOME : remboursement de %s envoyé sur %s.',
-                    Montant::afficher((string) $r->montant, $r->devise),
-                    $paiement->moyen === MoyenPaiement::Carte ? 'votre carte' : 'votre compte '.$paiement->moyen->libelle());
-                $telephone = $paiement->patient?->telephone;
-                if ($telephone !== null) {
-                    DB::afterCommit(fn () => app(EnvoyeurSms::class)->envoyer($telephone, $texte));
-                }
+                $this->emettrePiecesEtPrevenir($r);
 
                 return 'réussi';
             });
 
         $evenement->forceFill(['traite_le' => CarbonImmutable::now(), 'resultat' => $resultat])->save();
+    }
+
+    /**
+     * L'opérateur confirme un remboursement que nous avions classé en échec :
+     * l'argent est parti. Si le montant peut encore être engagé sur le
+     * paiement, le remboursement est constaté (avoir, sortie de caisse) ;
+     * sinon un écart de rapprochement est ouvert pour la caisse. Jamais
+     * d'argent sorti sans pièce ni sans trace.
+     */
+    private function constaterReussiteApresEchec(Remboursement $r, Paiement $paiement, RappelFournisseur $rappel, array $trace): string
+    {
+        $centimes = Montant::enCentimes((string) $r->montant);
+
+        if ($centimes > $paiement->resteRemboursableEnCentimes()) {
+            DB::table('ecarts_rapprochement')->insertOrIgnore([
+                'id' => (string) Str::uuid(),
+                'jour' => CarbonImmutable::now('Africa/Kinshasa')->toDateString(),
+                'fournisseur' => $paiement->fournisseur,
+                'nature' => 'statut_different',
+                'paiement_id' => null,
+                'remboursement_id' => $r->id,
+                'reference_fournisseur' => $rappel->referenceFournisseur,
+                'montant_attendu' => null,
+                'montant_releve' => (string) $r->montant,
+                'devise' => $r->devise,
+                'statut' => 'ouvert',
+                'created_at' => CarbonImmutable::now(),
+                'updated_at' => CarbonImmutable::now(),
+            ]);
+            Log::warning('Remboursement confirmé après échec, montant déjà engagé ailleurs : écart de rapprochement ouvert.', $trace);
+
+            return 'réussi après échec, montant non ré-engageable : écart à traiter';
+        }
+
+        $paiement->montant_rembourse = Montant::depuisCentimes(Montant::enCentimes((string) $paiement->montant_rembourse) + $centimes);
+        $paiement->save();
+
+        $r->transitionVers(StatutRemboursement::Reussi);
+        $r->reference_fournisseur ??= $rappel->referenceFournisseur;
+        $r->termine_le = CarbonImmutable::now();
+        $r->save();
+        $this->emettrePiecesEtPrevenir($r);
+
+        return 'réussi après échec : montant ré-engagé';
+    }
+
+    /** Avoir, sortie de caisse, puis SMS au patient APRÈS validation de la transaction. */
+    private function emettrePiecesEtPrevenir(Remboursement $r): void
+    {
+        app(FacturationService::class)->emettreAvoir($r);
+        app(JournalCaisse::class)->sortie($r);
+
+        $paiement = $r->paiement()->with('patient')->first();
+        // Espaces ordinaires : l'espace fine insécable n'est pas dans l'alphabet GSM des SMS.
+        $texte = sprintf('MEDIHOME : remboursement de %s envoyé sur %s.',
+            str_replace("\u{202F}", ' ', Montant::afficher((string) $r->montant, $r->devise)),
+            $paiement->moyen === MoyenPaiement::Carte ? 'votre carte' : 'votre compte '.$paiement->moyen->libelle());
+        $telephone = $paiement->patient?->telephone;
+
+        if ($telephone !== null) {
+            $id = $r->id;
+            DB::afterCommit(function () use ($telephone, $texte, $id) {
+                try {
+                    app(EnvoyeurSms::class)->envoyer($telephone, $texte);
+                } catch (\Throwable $e) {
+                    // Une panne SMS ne remet pas en cause le remboursement ; sans numéro dans le journal.
+                    Log::warning('SMS de remboursement non envoyé.', ['remboursement_id' => $id, 'erreur' => $e::class]);
+                }
+            });
+        }
     }
 }

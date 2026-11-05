@@ -3,7 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
 
-const props = defineProps({ aValider: Array, recents: Array, numero: String, paiementTrouve: Object });
+const props = defineProps({ aValider: Array, aSuivre: Array, recents: Array, numero: String, paiementTrouve: Object });
 
 const validation = useForm({});
 const refus = useForm({ motif: '' });
@@ -70,6 +70,18 @@ const demanderGeste = () => geste.post('/personnel/caisse/remboursements/geste',
             </li>
         </ul>
         <p v-else class="mt-4 text-slate-600">Aucun remboursement à valider.</p>
+
+        <template v-if="aSuivre.length">
+            <h2 class="mt-8 text-lg font-semibold">À suivre</h2>
+            <p class="mt-1 text-sm text-slate-700">Sans réponse de l'opérateur, refusés par lui, ou à rembourser à la main. Vérifiez auprès de l'opérateur avant toute nouvelle demande : l'argent est peut-être déjà parti.</p>
+            <ul class="mt-3 divide-y divide-amber-200 rounded-lg border border-amber-300 bg-amber-50 text-sm">
+                <li v-for="r in aSuivre" :key="r.id" class="px-4 py-3">
+                    <div class="flex justify-between gap-2"><strong>{{ r.montant }}</strong><span>{{ r.statut }}</span></div>
+                    <p>{{ r.motif }}<span v-if="r.automatique"> (règle automatique)</span> · facture {{ r.facture ?? '—' }} · {{ r.patient }}</p>
+                    <p class="text-amber-900">{{ r.raison }}</p>
+                </li>
+            </ul>
+        </template>
 
         <h2 class="mt-8 text-lg font-semibold">Geste commercial</h2>
         <form class="mt-3 flex gap-2" @submit.prevent="chercher">

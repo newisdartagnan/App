@@ -47,10 +47,12 @@ const payer = (r) => paiement.post(`/personnel/caisse/reversements/${r.id}/paiem
             <li v-for="r in reversements" :key="r.id" class="px-4 py-3">
                 <div class="flex justify-between gap-2"><strong>{{ r.medecin }}</strong><span :class="r.paye ? 'text-vert-700' : 'text-amber-800'">{{ r.statut }}</span></div>
                 <p>{{ r.periode }} · {{ r.devise }}</p>
+                <p>Solde de la période {{ r.solde }}<span v-if="r.detteReprise"> − dette reprise {{ r.detteReprise }}</span></p>
                 <p>Brut {{ r.brut }} − commission {{ r.commission }} = <strong>{{ r.net }}</strong></p>
+                <p v-if="r.detteReportee" class="font-medium text-red-700">Dette reportée sur le prochain reversement : {{ r.detteReportee }}</p>
                 <p v-if="r.paye" class="text-slate-600">Payé le {{ r.payeLe }}, virement {{ r.referenceVirement }}</p>
                 <button v-if="r.peutPayer && enPaiement !== r.id" type="button" class="mt-2 text-marque-700 underline" @click="ouvrir(r.id)">Payer</button>
-                <span v-else-if="!r.paye && !r.peutPayer" class="text-slate-500">Préparé par vous : un autre agent le paie.</span>
+                <span v-else-if="r.aPayer && !r.peutPayer" class="text-slate-500">Préparé par vous : un autre agent le paie.</span>
                 <form v-if="enPaiement === r.id" class="mt-2 space-y-2" @submit.prevent="payer(r)">
                     <label :for="`ref-${r.id}`" class="etiquette">Référence du virement</label>
                     <input :id="`ref-${r.id}`" v-model="paiement.reference" maxlength="100" class="champ" required>

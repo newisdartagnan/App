@@ -195,10 +195,11 @@ class RemboursementsCaisseTest extends TestCase
 
     // --- Exécution chez le prestataire ----------------------------------------------------
 
-    public function test_une_erreur_du_prestataire_met_le_remboursement_en_echec_et_rend_le_montant(): void
+    public function test_un_refus_explicite_du_prestataire_met_le_remboursement_en_echec_et_rend_le_montant(): void
     {
         $factice = $this->fournisseurFactice();
         $factice->erreurRemboursement = 'Opérateur indisponible';
+        $factice->refusDefinitif = true;
         $r = $this->service()->demander($this->paiementEncaisse(), '10.00', MotifRemboursement::PaiementTardif);
 
         $r = $this->service()->executer($r);

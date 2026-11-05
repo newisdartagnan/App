@@ -2,6 +2,7 @@
 
 namespace App\Services\Caisse;
 
+use App\Enums\StatutRendezVous;
 use App\Models\Medecin;
 use App\Models\OperationCaisse;
 use App\Models\Reversement;
@@ -10,18 +11,37 @@ use App\Services\Paiement\PaiementRefuse;
 use App\Services\RendezVous\Affichage;
 use App\Support\Montant;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * PAY-09 : honoraires reversés aux médecins. Préparés par un agent de caisse
- * pour un médecin et une période close (encaissements moins remboursements
- * des rendez-vous du médecin, par devise, moins la commission de la
- * plateforme), puis payés par un AUTRE agent, avec la référence du virement.
+ * pour un médecin et une période close, puis payés par un AUTRE agent, avec
+ * la référence du virement.
+ *
+ * Ce qui entre dans un reversement (revue de sécurité) :
+ * - les encaissements de rendez-vous commencés avant la fin de la période et
+ *   non annulés (ni annulés, ni expirés, ni manqués par le médecin), pas
+ *   encore reversés : un encaissement d'avance attend que le rendez-vous ait
+ *   eu lieu, il n'est jamais oublié ;
+ * - les remboursements dont l'encaissement est reversé (avant ou maintenant) :
+ *   un remboursement APRÈS reversement est imputé au reversement suivant ;
+ * - chaque mouvement n'entre que dans un reversement (table de liaison, base) ;
+ * - un solde négatif, par devise, devient une dette reportée sur le
+ *   reversement suivant du médecin : le net n'est jamais négatif, la dette
+ *   jamais abandonnée.
  */
 final class ReversementService
 {
+    /** Rendez-vous qui n'ont pas eu lieu : leurs encaissements ne sont pas des honoraires. */
+    private const RENDEZ_VOUS_NON_HONORES = [
+        StatutRendezVous::AnnuleParPatient, StatutRendezVous::AnnuleParMedecin,
+        StatutRendezVous::Expire, StatutRendezVous::AbsenceMedecin,
+    ];
+
     /**
-     * Un reversement par devise ayant un solde positif sur la période.
+     * Un reversement par devise ayant des mouvements à reverser.
      *
      * @return list<Reversement>
      *
@@ -52,37 +72,48 @@ final class ReversementService
                 throw new PaiementRefuse('Cette période, ou une partie, a déjà un reversement pour ce médecin.');
             }
 
-            $soldes = OperationCaisse::where('medecin_id', $medecin->id)
-                ->whereBetween('jour', [$debut->toDateString(), $fin->toDateString()])
-                ->toBase()->selectRaw('devise, SUM(montant) AS solde')->groupBy('devise')->orderBy('devise')->get();
+            $mouvements = $this->mouvementsAReverser($medecin, $fin);
+            if ($mouvements->isEmpty()) {
+                throw new PaiementRefuse('Rien à reverser à ce médecin sur cette période.');
+            }
 
             $reversements = [];
-            foreach ($soldes as $solde) {
-                $brut = Montant::enCentimes((string) $solde->solde);
-                if ($brut <= 0) {
-                    continue;
-                }
+            foreach ($mouvements->groupBy('devise') as $devise => $operations) {
+                $solde = $operations->sum(fn (OperationCaisse $o) => Montant::enCentimes((string) $o->montant));
+                $detteReprise = Montant::enCentimes((string) (Reversement::where('medecin_id', $medecin->id)->where('devise', $devise)
+                    ->orderByDesc('periode_fin')->value('dette_reportee') ?? '0'));
 
+                $brut = max(0, $solde - $detteReprise);
                 // Arrondie au centime inférieur : au profit du médecin.
                 $commission = intdiv($brut * $commissionCentiemes, 10000);
+                $net = $brut - $commission;
 
                 $reversement = new Reversement;
                 $reversement->forceFill([
                     'medecin_id' => $medecin->id,
                     'periode_debut' => $debut->toDateString(),
                     'periode_fin' => $fin->toDateString(),
-                    'devise' => $solde->devise,
+                    'devise' => $devise,
+                    'solde_periode' => Montant::depuisCentimes($solde),
+                    'dette_reprise' => Montant::depuisCentimes($detteReprise),
+                    'dette_reportee' => Montant::depuisCentimes(max(0, $detteReprise - $solde)),
                     'montant_brut' => Montant::depuisCentimes($brut),
                     'commission' => Montant::depuisCentimes($commission),
-                    'montant_net' => Montant::depuisCentimes($brut - $commission),
-                    'statut' => 'prepare',
+                    'montant_net' => Montant::depuisCentimes($net),
+                    'statut' => $net > 0 ? 'prepare' : 'sans_versement',
                     'prepare_par' => $agent->id,
                 ])->save();
-                $reversements[] = $reversement;
-            }
 
-            if ($reversements === []) {
-                throw new PaiementRefuse('Rien à reverser à ce médecin sur cette période.');
+                $maintenant = CarbonImmutable::now();
+                DB::table('reversement_operations')->insert($operations->map(fn (OperationCaisse $o) => [
+                    'id' => (string) Str::uuid(),
+                    'reversement_id' => $reversement->id,
+                    'operation_caisse_id' => $o->id,
+                    'created_at' => $maintenant,
+                    'updated_at' => $maintenant,
+                ])->all());
+
+                $reversements[] = $reversement;
             }
 
             return $reversements;
@@ -104,6 +135,10 @@ final class ReversementService
 
         return DB::transaction(function () use ($reversement, $agent, $reference) {
             $r = Reversement::whereKey($reversement->id)->lockForUpdate()->firstOrFail();
+
+            if ($r->statut === 'sans_versement') {
+                throw new PaiementRefuse('Rien à verser sur ce reversement : la dette du médecin est reportée.');
+            }
 
             if ($r->statut !== 'prepare') {
                 throw new PaiementRefuse('Ce reversement est déjà payé.');
@@ -127,6 +162,8 @@ final class ReversementService
     /** @return list<array<string, mixed>> */
     public function lister(?Medecin $medecin = null, int $limite = 100): array
     {
+        $siNonNul = fn (string $montant, string $devise) => Montant::enCentimes($montant) === 0 ? null : Montant::afficher($montant, $devise);
+
         return Reversement::with('medecin.user')
             ->when($medecin, fn ($q) => $q->where('medecin_id', $medecin->id))
             ->orderByDesc('periode_fin')->orderBy('devise')->limit($limite)->get()
@@ -135,11 +172,19 @@ final class ReversementService
                 'medecin' => Affichage::medecin($r->medecin),
                 'periode' => 'Du '.$r->periode_debut->format('d/m/Y').' au '.$r->periode_fin->format('d/m/Y'),
                 'devise' => $r->devise,
+                'solde' => Montant::afficher((string) $r->solde_periode, $r->devise),
+                'detteReprise' => $siNonNul((string) $r->dette_reprise, $r->devise),
+                'detteReportee' => $siNonNul((string) $r->dette_reportee, $r->devise),
                 'brut' => Montant::afficher((string) $r->montant_brut, $r->devise),
                 'commission' => Montant::afficher((string) $r->commission, $r->devise),
                 'net' => Montant::afficher((string) $r->montant_net, $r->devise),
-                'statut' => $r->statut === 'paye' ? 'Payé' : 'Préparé, à payer',
+                'statut' => match ($r->statut) {
+                    'paye' => 'Payé',
+                    'sans_versement' => 'Rien à verser (dette reportée)',
+                    default => 'Préparé, à payer',
+                },
                 'paye' => $r->statut === 'paye',
+                'aPayer' => $r->statut === 'prepare',
                 'payeLe' => $r->paye_le?->setTimezone('Africa/Kinshasa')->format('d/m/Y H:i'),
                 'referenceVirement' => $r->reference_virement,
                 'preparePar' => $r->prepare_par,
@@ -167,5 +212,37 @@ final class ReversementService
         }
 
         return $centiemes;
+    }
+
+    /**
+     * Mouvements du médecin, jusqu'à la fin de la période, pas encore reversés :
+     * encaissements de rendez-vous honorés et commencés, et remboursements
+     * dont l'encaissement est (ou va être) reversé.
+     *
+     * @return Collection<int, OperationCaisse>
+     */
+    private function mouvementsAReverser(Medecin $medecin, CarbonImmutable $fin): Collection
+    {
+        $dejaReverses = DB::table('reversement_operations')->select('operation_caisse_id');
+        $finPeriode = $fin->endOfDay();
+
+        $encaissements = OperationCaisse::where('medecin_id', $medecin->id)
+            ->where('type', 'encaissement')
+            ->where('jour', '<=', $fin->toDateString())
+            ->whereNotIn('id', $dejaReverses)
+            ->whereHas('paiement.rendezVous', fn ($q) => $q->where('debut', '<=', $finPeriode)
+                ->whereNotIn('statut', array_map(fn (StatutRendezVous $s) => $s->value, self::RENDEZ_VOUS_NON_HONORES)))
+            ->get();
+
+        $paiementsDejaReverses = OperationCaisse::where('type', 'encaissement')->whereIn('id', $dejaReverses)->select('paiement_id');
+
+        $remboursements = OperationCaisse::where('medecin_id', $medecin->id)
+            ->where('type', 'remboursement')
+            ->where('jour', '<=', $fin->toDateString())
+            ->whereNotIn('id', $dejaReverses)
+            ->where(fn ($q) => $q->whereIn('paiement_id', $encaissements->pluck('paiement_id'))->orWhereIn('paiement_id', $paiementsDejaReverses))
+            ->get();
+
+        return $encaissements->concat($remboursements)->sortBy('devise')->values();
     }
 }

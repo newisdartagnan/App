@@ -80,6 +80,7 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
 
             Route::get('/taux', [TauxController::class, 'index'])->name('taux');
             Route::post('/taux', [TauxController::class, 'store'])->name('taux.enregistrer');
+            Route::post('/taux/{taux}/confirmation', [TauxController::class, 'confirmer'])->whereUuid('taux')->name('taux.confirmer');
 
             Route::get('/remboursements', [RemboursementController::class, 'index'])->name('remboursements');
             Route::post('/remboursements/geste', [RemboursementController::class, 'geste'])->name('remboursements.geste');
