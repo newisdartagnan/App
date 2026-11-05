@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DemandeConsultation;
 use App\Models\Paiement;
 use App\Models\RendezVous;
+use App\Services\Paiement\PaiementRefuse;
 use App\Services\RendezVous\Affichage;
 use App\Services\RendezVous\CreneauxService;
 use App\Services\RendezVous\DemandeConsultationService;
@@ -123,7 +124,9 @@ class MesRendezVousController extends Controller
 
         try {
             $rdv = $service->annulerParPatient($rendezVous, $donnees['motif'] ?? null);
-        } catch (ReservationRefusee $e) {
+        } catch (ReservationRefusee|PaiementRefuse $e) {
+            // Refus métier (y compris de la demande de remboursement) : rien
+            // n'est annulé, le patient lit le message ; jamais d'erreur 500.
             return back()->withErrors(['annulation' => $e->getMessage()]);
         }
 

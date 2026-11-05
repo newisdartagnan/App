@@ -22,7 +22,11 @@ final class FournisseurPaiementTemoin implements FournisseurPaiement
 {
     public int $initiations = 0;
 
+    /** Message de l'erreur à lever à l'initiation (null : pas d'erreur). */
     public ?string $erreur = null;
+
+    /** true : refus explicite (rien n'est parti) ; false : erreur technique (la demande est peut-être partie). */
+    public bool $refusDefinitif = false;
 
     public ?string $urlRedirection = null;
 
@@ -38,7 +42,7 @@ final class FournisseurPaiementTemoin implements FournisseurPaiement
         $this->initiations++;
 
         if ($this->erreur !== null) {
-            throw new ErreurFournisseur($this->erreur);
+            throw $this->refusDefinitif ? ErreurFournisseur::refus($this->erreur) : ErreurFournisseur::injoignable($this->erreur);
         }
 
         $initiation = $this->simulation->initier($paiement);

@@ -467,10 +467,17 @@ class ReservationService
         }
 
         $remboursements = $this->remboursements ?? app(RemboursementService::class);
-        $montant = $remboursements->montantPourTaux($paiement, $taux);
 
-        if (Montant::enCentimes($montant) > 0) {
-            $remboursements->demander($paiement, $montant, $motif);
+        // Plafonné à ce qui reste remboursable (un geste commercial a pu en
+        // rendre une partie) ; rien à demander si tout est déjà rendu. Sinon
+        // la demande serait refusée et l'annulation avec elle (revue de sécurité).
+        $centimes = min(
+            Montant::enCentimes($remboursements->montantPourTaux($paiement, $taux)),
+            Paiement::whereKey($paiement->id)->lockForUpdate()->firstOrFail()->resteRemboursableEnCentimes(),
+        );
+
+        if ($centimes > 0) {
+            $remboursements->demander($paiement, Montant::depuisCentimes($centimes), $motif);
         }
     }
 

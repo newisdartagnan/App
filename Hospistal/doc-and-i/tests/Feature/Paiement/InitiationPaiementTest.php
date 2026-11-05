@@ -58,6 +58,8 @@ class InitiationPaiementTest extends TestCase
                 'devise' => 'USD',
                 'telephone' => '081 234 56 78',
                 'cle' => (string) Str::uuid(),
+                // Montant affiché sur la page, renvoyé tel quel.
+                'montant' => ($surcharge['devise'] ?? 'USD') === 'CDF' ? '28500.00' : '10.00',
             ], $surcharge));
     }
 
@@ -123,20 +125,102 @@ class InitiationPaiementTest extends TestCase
         $this->assertSame(1, $this->fournisseur->initiations);
     }
 
-    public function test_un_refus_du_prestataire_fait_echouer_la_tentative_et_permet_de_reessayer(): void
+    public function test_un_refus_explicite_du_prestataire_fait_echouer_la_tentative_et_permet_de_reessayer(): void
     {
-        $this->fournisseur->erreur = 'Opérateur indisponible, réessayez dans quelques minutes.';
+        $this->fournisseur->erreur = 'Numéro Mobile Money inconnu de l\'opérateur.';
+        $this->fournisseur->refusDefinitif = true;
 
         $this->initier();
         $paiement = Paiement::sole();
         $this->assertSame(StatutPaiement::Echoue, $paiement->statut);
-        $this->assertSame('Opérateur indisponible, réessayez dans quelques minutes.', $paiement->motif_echec);
+        $this->assertSame('Numéro Mobile Money inconnu de l\'opérateur.', $paiement->motif_echec);
         $this->assertNotNull($paiement->echoue_le);
 
         $this->fournisseur->erreur = null;
         $this->initier();
         $this->assertSame(2, Paiement::count());
         $this->assertSame(1, Paiement::where('statut', 'en_attente')->count());
+    }
+
+    public function test_une_erreur_technique_laisse_la_tentative_ouverte_car_le_debit_est_peut_etre_parti(): void
+    {
+        $this->fournisseur->erreur = 'Délai dépassé.';
+
+        $this->initier();
+
+        $paiement = Paiement::sole();
+        $this->assertSame(StatutPaiement::Initie, $paiement->statut, 'Ni échoué ni close : seul le rappel signé ou l\'expiration la clôt.');
+        $this->assertNull($paiement->echoue_le);
+        $this->actingAs($this->patient)->get(route('paiement.suivi', $paiement))
+            ->assertInertia(fn ($page) => $page->where('paiement.statut', 'initie')->where('paiement.en_cours', true)->where('peutRelancer', true));
+    }
+
+    public function test_apres_une_erreur_technique_un_nouvel_envoi_reprend_la_meme_tentative_avec_la_meme_cle(): void
+    {
+        $this->fournisseur->erreur = 'Délai dépassé.';
+        $this->initier();
+        $paiement = Paiement::sole();
+
+        // Le patient renvoie le formulaire (nouvelle clé de page) : c'est la même tentative qui repart.
+        $this->fournisseur->erreur = null;
+        $this->initier()->assertRedirect(route('paiement.suivi', $paiement));
+
+        $this->assertSame(1, Paiement::count());
+        $this->assertSame(2, $this->fournisseur->initiations);
+        $this->assertSame(StatutPaiement::EnAttente, $paiement->fresh()->statut);
+    }
+
+    public function test_le_patient_peut_relancer_une_tentative_sans_reponse_de_l_operateur(): void
+    {
+        $this->fournisseur->erreur = 'Délai dépassé.';
+        $this->initier();
+        $paiement = Paiement::sole();
+
+        $this->fournisseur->erreur = null;
+        $this->actingAs($this->patient)->post(route('paiement.relancer', $paiement))->assertRedirect(route('paiement.suivi', $paiement));
+        $this->assertSame(StatutPaiement::EnAttente, $paiement->fresh()->statut);
+        $this->assertSame(2, $this->fournisseur->initiations);
+
+        // Une tentative déjà acceptée ne repart pas ; celle d'un autre patient non plus.
+        $this->post(route('paiement.relancer', $paiement))->assertRedirect(route('paiement.suivi', $paiement));
+        $this->assertSame(2, $this->fournisseur->initiations);
+        $this->actingAs($this->patient())->post(route('paiement.relancer', $paiement))->assertNotFound();
+    }
+
+    public function test_une_tentative_restee_sans_reponse_expire_puis_le_patient_peut_payer_de_nouveau(): void
+    {
+        $this->fournisseur->erreur = 'Délai dépassé.';
+        $this->initier();
+        $this->fournisseur->erreur = null;
+
+        $this->travel(11)->minutes();
+        $this->artisan('paiement:expirer-tentatives');
+        $this->assertSame(StatutPaiement::Expire, Paiement::sole()->statut);
+
+        $this->initier();
+        $this->assertSame(2, Paiement::count());
+    }
+
+    public function test_un_montant_affiche_different_du_tarif_recalcule_est_refuse(): void
+    {
+        $taux = $this->tauxDuJour('2850.0000');
+        // Taux corrigé par la caisse entre l'affichage (28 500 CDF) et l'envoi.
+        $taux->forceFill(['cdf_par_usd' => '2900.0000'])->save();
+
+        $this->initier(['devise' => 'CDF', 'montant' => '28500.00'])
+            ->assertSessionHasErrors(['paiement' => 'Le montant a changé : vérifiez le nouveau montant, puis payez.']);
+        $this->assertSame(0, Paiement::count());
+        $this->assertSame(0, $this->fournisseur->initiations);
+
+        $this->initier(['devise' => 'CDF', 'montant' => '29000.00'])->assertRedirect();
+        $this->assertSame('29000.00', Paiement::sole()->montant);
+    }
+
+    public function test_le_montant_affiche_est_exige(): void
+    {
+        $this->initier(['montant' => null])->assertSessionHasErrors('montant');
+        $this->initier(['montant' => '10,00'])->assertSessionHasErrors('montant');
+        $this->assertSame(0, Paiement::count());
     }
 
     public function test_le_mobile_money_exige_un_numero_congolais_valide(): void
@@ -244,10 +328,13 @@ class InitiationPaiementTest extends TestCase
         $this->initier(['devise' => 'EUR'])->assertSessionHasErrors('devise');
         $this->initier(['cle' => ''])->assertSessionHasErrors('cle');
         $this->initier(['cle' => 'court'])->assertSessionHasErrors('paiement');
-        $this->initier(['statut' => 'reussi', 'montant' => '0.01'])->assertRedirect();
+        // Le navigateur ne fixe pas le prix : un montant différent du tarif est refusé, jamais débité.
+        $this->initier(['montant' => '0.01'])->assertSessionHasErrors('paiement');
+        $this->assertSame(0, Paiement::count());
 
-        $this->assertSame('10.00', Paiement::sole()->montant, 'Le montant envoyé par le navigateur est ignoré.');
-        $this->assertSame(StatutPaiement::EnAttente, Paiement::sole()->statut);
+        $this->initier(['statut' => 'reussi', 'devise_reference' => 'CDF'])->assertRedirect();
+        $this->assertSame('10.00', Paiement::sole()->montant);
+        $this->assertSame(StatutPaiement::EnAttente, Paiement::sole()->statut, 'Le statut envoyé par le navigateur est ignoré.');
     }
 
     public function test_la_page_de_paiement_propose_les_francs_seulement_avec_un_taux_du_jour(): void
@@ -258,6 +345,7 @@ class InitiationPaiementTest extends TestCase
                 ->component('Paiement/Payer')
                 ->has('devises', 1)
                 ->where('devises.0.montant', '10,00 USD')
+                ->where('devises.0.valeur', '10.00')
                 ->has('moyens', 5)
                 ->where('telephone', '0'.substr($this->patient->telephone, 4))
                 ->where('secondesRestantes', 15 * 60)
@@ -266,7 +354,7 @@ class InitiationPaiementTest extends TestCase
         $this->tauxDuJour('2850.0000');
         $this->get(route('paiement.payer', $this->rdv))
             ->assertInertia(fn ($page) => $page->has('devises', 2)->where('devises.1.code', 'CDF')
-                ->where('devises.1.montant', "28\u{202F}500 CDF"));
+                ->where('devises.1.montant', "28\u{202F}500 CDF")->where('devises.1.valeur', '28500.00'));
     }
 
     public function test_la_page_de_paiement_renvoie_vers_le_suivi_d_une_tentative_en_cours_ou_vers_le_rendez_vous(): void

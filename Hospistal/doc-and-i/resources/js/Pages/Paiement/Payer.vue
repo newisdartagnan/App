@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import Gabarit from '../../Composants/Gabarit.vue';
 
@@ -21,7 +21,8 @@ const form = useForm({
 });
 
 const moyen = computed(() => props.moyens.find((m) => m.valeur === form.moyen) ?? null);
-const montant = computed(() => props.devises.find((d) => d.code === form.devise)?.montant);
+const devise = computed(() => props.devises.find((d) => d.code === form.devise));
+const montant = computed(() => devise.value?.montant);
 
 const restantes = ref(props.secondesRestantes);
 let minuterie = null;
@@ -34,7 +35,10 @@ onMounted(() => {
 onBeforeUnmount(() => clearInterval(minuterie));
 const minutesSecondes = computed(() => `${Math.floor(restantes.value / 60)} min ${String(restantes.value % 60).padStart(2, '0')} s`);
 
-const payer = () => form.post(`/mes-rendez-vous/${props.rendezVous.id}/paiement`, { preserveScroll: true });
+// Le montant affiché part avec la demande : si le tarif a changé entre-temps, le serveur refuse.
+const payer = () => form
+    .transform((donnees) => ({ ...donnees, montant: devise.value?.valeur }))
+    .post(`/mes-rendez-vous/${props.rendezVous.id}/paiement`, { preserveScroll: true, onError: () => router.reload({ only: ['devises'] }) });
 </script>
 
 <template>
