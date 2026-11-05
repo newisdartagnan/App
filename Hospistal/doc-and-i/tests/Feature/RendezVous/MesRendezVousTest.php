@@ -51,7 +51,7 @@ class MesRendezVousTest extends TestCase
         return $this->rendezVousExistant($this->medecin, $this->patient, $this->lundi($heure)->addDays($jours), 20, StatutRendezVous::Confirme, null, $this->type);
     }
 
-    public function test_le_detail_d_une_attente_annonce_le_paiement_au_prochain_lot_et_le_temps_restant(): void
+    public function test_le_detail_d_une_attente_propose_de_payer_et_montre_le_temps_restant(): void
     {
         $rdv = $this->reserve('10:00');
         $this->travel(4)->minutes();
@@ -65,12 +65,9 @@ class MesRendezVousTest extends TestCase
                 ->where('rendezVous.prix', '15,00 USD')
                 ->where('rendezVous.quand', 'Aujourd\'hui, lundi 7 décembre à 10:00')
                 ->where('actions.annuler', true)
-                ->where('actions.reporter', false));
-
-        $this->assertStringContainsString(
-            'le paiement en ligne arrive dans le prochain lot',
-            file_get_contents(resource_path('js/Pages/RendezVous/Detail.vue'))
-        );
+                ->where('actions.payer', true)
+                ->where('actions.reporter', false)
+                ->has('paiements', 0));
     }
 
     public function test_une_attente_echue_apparait_expiree_sans_attendre_la_tache_planifiee(): void

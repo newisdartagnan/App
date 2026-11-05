@@ -37,9 +37,15 @@ Route::middleware(['auth', 'role:patient'])->group(function () {
 
             // Demande de consultation et rendez-vous du patient (lot RDV).
             require __DIR__.'/rendezvous.php';
+
+            // Paiement, reçus et factures du patient (lot paiement).
+            require __DIR__.'/paiement.php';
         });
     });
 });
+
+// Rappel serveur de l'agrégateur de paiement : hors connexion, signé.
+require __DIR__.'/paiement-rappel.php';
 
 // Comptes du personnel et espace médecin (lot RDV).
 require __DIR__.'/personnel.php';

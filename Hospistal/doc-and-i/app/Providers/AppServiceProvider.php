@@ -74,5 +74,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('personnel-connexion', $parIpPersonnel('connexion'));
         RateLimiter::for('personnel-code', $parIpPersonnel('code'));
         RateLimiter::for('personnel-activation', $parIpPersonnel('activation'));
+
+        // PAY-04 : rappels de l'agrégateur, large (ses serveurs sont peu
+        // nombreux et rejouent leurs rappels) mais borné contre l'inondation.
+        RateLimiter::for('paiement-rappel', $parIp('paiement-rappel', 300));
     }
 }

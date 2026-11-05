@@ -50,6 +50,22 @@ class RendezVous extends Model
         $this->statut = $cible;
     }
 
+    /**
+     * RG-03, seul chemin d'un rendez-vous expiré vers « confirmé » : un
+     * paiement encaissé après la libération du créneau, quand ce créneau est
+     * encore libre. Le tableau des transitions garde Expire comme état final ;
+     * cette reprise n'est appelée que par ReservationService::confirmerApresPaiement,
+     * sous verrou du médecin, après vérification du créneau.
+     */
+    public function reprendreApresPaiementTardif(): void
+    {
+        if ($this->statut !== StatutRendezVous::Expire) {
+            throw new LogicException("Rendez-vous {$this->id} : seule une attente expirée se reprend après paiement ({$this->statut->value}).");
+        }
+
+        $this->statut = StatutRendezVous::Confirme;
+    }
+
     public function patient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'patient_id');
