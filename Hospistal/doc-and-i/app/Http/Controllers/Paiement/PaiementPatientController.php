@@ -52,7 +52,8 @@ class PaiementPatientController extends Controller
         foreach (config('doc-and-i.paiement.devises') as $devise) {
             try {
                 $tarif = $tarifs->pourRendezVous($rdv, $devise);
-                $devises[] = ['code' => $devise, 'montant' => Montant::afficher($tarif->montant, $devise)];
+                // « valeur » est renvoyée à l'envoi : le patient paie le montant qu'il a vu.
+                $devises[] = ['code' => $devise, 'montant' => Montant::afficher($tarif->montant, $devise), 'valeur' => $tarif->montant];
             } catch (PaiementRefuse) {
                 // Pas de taux du jour : cette devise n'est pas proposée.
             }
@@ -85,11 +86,14 @@ class PaiementPatientController extends Controller
             'devise' => ['required', Rule::in(config('doc-and-i.paiement.devises'))],
             'telephone' => ['nullable', 'string', 'max:30'],
             'cle' => ['required', 'string', 'max:64'],
+            'montant' => ['required', 'string', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
         ], [
             'moyen.required' => 'Choisissez comment payer.',
             'moyen.enum' => 'Choisissez comment payer.',
             'devise.required' => 'Choisissez la monnaie.',
             'devise.in' => 'Choisissez la monnaie.',
+            'montant.required' => 'La page de paiement a expiré. Rechargez-la, puis réessayez.',
+            'montant.regex' => 'La page de paiement a expiré. Rechargez-la, puis réessayez.',
         ]);
 
         try {
@@ -100,6 +104,7 @@ class PaiementPatientController extends Controller
                 $donnees['devise'],
                 $donnees['telephone'] ?? null,
                 $donnees['cle'],
+                $donnees['montant'],
             );
         } catch (PaiementRefuse $refus) {
             return back()->withErrors(['paiement' => $refus->getMessage()]);
@@ -145,8 +150,24 @@ class PaiementPatientController extends Controller
             ],
             'rendezVous' => $rdv ? Affichage::resume($rdv) : null,
             'peutReessayer' => $peutReessayer,
+            // Erreur technique à l'envoi : pas encore de réponse de l'opérateur, relance avec la même clé.
+            'peutRelancer' => $paiement->statut === StatutPaiement::Initie,
             'simulation' => SimulationPaiement::disponible() && $paiement->statut->estEnCours(),
         ]);
+    }
+
+    /** Tentative sans réponse de l'opérateur : renvoyée au prestataire avec la même clé (pas de second débit). */
+    public function relancer(Request $request, Paiement $paiement, PaiementService $paiements): RedirectResponse
+    {
+        abort_unless($paiement->patient_id === $request->user()->id, 404);
+
+        try {
+            $paiements->relancer($paiement, $request->user());
+        } catch (PaiementRefuse $refus) {
+            return back()->withErrors(['paiement' => $refus->getMessage()]);
+        }
+
+        return redirect()->route('paiement.suivi', $paiement);
     }
 
     /** Développement seulement : déclenche le rappel signé de la simulation. */

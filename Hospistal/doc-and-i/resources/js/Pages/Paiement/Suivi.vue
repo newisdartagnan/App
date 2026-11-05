@@ -3,13 +3,16 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted } from 'vue';
 import Gabarit from '../../Composants/Gabarit.vue';
 
-const props = defineProps({ paiement: Object, rendezVous: Object, peutReessayer: Boolean, simulation: Boolean });
+const props = defineProps({ paiement: Object, rendezVous: Object, peutReessayer: Boolean, peutRelancer: Boolean, simulation: Boolean });
+
+const relance = useForm({});
+const relancer = () => relance.post(`/paiements/${props.paiement.id}/relance`, { preserveScroll: true });
 
 // La page relit le statut auprès du serveur : le navigateur ne confirme jamais rien (PAY-04).
 let minuterie = null;
 onMounted(() => {
     minuterie = setInterval(() => {
-        if (props.paiement.en_cours) router.reload({ only: ['paiement', 'rendezVous', 'peutReessayer', 'simulation'] });
+        if (props.paiement.en_cours) router.reload({ only: ['paiement', 'rendezVous', 'peutReessayer', 'peutRelancer', 'simulation'] });
         else clearInterval(minuterie);
     }, 3000);
 });
@@ -28,7 +31,18 @@ const simuler = (resultat) => {
         <h1 class="text-2xl font-bold">Paiement de {{ paiement.montant }}</h1>
         <p class="mt-1 text-slate-700">{{ paiement.moyen }}<template v-if="paiement.telephone"> · {{ paiement.telephone }}</template></p>
 
-        <div v-if="paiement.en_cours" class="mt-6 rounded-lg border border-marque-200 bg-marque-50 p-4 text-marque-900" role="status" aria-live="polite">
+        <div v-if="paiement.statut === 'initie'" class="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900" role="status" aria-live="polite">
+            <p class="text-lg font-semibold">Nous n'avons pas encore la réponse de l'opérateur</p>
+            <p class="mt-1">
+                Si un message de paiement s'affiche sur votre téléphone, vous pouvez l'accepter : vous ne serez débité qu'une fois.
+                Ne refaites pas un autre paiement : cette page se met à jour toute seule.
+            </p>
+            <button v-if="peutRelancer" type="button" class="bouton mt-3" :disabled="relance.processing" @click="relancer">
+                Relancer la demande
+            </button>
+        </div>
+
+        <div v-else-if="paiement.en_cours" class="mt-6 rounded-lg border border-marque-200 bg-marque-50 p-4 text-marque-900" role="status" aria-live="polite">
             <p class="text-lg font-semibold">
                 {{ paiement.mobile_money ? 'Confirmez sur votre téléphone' : 'Terminez le paiement sur la page de votre banque' }}
             </p>

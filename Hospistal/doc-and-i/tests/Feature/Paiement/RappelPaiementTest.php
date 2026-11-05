@@ -233,15 +233,76 @@ class RappelPaiementTest extends TestCase
         $this->assertSame(StatutRendezVous::Confirme, $this->rdv->fresh()->statut);
     }
 
-    public function test_une_reussite_apres_un_echec_n_est_pas_encaissee_et_reste_a_rapprocher(): void
+    public function test_une_reussite_signee_apres_un_echec_est_encaissee_et_confirme_le_rendez_vous(): void
     {
         $this->envoyerRappel($this->rappel(reussi: false))->assertOk();
         $this->envoyerRappel($this->rappel())->assertOk();
 
-        $this->assertSame(StatutPaiement::Echoue, $this->paiement->fresh()->statut, 'Transition interdite : échoué → réussi.');
-        $this->assertSame(0, Facture::count());
-        // Pas d'ordre entre les deux événements (même horodatage figé, identifiants UUID) : on cherche le second par son contenu.
-        $this->assertStringContainsString('écart à rapprocher', EvenementPaiement::whereNotNull('resultat')->pluck('resultat')->implode(' | '));
+        $this->assertSame(StatutPaiement::Reussi, $this->paiement->fresh()->statut, 'L\'opérateur fait foi : le débit est encaissé.');
+        $this->assertSame(1, Facture::count());
+        $this->assertSame(1, OperationCaisse::count());
+        $this->assertSame(StatutRendezVous::Confirme, $this->rdv->fresh()->statut);
+    }
+
+    public function test_revue_debit_parti_malgre_une_erreur_technique_puis_second_paiement_le_premier_est_encaisse_et_rembourse(): void
+    {
+        // P1 : l'opérateur ne répond pas à temps, mais le débit est parti.
+        $this->paiement->forceFill(['statut' => StatutPaiement::Initie])->save();
+        $this->travel(11)->minutes();
+        $this->artisan('paiement:expirer-tentatives');
+        $this->assertSame(StatutPaiement::Expire, $this->paiement->fresh()->statut);
+
+        // P2 : le patient réessaie et paie ; le rendez-vous est confirmé.
+        $p2 = $this->paiementExistant($this->rdv, StatutPaiement::EnAttente);
+        $this->envoyerRappel($this->rappel($p2))->assertOk();
+        $this->assertSame(StatutRendezVous::Confirme, $this->rdv->fresh()->statut);
+
+        // Puis il valide P1 sur son téléphone : le rappel signé de P1 arrive.
+        $this->envoyerRappel($this->rappel())->assertOk();
+
+        $p1 = $this->paiement->fresh();
+        $this->assertSame(StatutPaiement::Reussi, $p1->statut, 'Encaissé, jamais perdu.');
+        $this->assertSame(2, Facture::count());
+        $this->assertSame(2, OperationCaisse::where('type', 'encaissement')->count());
+        $remboursement = Remboursement::sole();
+        $this->assertSame($p1->id, $remboursement->paiement_id);
+        $this->assertSame(MotifRemboursement::PaiementEnDouble, $remboursement->motif);
+        $this->assertSame('10.00', $remboursement->montant);
+    }
+
+    public function test_une_reussite_signee_apres_un_refus_explicite_suit_rg03_si_le_creneau_est_perdu(): void
+    {
+        $this->paiement->forceFill(['statut' => StatutPaiement::Echoue, 'echoue_le' => now()])->save();
+        $this->travel(20)->minutes();
+        $this->artisan('rdv:expirer-attentes');
+        $this->rendezVousExistant($this->medecin, User::factory()->create(), $this->lundi('09:00'));
+
+        $this->envoyerRappel($this->rappel())->assertOk();
+
+        $this->assertSame(StatutPaiement::Reussi, $this->paiement->fresh()->statut);
+        $this->assertSame(1, Facture::count());
+        $this->assertSame(MotifRemboursement::PaiementTardif, Remboursement::sole()->motif);
+    }
+
+    public function test_un_echec_d_envoi_du_sms_de_recu_ne_journalise_ni_le_numero_ni_le_message_du_pilote(): void
+    {
+        $this->app->instance(EnvoyeurSms::class, new class implements EnvoyeurSms
+        {
+            public function envoyer(string $telephone, string $message): void
+            {
+                throw new \RuntimeException("Échec d'envoi vers {$telephone}");
+            }
+        });
+
+        $this->envoyerRappel($this->rappel())->assertOk();
+
+        $this->assertSame(StatutPaiement::Reussi, $this->paiement->fresh()->statut, 'Le reçu manqué n\'annule pas l\'encaissement.');
+        $journal = implode("\n", $this->journal);
+        $this->assertStringContainsString('RuntimeException', $journal);
+        $this->assertStringContainsString($this->paiement->id, $journal);
+        $this->assertStringNotContainsString($this->patient->telephone, $journal);
+        $this->assertStringNotContainsString(substr($this->patient->telephone, 4), $journal);
+        $this->assertStringNotContainsString('Échec d\'envoi', $journal);
     }
 
     public function test_rg03_paiement_tardif_creneau_encore_libre_le_rendez_vous_est_repris(): void

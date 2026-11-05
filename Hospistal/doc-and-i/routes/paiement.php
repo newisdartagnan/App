@@ -21,6 +21,8 @@ Route::name('paiement.')->group(function () {
 
     Route::get('/paiements/{paiement}', [PaiementPatientController::class, 'suivi'])
         ->whereUuid('paiement')->name('suivi');
+    Route::post('/paiements/{paiement}/relance', [PaiementPatientController::class, 'relancer'])
+        ->whereUuid('paiement')->middleware('throttle:10,1')->name('relancer');
 
     // Simulation locale seulement : absente en production (et revérifiée par le contrôleur).
     if (SimulationPaiement::disponible()) {

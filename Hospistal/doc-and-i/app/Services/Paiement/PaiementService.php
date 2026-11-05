@@ -57,9 +57,18 @@ class PaiementService
      * même tentative ; une tentative déjà en cours pour ce rendez-vous est
      * rendue telle quelle, sans second débit.
      *
+     * Tentative restée « initiée » après une erreur technique : un nouvel
+     * envoi (même avec une autre clé de page) rend CETTE tentative et la
+     * renvoie au prestataire avec SA clé ; on n'en ouvre pas une seconde tant
+     * qu'elle n'est pas close (rappel signé ou expiration). Ainsi un débit
+     * parti malgré l'erreur n'est jamais doublé par une seconde demande.
+     *
+     * $montantAttendu : le montant affiché au patient ; s'il ne correspond
+     * plus au tarif recalculé (taux corrigé entre-temps), rien n'est débité.
+     *
      * @throws PaiementRefuse
      */
-    public function initier(RendezVous $rdv, User $patient, MoyenPaiement $moyen, string $devise, ?string $telephone, string $cle): TentativePaiement
+    public function initier(RendezVous $rdv, User $patient, MoyenPaiement $moyen, string $devise, ?string $telephone, string $cle, ?string $montantAttendu = null): TentativePaiement
     {
         if (! preg_match('/^[A-Za-z0-9-]{16,64}$/', $cle)) {
             throw new PaiementRefuse('La page de paiement a expiré. Rechargez-la, puis réessayez.');
@@ -72,7 +81,7 @@ class PaiementService
         }
 
         try {
-            $paiement = DB::transaction(fn () => $this->preparer($rdv, $patient, $moyen, $devise, $numero, $cle));
+            $paiement = DB::transaction(fn () => $this->preparer($rdv, $patient, $moyen, $devise, $numero, $cle, $montantAttendu));
         } catch (UniqueConstraintViolationException $e) {
             // Deux envois simultanés : l'un a créé la tentative, l'autre la reprend.
             $paiement = Paiement::where('cle_idempotence', $cle)->first()
@@ -90,6 +99,33 @@ class PaiementService
         return $paiement->statut === StatutPaiement::Initie
             ? $this->demanderAuFournisseur($paiement)
             : new TentativePaiement($paiement);
+    }
+
+    /**
+     * Le patient relance une tentative restée sans réponse de l'opérateur
+     * (« initiée » après une erreur technique) : même clé, pas de second
+     * débit. Sans effet sur une tentative acceptée, close, ou dont le
+     * créneau n'est plus à payer.
+     *
+     * @throws PaiementRefuse
+     */
+    public function relancer(Paiement $paiement, User $patient): TentativePaiement
+    {
+        if ($paiement->patient_id !== $patient->id) {
+            throw new PaiementRefuse('Ce paiement n\'est pas le vôtre.');
+        }
+
+        $paiement = $paiement->fresh();
+        $rdv = $paiement->rendezVous;
+
+        if ($paiement->statut !== StatutPaiement::Initie
+            || ! $rdv
+            || $rdv->statut !== StatutRendezVous::EnAttentePaiement
+            || $this->reservations->estEchue($rdv)) {
+            return new TentativePaiement($paiement);
+        }
+
+        return $this->demanderAuFournisseur($paiement);
     }
 
     /**
@@ -160,7 +196,7 @@ class PaiementService
     }
 
     /** Dans la transaction : vérifications et création de la tentative « initiée ». */
-    private function preparer(RendezVous $rdv, User $patient, MoyenPaiement $moyen, string $devise, ?string $numero, string $cle): Paiement
+    private function preparer(RendezVous $rdv, User $patient, MoyenPaiement $moyen, string $devise, ?string $numero, string $cle, ?string $montantAttendu): Paiement
     {
         $this->reservations->verrouillerAgenda($rdv->medecin_id);
         $rdv = RendezVous::whereKey($rdv->id)->lockForUpdate()->firstOrFail();
@@ -199,6 +235,11 @@ class PaiementService
 
         $tarif = $this->tarification->pourRendezVous($rdv, $devise);
 
+        // Le patient paie le montant qu'il a vu, ou rien.
+        if ($montantAttendu !== null && Montant::enCentimes($montantAttendu) !== Montant::enCentimes($tarif->montant)) {
+            throw new PaiementRefuse('Le montant a changé : vérifiez le nouveau montant, puis payez.');
+        }
+
         $paiement = new Paiement;
         $paiement->forceFill([
             'patient_id' => $patient->id,
@@ -225,6 +266,16 @@ class PaiementService
         try {
             $initiation = $this->fournisseur->initier($paiement);
         } catch (ErreurFournisseur $e) {
+            if (! $e->refusDefinitif) {
+                // Erreur technique (délai, coupure) : la demande est peut-être
+                // partie et le patient peut valider sur son téléphone. La
+                // tentative reste ouverte (« initiée ») : une relance repart
+                // avec la même clé, le rappel signé ou l'expiration la clôt.
+                // La marquer « échouée » ferait perdre un débit réel (revue de sécurité).
+                return new TentativePaiement($paiement->fresh());
+            }
+
+            // Refus explicite : rien n'est parti, la tentative est close.
             $paiement = DB::transaction(function () use ($paiement, $e) {
                 $p = Paiement::whereKey($paiement->id)->lockForUpdate()->firstOrFail();
                 if ($p->statut === StatutPaiement::Initie) {
@@ -257,7 +308,7 @@ class PaiementService
     /**
      * Dans la transaction du rappel.
      *
-     * @return array{0: User, 1: string}|null SMS à envoyer après validation
+     * @return array{0: User, 1: string, 2: string}|null SMS à envoyer après validation (patient, texte, paiement)
      */
     private function enregistrerEtTraiter(RappelFournisseur $rappel): ?array
     {
@@ -294,7 +345,7 @@ class PaiementService
      * exactement ceux demandés, sinon rien n'est confirmé (le rapprochement
      * de la caisse reprend l'écart).
      *
-     * @return array{0: User, 1: string}|null
+     * @return array{0: User, 1: string, 2: string}|null
      */
     private function traiterRappelPaiement(RappelFournisseur $rappel, EvenementPaiement $evenement): ?array
     {
@@ -361,7 +412,7 @@ class PaiementService
         [$issue, $texte] = $this->rattacherAuRendezVous($paiement, $facture);
         $evenement->resultat = $issue;
 
-        return [$paiement->patient, $texte];
+        return [$paiement->patient, $texte, $paiement->id];
     }
 
     /**
@@ -425,7 +476,7 @@ class PaiementService
         return str_replace("\u{202F}", ' ', Montant::afficher((string) $paiement->montant, $paiement->devise));
     }
 
-    private function envoyerSms(User $patient, string $texte): void
+    private function envoyerSms(User $patient, string $texte, string $paiementId): void
     {
         if (! $patient->telephone) {
             return;
@@ -435,7 +486,9 @@ class PaiementService
             $this->sms->envoyer($patient->telephone, $texte);
         } catch (Throwable $e) {
             // L'encaissement est validé ; le reçu reste dans « Mes paiements ».
-            Log::warning('Reçu de paiement non envoyé par SMS.', ['patient' => $patient->id, 'erreur' => $e->getMessage()]);
+            // Seulement la classe de l'erreur : le message d'un pilote SMS peut
+            // contenir le numéro du destinataire.
+            Log::warning('Reçu de paiement non envoyé par SMS.', ['paiement' => $paiementId, 'erreur' => $e::class]);
         }
     }
 }
