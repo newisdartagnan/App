@@ -29,3 +29,6 @@ Schedule::command('paiement:rapprocher')->dailyAt('02:17')->timezone('Africa/Kin
 
 // TLC-01 : signaux WebRTC des salles closes ou passées, purgés.
 Schedule::command('teleconsultation:purger-signaux')->everyTenMinutes()->withoutOverlapping();
+
+// RG-06, RG-07 : salles fermées sans conclusion (consultation terminée ou absence constatée).
+Schedule::command('teleconsultation:constater-salles-fermees')->everyFiveMinutes()->withoutOverlapping();
