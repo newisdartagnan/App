@@ -33,12 +33,9 @@ const annuler = (rdv) => {
     });
 };
 
-// TLC-01 : « Rejoindre la consultation » pour les rendez-vous confirmés du jour
-// (heure de Kinshasa). Le serveur revérifie la fenêtre d'ouverture de la salle.
-const aujourdhui = new Intl.DateTimeFormat('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Kinshasa',
-}).format(new Date());
-const rejoignable = (rdv) => rdv.statutCode === 'confirme' && rdv.date === aujourdhui;
+// TLC-01 : « Rejoindre la consultation » quand le serveur dit la salle ouverte
+// (rendez-vous confirmé, dans la fenêtre, salle pas close) ; il revérifie à l'entrée.
+const rejoignable = (rdv) => rdv.rejoignable === true;
 
 const couleur = (code) => ({
     confirme: 'bg-vert-50 text-vert-900',

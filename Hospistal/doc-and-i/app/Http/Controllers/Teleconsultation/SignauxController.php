@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Teleconsultation;
 use App\Http\Controllers\Controller;
 use App\Models\Consultation;
 use App\Models\RendezVous;
+use App\Services\Teleconsultation\AccesConsultation;
 use App\Services\Teleconsultation\AccesRefuse;
 use App\Services\Teleconsultation\Signalisation;
 use Illuminate\Http\JsonResponse;
@@ -23,9 +24,15 @@ class SignauxController extends Controller
     {
         $apres = filter_var($request->query('apres', 0), FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
 
-        return $this->accesVerifie(fn (Consultation $c) => response()->json(
-            $this->signalisation->recevoir($c, $request->user(), $apres === false ? 0 : $apres)
-        ), $rendezVous);
+        return $this->accesVerifie(function (Consultation $c) use ($request, $rendezVous, $apres) {
+            // Salle close normalement (fin, absence) : un participant l'apprend par une
+            // réponse ordinaire et raccroche, sans requête refusée. Un tiers reste refusé.
+            if (! $c->statut->estOuverte() && app(AccesConsultation::class)->role($request->user(), $rendezVous) !== null) {
+                return response()->json(['signaux' => [], 'close' => 'Consultation close ('.mb_strtolower($c->statut->libelle()).').']);
+            }
+
+            return response()->json($this->signalisation->recevoir($c, $request->user(), $apres === false ? 0 : $apres));
+        }, $rendezVous);
     }
 
     public function store(Request $request, RendezVous $rendezVous): JsonResponse

@@ -73,10 +73,17 @@ const entetes = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpReques
 
 const terminer = (nouvelEtat, texte) => {
     actif = false;
+    clearTimeout(minuteurInterrogation);
     etat.value = nouvelEtat;
     message.value = texte;
     fermerConnexion();
+    // Salle close : caméra et micro coupés tout de suite.
+    fluxLocal?.getTracks().forEach((p) => p.stop());
 };
+
+// Fin de consultation (RG-06, RG-07) annoncée par la page : l'appel se ferme sans
+// attendre que le serveur refuse le prochain signal.
+defineExpose({ fermer: (texte) => terminer('close', texte ?? 'La consultation est close.') });
 
 /** Envoie un signal ; la même clé est renvoyée en cas de nouvel essai (pas de doublon côté serveur). */
 const envoyer = async (type, charge) => {
@@ -245,6 +252,10 @@ const interroger = async () => {
         }
         if (reponse.ok) {
             const donnees = await reponse.json();
+            if (donnees.close) {
+                terminer('close', donnees.close);
+                return;
+            }
             if (donnees.signaux.length) dernier = donnees.signaux[donnees.signaux.length - 1].id;
             for (const signal of utiles(donnees.signaux)) {
                 try {

@@ -251,7 +251,11 @@ class SignalisationTest extends TestCase
         });
 
         $this->assertSame(0, SignalConsultation::count(), 'Purgés dans la transaction de fermeture.');
-        $this->lecturePatient()->assertForbidden();
+        // Un participant apprend la fermeture par une réponse ordinaire (il raccroche) ;
+        // il ne lit rien et n'écrit plus ; un tiers reste refusé.
+        $this->lecturePatient()->assertOk()->assertJson(['signaux' => [], 'close' => 'Consultation close (terminée).']);
+        $this->lectureMedecin()->assertOk()->assertJsonPath('signaux', []);
+        $this->actingAs($this->patient())->getJson(route('consultation.signaux', [$this->rdv, 'apres' => 0]))->assertForbidden();
         $this->envoiMedecin('offre', $this->offre())->assertForbidden();
         $this->assertSame(0, SignalConsultation::count());
     }
