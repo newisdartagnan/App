@@ -9,7 +9,7 @@
  * Déroulé : le médecin fait l'offre ; le patient attend dans la salle
  * d'attente et répond à la dernière offre reçue. « pret » demande une offre
  * au médecin (arrivée du patient, rechargement, coupure). Aucun
- * enregistrement : pas de MediaRecorder (TLC-06).
+ * enregistrement : aucun enregistreur de média (TLC-06).
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
