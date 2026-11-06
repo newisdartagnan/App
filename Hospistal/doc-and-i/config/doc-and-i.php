@@ -79,6 +79,29 @@ return [
     ],
 
     /*
+    | Téléconsultation (TLC-01 à TLC-06, RG-06, RG-07).
+    */
+    'teleconsultation' => [
+        // La salle ouvre avant l'heure et reste ouverte après la fin prévue
+        // (retard du médecin, reprise après coupure, RG-07).
+        'ouverture_minutes_avant' => 10,
+        'fermeture_minutes_apres' => 60,
+        // STUN et TURN, séparés par des virgules (ex. « stun:turn.medihome.cd:3478 »,
+        // « turn:turn.medihome.cd:3478?transport=udp,turns:turn.medihome.cd:5349 »).
+        // Vides en local : deux navigateurs du même poste se joignent sans aide.
+        'stun' => env('TLC_STUN_URLS', ''),
+        'turn' => env('TLC_TURN_URLS', ''),
+        // Secret partagé avec coturn (use-auth-secret), 32 caractères au moins.
+        'turn_secret' => env('TLC_TURN_SECRET'),
+        'turn_validite_secondes' => 4 * 3600,
+        // Signaux WebRTC : taille et débit bornés (une offre SDP fait quelques Ko).
+        'signal_octets_max' => 16 * 1024,
+        'signaux_par_minute' => 240,
+        // Messagerie (TLC-03) : photos seulement, 5 Mo.
+        'photo_octets_max' => 5 * 1024 * 1024,
+    ],
+
+    /*
     | Pièces jointes des demandes (RDV-01) : quota par patient sur 24 heures
     | glissantes, en plus des 5 fichiers de 5 Mo par demande. Une demande sans
     | fichier n'est jamais bloquée par ce quota.
