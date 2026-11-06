@@ -25,6 +25,9 @@ services:
     <<: *php
     environment:
       DOC_AND_I_AUTO_MIGRATE: "true"
+    # Redémarre après une panne (téléchargement Composer coupé, base pas
+    # encore prête) au lieu de laisser nginx répondre 502.
+    restart: unless-stopped
 
   worker:
     <<: *php
@@ -43,6 +46,7 @@ services:
 
   nginx:
     image: nginx:alpine
+    restart: unless-stopped
     ports:
       - "${DOC_AND_I_HTTP_PORT:-8097}:80"
     volumes:
