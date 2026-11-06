@@ -106,7 +106,8 @@ class DemandeController extends Controller
             return $redirection;
         }
 
-        $medecins = Medecin::reservables()->with('user')->get();
+        // Les médecins d'une spécialité désactivée par l'administration ne sont pas proposés (ADM-01).
+        $medecins = Medecin::reservables()->whereHas('specialite', fn ($q) => $q->where('active', true))->with('user')->get();
 
         return Inertia::render('RendezVous/Choix', [
             'demande' => ['id' => $demande->id, 'motif' => $demande->motif],
