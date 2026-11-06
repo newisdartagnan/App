@@ -3,6 +3,7 @@
 namespace App\Services\Personnel;
 
 use App\Enums\StatutRendezVous;
+use App\Models\Consultation;
 use App\Models\Medecin;
 use App\Models\RendezVous;
 
@@ -17,21 +18,27 @@ final class AgendaMedecinService
 
     public function aVenir(Medecin $medecin): array
     {
-        return $medecin->rendezVous()
+        $rendezVous = $medecin->rendezVous()
             ->with(['patient:id,nom,prenom', 'demande:id,motif'])
             ->where('fin', '>', now())
             // Un créneau expiré faute de paiement n'a jamais été un rendez-vous.
             ->where('statut', '!=', StatutRendezVous::Expire->value)
             ->orderBy('debut')
             ->limit(self::LIMITE)
-            ->get()
-            ->map(function (RendezVous $rdv) {
+            ->get();
+
+        // Statut de la salle de téléconsultation (TLC-01), quand elle existe.
+        $salles = Consultation::whereIn('rendez_vous_id', $rendezVous->pluck('id'))->get()->keyBy('rendez_vous_id');
+
+        return $rendezVous
+            ->map(function (RendezVous $rdv) use ($salles) {
                 $debut = $rdv->debut->setTimezone(DisponibilitesMedecinService::FUSEAU);
                 // Revue de sécurité : un créneau bloqué le temps du paiement, ou
                 // annulé, n'est pas (ou plus) une relation de soin. Le médecin
                 // n'en voit que l'heure et le statut ; nom et motif seulement
-                // pour un rendez-vous confirmé.
-                $relationDeSoin = $rdv->statut === StatutRendezVous::Confirme;
+                // pour un rendez-vous confirmé ou une consultation terminée.
+                $relationDeSoin = in_array($rdv->statut, [StatutRendezVous::Confirme, StatutRendezVous::Termine], true);
+                $salle = $salles->get($rdv->id);
 
                 return [
                     'id' => $rdv->id,
@@ -44,6 +51,8 @@ final class AgendaMedecinService
                     'statutCode' => $rdv->statut->value,
                     // RG-05 : seul un rendez-vous confirmé, pas encore commencé, s'annule.
                     'annulable' => $rdv->statut === StatutRendezVous::Confirme && $rdv->debut->isFuture(),
+                    'consultation' => $salle?->statut->value,
+                    'consultationLibelle' => $salle?->statut->libelle(),
                 ];
             })->all();
     }

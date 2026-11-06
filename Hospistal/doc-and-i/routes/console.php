@@ -26,3 +26,6 @@ Schedule::command('paiement:executer-remboursements')->everyMinute()->withoutOve
 
 // PAY-06 : rapprochement de la veille avec le relevé de l'agrégateur, la nuit, heure de Kinshasa.
 Schedule::command('paiement:rapprocher')->dailyAt('02:17')->timezone('Africa/Kinshasa')->withoutOverlapping();
+
+// RG-06, RG-07 : salles fermées sans conclusion (consultation terminée ou absence constatée).
+Schedule::command('teleconsultation:constater-salles-fermees')->everyFiveMinutes()->withoutOverlapping();
