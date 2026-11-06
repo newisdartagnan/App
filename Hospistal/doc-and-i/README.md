@@ -166,4 +166,6 @@ vérifie que `public/build` correspond aux sources.
   `redis`, `tests` (à la demande).
 - Intégration continue : `.github/workflows/doc-and-i.yml` à la racine du dépôt.
 
+Démonstration pas à pas de tout ce qui fonctionne : `docs/scenario-demonstration.md`.
+
 Règles de développement : voir `CLAUDE.md`.

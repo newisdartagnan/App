@@ -26,6 +26,12 @@ const refuser = (r) => refus.post(`/personnel/caisse/remboursements/${r.id}/refu
     onSuccess: () => { enRefus.value = null; },
 });
 
+const simulation = useForm({ resultat: null });
+const simuler = (r, resultat) => {
+    simulation.resultat = resultat;
+    simulation.post(`/personnel/caisse/remboursements/${r.id}/simulation`, { preserveScroll: true });
+};
+
 const recherche = ref(props.numero ?? '');
 const chercher = () => router.get('/personnel/caisse/remboursements', { numero: recherche.value }, { preserveScroll: true, preserveState: true });
 
@@ -40,6 +46,7 @@ const demanderGeste = () => geste.post('/personnel/caisse/remboursements/geste',
         <p class="mt-2 text-slate-700">Toujours sur le moyen de paiement d'origine. Vous ne validez jamais une demande que vous avez faite.</p>
 
         <p v-if="validation.errors.remboursement" class="erreur">{{ validation.errors.remboursement }}</p>
+        <p v-if="simulation.errors.remboursement" class="erreur">{{ simulation.errors.remboursement }}</p>
         <ul v-if="aValider.length" class="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
             <li v-for="r in aValider" :key="r.id" class="px-4 py-3 text-sm">
                 <div class="flex items-center justify-between gap-2">
@@ -111,9 +118,16 @@ const demanderGeste = () => geste.post('/personnel/caisse/remboursements/geste',
 
         <h2 class="mt-8 text-lg font-semibold">Derniers traités</h2>
         <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
-            <li v-for="r in recents" :key="r.id" class="flex justify-between gap-2 px-4 py-2">
-                <span>{{ r.montant }} · {{ r.motif }}<span v-if="r.motifRefus" class="text-slate-500"> ({{ r.motifRefus }})</span></span>
-                <span class="text-slate-600">{{ r.statut }}</span>
+            <li v-for="r in recents" :key="r.id" class="px-4 py-2">
+                <div class="flex justify-between gap-2">
+                    <span>{{ r.montant }} · {{ r.motif }}<span v-if="r.motifRefus" class="text-slate-500"> ({{ r.motifRefus }})</span></span>
+                    <span class="text-slate-600">{{ r.statut }}</span>
+                </div>
+                <div v-if="r.simulable" class="mt-2 rounded-lg border border-dashed border-slate-400 p-3">
+                    <p class="text-sm font-semibold text-slate-700">Simulation (développement seulement)</p>
+                    <button type="button" class="bouton mt-2" :disabled="simulation.processing" @click="simuler(r, 'reussi')">Simuler : remboursement réussi</button>
+                    <button type="button" class="bouton-secondaire mt-2" :disabled="simulation.processing" @click="simuler(r, 'echoue')">Simuler : remboursement refusé</button>
+                </div>
             </li>
             <li v-if="recents.length === 0" class="px-4 py-2 text-slate-500">Aucun.</li>
         </ul>
