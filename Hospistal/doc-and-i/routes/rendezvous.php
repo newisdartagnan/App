@@ -46,3 +46,6 @@ Route::name('rdv.')->group(function () {
             ->middleware('throttle:20,1')->name('reporter');
     });
 });
+
+// Téléconsultation : salle et signalisation de l'appel vidéo (TLC-01).
+require __DIR__.'/teleconsultation.php';

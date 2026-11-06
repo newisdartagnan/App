@@ -75,6 +75,9 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
             Route::get('/reversements', ReversementsMedecinController::class)->name('reversements');
             Route::post('/rendez-vous/{rendezVous}/annulation', AnnulationRendezVousController::class)
                 ->whereUuid('rendezVous')->middleware('throttle:30,1,annulation-medecin')->name('rendez-vous.annuler');
+
+            // Téléconsultation : salle et signalisation de l'appel vidéo (TLC-01).
+            require __DIR__.'/teleconsultation-medecin.php';
         });
 
         // Espace caisse (PAY-01, PAY-05 à PAY-09). Quatre yeux et plafonds

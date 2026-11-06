@@ -13,6 +13,7 @@ use App\Services\RendezVous\CreneauxService;
 use App\Services\RendezVous\DemandeConsultationService;
 use App\Services\RendezVous\ReservationRefusee;
 use App\Services\RendezVous\ReservationService;
+use App\Services\Teleconsultation\AccesConsultation;
 use App\Support\Montant;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -92,6 +93,8 @@ class MesRendezVousController extends Controller
                 'report_tardif' => $confirme && $avantDebut && $tardif,
                 'reports_epuises' => $confirme && $avantDebut && $reportsEpuises,
                 'payer' => $enAttente && $rdv->expire_le > $maintenant,
+                // TLC-01 : la salle est ouverte 10 minutes avant et jusqu'à une heure après la fin.
+                'rejoindre' => $confirme && app(AccesConsultation::class)->dansLaFenetre($rdv, $maintenant),
             ],
             // PAY-05, RG-04/05 : paiements du rendez-vous et état des remboursements.
             'paiements' => Paiement::where('rendez_vous_id', $rdv->id)

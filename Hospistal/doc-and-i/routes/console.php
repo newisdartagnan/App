@@ -26,3 +26,6 @@ Schedule::command('paiement:executer-remboursements')->everyMinute()->withoutOve
 
 // PAY-06 : rapprochement de la veille avec le relevé de l'agrégateur, la nuit, heure de Kinshasa.
 Schedule::command('paiement:rapprocher')->dailyAt('02:17')->timezone('Africa/Kinshasa')->withoutOverlapping();
+
+// TLC-01 : signaux WebRTC des salles closes ou passées, purgés.
+Schedule::command('teleconsultation:purger-signaux')->everyTenMinutes()->withoutOverlapping();
