@@ -22,6 +22,9 @@ class PersonnelAuthentifie
 
     public const CLE_ACTIVITE = 'personnel.derniere_activite';
 
+    /** Version de session du compte à la connexion : une désactivation l'augmente. */
+    public const CLE_VERSION = 'personnel.version_session';
+
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
@@ -34,13 +37,22 @@ class PersonnelAuthentifie
             abort(403);
         }
 
+        // Désactivé par l'administration : la session en cours se ferme aussi.
+        if ($user->estDesactive()) {
+            $this->fermer($request);
+
+            return redirect()->route('personnel.connexion')
+                ->withErrors(['email' => 'Ce compte est désactivé. Adressez-vous à l\'administration.']);
+        }
+
         if (! AuthentificationPersonnel::pour($user)?->estActive()) {
             $this->fermer($request);
 
             return redirect()->route('personnel.activation.mot-de-passe');
         }
 
-        if ($request->session()->get(self::CLE_AUTHENTIFIE) !== $user->id) {
+        if ($request->session()->get(self::CLE_AUTHENTIFIE) !== $user->id
+            || (int) $request->session()->get(self::CLE_VERSION, 0) !== (int) $user->version_session) {
             $this->fermer($request);
 
             return redirect()->guest(route('personnel.connexion'));

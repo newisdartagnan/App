@@ -34,7 +34,7 @@ return new class extends Migration
             $table->unique(['specialite_id', 'nom']);
         });
 
-        DB::statement("ALTER TABLE types_consultation ADD CONSTRAINT types_consultation_duree CHECK (duree_minutes BETWEEN 10 AND 120)");
+        DB::statement('ALTER TABLE types_consultation ADD CONSTRAINT types_consultation_duree CHECK (duree_minutes BETWEEN 10 AND 120)');
         DB::statement("ALTER TABLE types_consultation ADD CONSTRAINT types_consultation_devise CHECK (devise IN ('USD', 'CDF'))");
         DB::statement('ALTER TABLE types_consultation ADD CONSTRAINT types_consultation_prix CHECK (prix IS NULL OR prix >= 0)');
     }

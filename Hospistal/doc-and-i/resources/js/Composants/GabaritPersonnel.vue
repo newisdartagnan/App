@@ -30,6 +30,13 @@ const menus = {
         { href: '/personnel/caisse/rapprochement', libelle: 'Rapprochement' },
         { href: '/personnel/caisse/factures', libelle: 'Factures' },
     ],
+    admin: [
+        { href: '/personnel/admin', libelle: 'Tableau de bord' },
+        { href: '/personnel/admin/personnel', libelle: 'Personnel' },
+        { href: '/personnel/admin/tarifs', libelle: 'Spécialités et tarifs' },
+        { href: '/personnel/admin/partenaires', libelle: 'Partenaires' },
+        { href: '/personnel/admin/journal', libelle: 'Journal' },
+    ],
 };
 const liens = computed(() => menus[props.espace] ?? menus.medecin);
 const accueil = computed(() => liens.value[0].href);
@@ -58,7 +65,7 @@ const deconnecter = () => {
                     Se déconnecter
                 </button>
             </div>
-            <nav v-if="props.navigation" class="mx-auto flex max-w-2xl gap-4 overflow-x-auto px-4 pb-2 text-sm" :aria-label="espace === 'caisse' ? 'Espace caisse' : 'Espace médecin'">
+            <nav v-if="props.navigation" class="mx-auto flex max-w-2xl gap-4 overflow-x-auto px-4 pb-2 text-sm" :aria-label="{ caisse: 'Espace caisse', admin: 'Administration' }[espace] ?? 'Espace médecin'">
                 <Link v-for="lien in liens" :key="lien.href" :href="lien.href"
                       class="whitespace-nowrap py-1"
                       :class="actif(lien.href) ? 'border-b-2 border-marque-700 font-semibold text-marque-700' : 'text-slate-600'">

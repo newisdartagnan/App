@@ -64,7 +64,8 @@ final class ConnexionPersonnelService
         }
 
         $user = User::where('email', $email)->first();
-        $user = $user?->estDuPersonnel() ? $user : null;
+        // Un compte désactivé répond comme un compte inconnu (aucune énumération).
+        $user = $user?->estDuPersonnel() && ! $user->estDesactive() ? $user : null;
         $bonMotDePasse = fn () => Hash::check($motDePasse, $user?->password ?: self::EMPREINTE_FACTICE) && $user?->password !== null;
 
         [$issue, $auth] = $user === null

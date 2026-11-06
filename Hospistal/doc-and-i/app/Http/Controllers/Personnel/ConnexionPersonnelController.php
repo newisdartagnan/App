@@ -70,6 +70,7 @@ class ConnexionPersonnelController extends Controller
         // connexion ne donne pas accès au compte.
         $request->session()->regenerate();
         $request->session()->put(PersonnelAuthentifie::CLE_AUTHENTIFIE, $user->id);
+        $request->session()->put(PersonnelAuthentifie::CLE_VERSION, (int) $user->version_session);
         $request->session()->put(PersonnelAuthentifie::CLE_ACTIVITE, now()->getTimestamp());
 
         // Retour à la page demandée, seulement si elle est dans l'espace du personnel.

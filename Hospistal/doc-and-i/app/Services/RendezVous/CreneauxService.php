@@ -5,6 +5,7 @@ namespace App\Services\RendezVous;
 use App\Enums\StatutRendezVous;
 use App\Models\Medecin;
 use App\Models\RendezVous;
+use App\Models\Specialite;
 use App\Models\TypeConsultation;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
@@ -57,8 +58,24 @@ class CreneauxService
             throw new ReservationRefusee('Ce médecin ne reçoit pas de rendez-vous en ce moment.');
         }
 
-        if (! $type->actif || $type->specialite_id !== $medecin->specialite_id) {
+        if ($type->specialite_id !== $medecin->specialite_id) {
             throw new ReservationRefusee('Ce type de consultation n\'est pas proposé par ce médecin.');
+        }
+
+        $this->verifierType($type);
+    }
+
+    /**
+     * Refuse un type que l'administration ne propose pas (ADM-01) : type
+     * inactif, spécialité inactive, ou prix pas encore fixé. Les rendez-vous
+     * déjà pris ne passent pas par ici : ils restent payables et reportables.
+     *
+     * @throws ReservationRefusee
+     */
+    public function verifierType(TypeConsultation $type): void
+    {
+        if (! $type->actif || ! Specialite::whereKey($type->specialite_id)->where('active', true)->exists()) {
+            throw new ReservationRefusee('Ce type de consultation n\'est pas proposé en ce moment.');
         }
 
         if ($type->prix === null) {

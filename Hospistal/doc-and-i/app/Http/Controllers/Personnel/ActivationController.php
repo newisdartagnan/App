@@ -108,6 +108,7 @@ class ActivationController extends Controller
         $request->session()->invalidate();
         Auth::login($jeton->user);
         $request->session()->put(PersonnelAuthentifie::CLE_AUTHENTIFIE, $jeton->user_id);
+        $request->session()->put(PersonnelAuthentifie::CLE_VERSION, (int) $jeton->user->version_session);
         $request->session()->put(PersonnelAuthentifie::CLE_ACTIVITE, now()->getTimestamp());
         $request->session()->put(self::CLE_CODES, $codes);
         // L'historique contient la page du secret TOTP : effacé (et sa clé changée).

@@ -33,6 +33,10 @@ final class ActivationPersonnelService
             throw new InvalidArgumentException('Ce compte n\'appartient pas au personnel.');
         }
 
+        if ($user->estDesactive()) {
+            throw new InvalidArgumentException('Ce compte est désactivé : le réactiver d\'abord.');
+        }
+
         if (AuthentificationPersonnel::pour($user)?->estActive()) {
             throw new InvalidArgumentException('Ce compte est déjà activé.');
         }
@@ -58,12 +62,15 @@ final class ActivationPersonnelService
 
     public function jetonValable(string $clair): ?JetonActivation
     {
-        return JetonActivation::valables()->where('empreinte', self::empreinte($clair))->first();
+        // Un lien émis avant la désactivation du compte ne sert plus.
+        return JetonActivation::valables()->where('empreinte', self::empreinte($clair))
+            ->whereHas('user', fn ($q) => $q->whereNull('desactive_le'))->first();
     }
 
     public function jetonParIdentifiant(?string $id): ?JetonActivation
     {
-        return $id === null ? null : JetonActivation::valables()->whereKey($id)->first();
+        return $id === null ? null : JetonActivation::valables()->whereKey($id)
+            ->whereHas('user', fn ($q) => $q->whereNull('desactive_le'))->first();
     }
 
     /** Pose le mot de passe et prépare un NOUVEAU secret TOTP, non confirmé. */

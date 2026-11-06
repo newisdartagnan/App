@@ -77,5 +77,18 @@ class DemonstrationLocaleSeeder extends Seeder
             $user->save();
             $user->syncRoles([Role::findOrCreate('caisse', 'web')]);
         }
+
+        // Administrateur fonctionnel de démonstration (ADM-01, ADM-02), fictif
+        // (aucune donnée réelle hors production). Le vrai compte se crée par
+        // la commande personnel:creer-compte --role=admin_fonctionnel.
+        $admin = User::where('email', 'admin.demo@doc-and-i.local')->first() ?? tap(new User)->forceFill([
+            'email' => 'admin.demo@doc-and-i.local',
+            'telephone' => '+243810000021',
+            'telephone_verifie_le' => now(),
+            'nom' => 'DÉMO',
+            'prenom' => 'Administrateur',
+        ]);
+        $admin->save();
+        $admin->syncRoles([Role::findOrCreate('admin_fonctionnel', 'web')]);
     }
 }

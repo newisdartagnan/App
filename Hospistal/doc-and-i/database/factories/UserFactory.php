@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Spatie\Permission\Models\Role;
 
 /**
  * @extends Factory<User>
@@ -29,7 +30,7 @@ class UserFactory extends Factory
     /** Par défaut un patient (rôle créé au besoin) : c'est ce que produit l'inscription par téléphone. */
     public function configure(): static
     {
-        return $this->afterCreating(fn (User $user) => $user->assignRole(\Spatie\Permission\Models\Role::findOrCreate('patient', 'web')));
+        return $this->afterCreating(fn (User $user) => $user->assignRole(Role::findOrCreate('patient', 'web')));
     }
 
     /** Aucun rôle (comptes du personnel, qui reçoivent ensuite le leur ; cas d'erreur). */

@@ -130,6 +130,57 @@ Garde-fous réglables dans `config/caisse.php` : bornes du taux du jour (500 à
 taux (10 %), relances d'un remboursement resté sans réponse de l'opérateur
 (12 essais, toutes les 5 minutes, puis « À suivre » pour la caisse).
 
+## Administration
+
+L'espace administrateur (<http://localhost:8097/personnel/admin>) est réservé
+au rôle `admin_fonctionnel`. Un compte administrateur ne se crée JAMAIS depuis
+l'écran : seulement par la commande, sur le serveur, pour qu'un administrateur
+ne puisse pas fabriquer d'autres administrateurs. Par exemple, pour le compte
+réel de l'administrateur désigné par le client :
+
+```bash
+docker compose exec app php artisan personnel:creer-compte --role=admin_fonctionnel \
+  --email=<courriel professionnel> --telephone=<mobile RDC> --nom=Ikula --prenom=Boris
+```
+
+La commande affiche un lien d'activation à usage unique (72 heures), à lui
+transmettre en main propre ; s'il se perd : `php artisan personnel:lien-activation <courriel>`.
+Une fois connecté, l'administrateur gère dans « Personnel » :
+
+- la création des comptes médecin (spécialité, numéro d'Ordre), caisse,
+  laboratoire (rattaché à un laboratoire partenaire actif), coordination et
+  support ; le lien d'activation s'affiche une seule fois, à transmettre à la
+  personne seule, et un nouveau lien invalide l'ancien ;
+- la vérification à l'Ordre des médecins (sans elle, pas proposés aux
+  patients), leur spécialité et leur présentation, leur planning ;
+- la désactivation (motif obligatoire, session coupée, rien n'est supprimé) et
+  la réactivation. Un médecin qui a des rendez-vous confirmés à venir n'est
+  désactivé qu'après leur annulation, depuis son espace, ou depuis la fiche
+  avec remboursement intégral des patients (RG-05).
+
+Règles de sécurité de l'espace :
+
+- **Quatre yeux sur l'Ordre** : l'administrateur qui a créé ou réactivé un
+  compte médecin ne vérifie pas lui-même son inscription à l'Ordre ; il faut
+  un second administrateur. Prévoir donc deux administrateurs.
+- Un médecin réactivé doit être vérifié de nouveau à l'Ordre.
+- Les comptes administrateurs et d'audit ne se créent, ne s'activent, ne se
+  désactivent et ne se réactivent que par commande, sur le serveur :
+
+  ```bash
+  docker compose exec app php artisan personnel:desactiver <courriel> --motif="Départ"
+  docker compose exec app php artisan personnel:reactiver <courriel>
+  ```
+- Une désactivation ferme aussi les sessions déjà ouvertes, même si le compte
+  est réactivé ensuite.
+
+Chaque action est inscrite au « Journal », en lecture seule. Les actions faites
+par commande (création d'un administrateur) n'y figurent pas : elles n'ont
+pas d'auteur connecté.
+
+Démonstration locale : un administrateur fictif, `admin.demo@doc-and-i.local`,
+à activer par `php artisan personnel:lien-activation admin.demo@doc-and-i.local`.
+
 ## Lancer les tests
 
 ```bash

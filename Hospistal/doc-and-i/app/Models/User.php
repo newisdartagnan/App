@@ -31,6 +31,7 @@ class User extends Authenticatable
     {
         return [
             'telephone_verifie_le' => 'datetime',
+            'desactive_le' => 'datetime',
             'date_naissance' => 'date',
             'password' => 'hashed',
         ];
@@ -42,6 +43,12 @@ class User extends Authenticatable
     }
 
     /** Rôles du personnel : ils se connectent par courriel, mot de passe et double authentification (CPT-06), jamais par code SMS seul. */
+    /** Compte du personnel désactivé par l'administration : plus de connexion, historique gardé. */
+    public function estDesactive(): bool
+    {
+        return $this->desactive_le !== null;
+    }
+
     public function estDuPersonnel(): bool
     {
         return $this->roles()->whereIn('name', array_diff(config('doc-and-i.roles'), ['patient']))->exists();
