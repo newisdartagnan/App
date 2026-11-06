@@ -12,7 +12,7 @@
 use App\Http\Controllers\Personnel\Admin\AccueilAdminController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('role:admin_fonctionnel')->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['role:admin_fonctionnel', 'throttle:administration'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', AccueilAdminController::class)->name('accueil');
 
     // Tableau de bord, spécialités et tarifs, partenaires (développeur A).

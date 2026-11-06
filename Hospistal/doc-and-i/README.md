@@ -158,9 +158,28 @@ Une fois connecté, l'administrateur gère dans « Personnel » :
   désactivé qu'après leur annulation, depuis son espace, ou depuis la fiche
   avec remboursement intégral des patients (RG-05).
 
+Règles de sécurité de l'espace :
+
+- **Quatre yeux sur l'Ordre** : l'administrateur qui a créé ou réactivé un
+  compte médecin ne vérifie pas lui-même son inscription à l'Ordre ; il faut
+  un second administrateur. Prévoir donc deux administrateurs.
+- Un médecin réactivé doit être vérifié de nouveau à l'Ordre.
+- Les comptes administrateurs et d'audit ne se créent, ne s'activent, ne se
+  désactivent et ne se réactivent que par commande, sur le serveur :
+
+  ```bash
+  docker compose exec app php artisan personnel:desactiver <courriel> --motif="Départ"
+  docker compose exec app php artisan personnel:reactiver <courriel>
+  ```
+- Une désactivation ferme aussi les sessions déjà ouvertes, même si le compte
+  est réactivé ensuite.
+
 Chaque action est inscrite au « Journal », en lecture seule. Les actions faites
 par commande (création d'un administrateur) n'y figurent pas : elles n'ont
 pas d'auteur connecté.
+
+Démonstration locale : un administrateur fictif, `admin.demo@doc-and-i.local`,
+à activer par `php artisan personnel:lien-activation admin.demo@doc-and-i.local`.
 
 ## Lancer les tests
 

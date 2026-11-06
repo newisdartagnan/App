@@ -4,6 +4,7 @@ namespace App\Services\Personnel;
 
 use App\Enums\StatutRendezVous;
 use App\Models\AuthentificationPersonnel;
+use App\Models\EntreeJournalAdministration;
 use App\Models\Medecin;
 use App\Models\RendezVous;
 use App\Models\Specialite;
@@ -211,7 +212,7 @@ final class ComptePersonnelService
      */
     public function emettreLienParAdministrateur(User $cible, User $admin): string
     {
-        $this->refuserSiAdministrateur($cible, 'lien', 'Le lien d\'un compte administrateur s\'émet par la commande personnel:lien-activation.');
+        $this->refuserHorsEcran($cible, 'lien', 'Le lien de ce compte s\'émet par la commande personnel:lien-activation.');
 
         return DB::transaction(function () use ($cible, $admin) {
             try {
@@ -232,6 +233,16 @@ final class ComptePersonnelService
             $m = Medecin::whereKey($medecin->id)->lockForUpdate()->firstOrFail();
             if ($m->ordre_verifie_le !== null) {
                 throw ValidationException::withMessages(['ordre' => 'L\'inscription à l\'Ordre de ce médecin est déjà vérifiée.']);
+            }
+
+            // CPT-05, quatre yeux : l'administrateur qui a créé ou réactivé le
+            // compte ne le vérifie pas lui-même, sinon un seul administrateur
+            // ferait d'un faux médecin un médecin proposé aux patients.
+            $auteurs = EntreeJournalAdministration::where('cible_id', $m->user_id)
+                ->whereIn('action', ['personnel.compte_cree', 'personnel.compte_reactive'])
+                ->pluck('auteur_id');
+            if ($auteurs->contains($admin->id)) {
+                throw ValidationException::withMessages(['ordre' => 'Vous avez créé ou réactivé ce compte : un autre administrateur doit vérifier l\'inscription à l\'Ordre.']);
             }
 
             $m->ordre_verifie_le = now();
@@ -292,6 +303,10 @@ final class ComptePersonnelService
             throw ValidationException::withMessages(['motif' => 'Vous ne pouvez pas désactiver votre propre compte.']);
         }
 
+        // Administrateurs, auditeur… : par la commande seulement (revue de sécurité) ;
+        // sinon un administrateur écarterait ses pairs et ceux qui le contrôlent.
+        $this->refuserHorsEcran($cible, 'motif', 'Ce compte se désactive par la commande personnel:desactiver, pas depuis l\'écran.');
+
         $annules = DB::transaction(function () use ($cible, $admin, $motif, $annulerRendezVous) {
             $user = User::whereKey($cible->id)->lockForUpdate()->firstOrFail();
             if ($user->estDesactive()) {
@@ -304,7 +319,12 @@ final class ComptePersonnelService
                 $medecin->forceFill(['actif' => false])->save();
             }
 
-            $user->forceFill(['desactive_le' => now(), 'motif_desactivation' => mb_substr($motif, 0, 255)])->save();
+            // version_session + 1 : toute session ouverte avant, même inactive, est refusée ensuite.
+            $user->forceFill([
+                'desactive_le' => now(),
+                'motif_desactivation' => mb_substr($motif, 0, 255),
+                'version_session' => (int) $user->version_session + 1,
+            ])->save();
             DB::table('jetons_activation_personnel')->where('user_id', $user->id)
                 ->whereNull('utilise_le')->whereNull('invalide_le')->update(['invalide_le' => now()]);
 
@@ -335,6 +355,10 @@ final class ComptePersonnelService
             throw ValidationException::withMessages(['motif_reactivation' => 'Le motif de la réactivation est obligatoire.']);
         }
 
+        // Un administrateur désactivé (compte compromis, départ) ne revient pas
+        // par un pair : commande seulement (revue de sécurité).
+        $this->refuserHorsEcran($cible, 'motif_reactivation', 'Ce compte se réactive par la commande personnel:reactiver, pas depuis l\'écran.');
+
         return DB::transaction(function () use ($cible, $admin, $motif) {
             $user = User::whereKey($cible->id)->lockForUpdate()->firstOrFail();
             if (! $user->estDesactive()) {
@@ -342,11 +366,13 @@ final class ComptePersonnelService
             }
 
             $user->forceFill(['desactive_le' => null, 'motif_desactivation' => null])->save();
-            $user->medecin?->forceFill(['actif' => true])->save();
+            // L'inscription à l'Ordre a pu changer pendant la désactivation (radiation) :
+            // le médecin n'est de nouveau proposé qu'après une nouvelle vérification.
+            $user->medecin?->forceFill(['actif' => true, 'ordre_verifie_le' => null])->save();
             $this->journal()->consigner($admin, 'personnel.compte_reactive', $user, ['motif' => $motif]);
 
             $jamaisActive = ! AuthentificationPersonnel::pour($user)?->estActive();
-            if (! $jamaisActive || $user->hasAnyRole(self::ROLES_ADMINISTRATEUR)) {
+            if (! $jamaisActive) {
                 return null;
             }
 
@@ -376,6 +402,9 @@ final class ComptePersonnelService
     /** @return list<RendezVous> rendez-vous annulés */
     private function libererAgenda(Medecin $medecin, User $admin, string $motif, bool $annuler): array
     {
+        // Même verrou que la réservation : aucune réservation ne se glisse
+        // entre ce comptage et la désactivation (revue de sécurité).
+        app(ReservationService::class)->verrouillerAgenda($medecin->id);
         $bloquants = $this->rendezVousBloquants($medecin);
 
         if ($bloquants['en_attente_paiement'] > 0) {
@@ -396,7 +425,7 @@ final class ComptePersonnelService
         $rendezVous = $medecin->rendezVous()->where('debut', '>', now())->where('statut', StatutRendezVous::Confirme->value)->orderBy('debut')->get();
         foreach ($rendezVous as $rdv) {
             try {
-                $annules[] = app(ReservationService::class)->annulerParMedecin($rdv, 'Médecin indisponible : '.$motif);
+                $annules[] = app(ReservationService::class)->annulerParMedecin($rdv, 'Médecin indisponible');
             } catch (ReservationRefusee|PaiementRefuse $refus) {
                 // Tout ou rien : la transaction englobante est annulée.
                 throw ValidationException::withMessages(['motif' => 'Annulation impossible : '.$refus->getMessage()]);
@@ -429,10 +458,16 @@ final class ComptePersonnelService
         }
     }
 
-    /** @throws ValidationException */
-    private function refuserSiAdministrateur(User $cible, string $champ, string $message): void
+    /** Le compte porte-t-il un rôle que l'écran ne gère pas (administrateurs, auditeur…) ? */
+    public static function estHorsEcran(User $cible): bool
     {
-        if ($cible->hasAnyRole(self::ROLES_ADMINISTRATEUR)) {
+        return $cible->getRoleNames()->diff(self::ROLES_CREABLES_PAR_ECRAN)->isNotEmpty();
+    }
+
+    /** @throws ValidationException */
+    private function refuserHorsEcran(User $cible, string $champ, string $message): void
+    {
+        if (self::estHorsEcran($cible)) {
             throw ValidationException::withMessages([$champ => $message]);
         }
     }

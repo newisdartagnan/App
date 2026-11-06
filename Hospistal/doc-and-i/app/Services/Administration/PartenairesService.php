@@ -49,6 +49,12 @@ final class PartenairesService
             $p = Partenaire::whereKey($partenaire->id)->lockForUpdate()->firstOrFail();
             $this->verifierNomLibre($valeurs['type'], $valeurs['nom'], $p->id);
 
+            // Des comptes du personnel sont rattachés à ce laboratoire : il ne
+            // devient pas une pharmacie (revue de sécurité).
+            if ($valeurs['type'] !== $p->type && DB::table('comptes_laboratoire')->where('partenaire_id', $p->id)->exists()) {
+                throw ValidationException::withMessages(['type' => 'Des comptes du personnel sont rattachés à ce laboratoire : son type ne change pas.']);
+            }
+
             $p->fill($valeurs);
             $modifies = array_keys($p->getDirty());
             if ($modifies === []) {

@@ -54,7 +54,7 @@ const copier = async () => {
             <h2 class="text-lg font-semibold">Activation</h2>
             <p class="text-sm text-slate-700">Ce compte n'est pas encore activé.</p>
             <button v-if="!compte.estAdministrateur" type="button" class="bouton-secondaire mt-2" :disabled="lien.processing" @click="emettreLien">Émettre un nouveau lien</button>
-            <p v-else class="mt-1 text-sm text-slate-600">Compte administrateur : lien par la commande personnel:lien-activation.</p>
+            <p v-else class="mt-1 text-sm text-slate-600">Compte administrateur ou d'audit : lien par la commande personnel:lien-activation.</p>
             <p v-if="lien.errors.lien" class="erreur">{{ lien.errors.lien }}</p>
         </section>
 
@@ -105,7 +105,11 @@ const copier = async () => {
             </section>
         </template>
 
-        <section class="mt-8">
+        <section v-if="compte.estAdministrateur" class="mt-8 text-sm text-slate-600">
+            <h2 class="text-lg font-semibold text-slate-900">Désactivation, réactivation</h2>
+            <p class="mt-1">Compte administrateur ou d'audit : par les commandes personnel:desactiver et personnel:reactiver, sur le serveur.</p>
+        </section>
+        <section v-else class="mt-8">
             <h2 class="text-lg font-semibold">{{ compte.etat === 'desactive' ? 'Réactiver le compte' : 'Désactiver le compte' }}</h2>
             <template v-if="compte.etat === 'desactive'">
                 <p class="text-sm text-slate-700">Désactivé {{ compte.desactiveLe }} : « {{ compte.motifDesactivation }} ».</p>

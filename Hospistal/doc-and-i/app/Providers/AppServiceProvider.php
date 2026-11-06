@@ -77,6 +77,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('personnel-code', $parIpPersonnel('code'));
         RateLimiter::for('personnel-activation', $parIpPersonnel('activation'));
 
+        // Espace administrateur : par compte (revue de sécurité ; le tableau de bord agrège).
+        RateLimiter::for('administration', fn (Request $requete) => Limit::perMinute(120)->by('administration|'.$requete->user()?->id));
+
         // PAY-04 : rappels de l'agrégateur, large (ses serveurs sont peu
         // nombreux et rejouent leurs rappels) mais borné contre l'inondation.
         RateLimiter::for('paiement-rappel', $parIp('paiement-rappel', 300));

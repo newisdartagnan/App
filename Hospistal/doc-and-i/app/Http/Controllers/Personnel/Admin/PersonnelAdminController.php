@@ -123,7 +123,7 @@ class PersonnelAdminController extends Controller
                 'laboratoire' => DB::table('comptes_laboratoire')->join('partenaires', 'partenaires.id', '=', 'comptes_laboratoire.partenaire_id')
                     ->where('comptes_laboratoire.user_id', $u->id)->value('partenaires.nom'),
                 'estSoiMeme' => $u->is($request->user()),
-                'estAdministrateur' => $u->hasAnyRole(ComptePersonnelService::ROLES_ADMINISTRATEUR),
+                'estAdministrateur' => ComptePersonnelService::estHorsEcran($u),
             ],
             // Montré une fois : retiré de la session ci-dessus.
             'lienActivation' => is_array($flash) && ($flash['user_id'] ?? null) === $u->id ? $flash['lien'] : null,

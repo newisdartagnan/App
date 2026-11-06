@@ -240,7 +240,7 @@ class MedecinsEtDesactivationAdminTest extends TestCase
         $this->get($lien)->assertRedirect(route('personnel.activation.mot-de-passe'));
     }
 
-    public function test_la_reactivation_d_un_compte_deja_active_ne_donne_pas_de_lien_et_rend_le_medecin_reservable(): void
+    public function test_la_reactivation_d_un_compte_deja_active_ne_donne_pas_de_lien_et_demande_une_nouvelle_verification_de_l_ordre(): void
     {
         $this->desactiver($this->medecin->user);
 
@@ -248,6 +248,11 @@ class MedecinsEtDesactivationAdminTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertNull($this->fiche($this->medecin->user)->viewData('page')['props']['lienActivation']);
+        // Revue de sécurité : l'Ordre a pu changer pendant la désactivation ; pas réservable
+        // avant une nouvelle vérification, par un autre administrateur que celui qui a réactivé.
+        $this->assertFalse(Medecin::reservables()->whereKey($this->medecin->id)->exists());
+        $this->commePersonnel($this->admin)->post(route('personnel.admin.personnel.ordre', $this->medecin->user_id))->assertSessionHasErrors('ordre');
+        $this->commePersonnel($this->personnelActive('admin_fonctionnel'))->post(route('personnel.admin.personnel.ordre', $this->medecin->user_id))->assertSessionHasNoErrors();
         $this->assertTrue(Medecin::reservables()->whereKey($this->medecin->id)->exists());
         $this->assertSame(['motif' => 'Retour de congé'], EntreeJournalAdministration::where('action', 'personnel.compte_reactive')->sole()->details);
         $this->assertSame(0, JetonActivation::where('user_id', $this->medecin->user_id)->count());

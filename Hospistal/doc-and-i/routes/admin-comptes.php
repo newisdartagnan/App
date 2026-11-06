@@ -8,7 +8,7 @@ use App\Http\Controllers\Personnel\Admin\MedecinAdminController;
 use App\Http\Controllers\Personnel\Admin\PersonnelAdminController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('throttle:120,1,admin-comptes')->group(function () {
+Route::group([], function () {
     Route::get('/personnel', [PersonnelAdminController::class, 'index'])->name('personnel');
     Route::get('/personnel/nouveau', [PersonnelAdminController::class, 'create'])->name('personnel.nouveau');
     Route::post('/personnel', [PersonnelAdminController::class, 'store'])->name('personnel.creer');

@@ -75,6 +75,8 @@ return new class extends Migration
             $$ LANGUAGE plpgsql;
             CREATE TRIGGER messages_consultation_non_modifiables BEFORE UPDATE OR DELETE ON messages_consultation
                 FOR EACH ROW EXECUTE FUNCTION refuser_modification_dossier();
+            CREATE TRIGGER messages_consultation_sans_truncate BEFORE TRUNCATE ON messages_consultation
+                FOR EACH STATEMENT EXECUTE FUNCTION refuser_modification_dossier();
         SQL);
 
         // RG-06 : médecin absent → remboursement intégral, automatique.
