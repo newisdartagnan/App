@@ -52,10 +52,10 @@ final class Messagerie
     {
         [$consultation, $role] = $this->lisible($user, $rdv);
 
-        $requete = MessageConsultation::where('consultation_id', $consultation->id)->orderBy('cree_le')->orderBy('id');
+        // Le rang, posé par la base, fixe l'ordre (l'horodatage est à la seconde).
+        $requete = MessageConsultation::where('consultation_id', $consultation->id)->orderBy('rang');
         if ($apres !== null && ($repere = MessageConsultation::where('consultation_id', $consultation->id)->find($apres)) !== null) {
-            $requete->where(fn ($q) => $q->where('cree_le', '>', $repere->cree_le)
-                ->orWhere(fn ($q) => $q->where('cree_le', $repere->cree_le)->where('id', '>', $repere->id)));
+            $requete->where('rang', '>', $repere->rang);
         }
 
         return $requete->limit(self::PAGE)->get()

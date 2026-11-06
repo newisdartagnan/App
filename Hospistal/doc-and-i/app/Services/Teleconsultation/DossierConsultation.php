@@ -8,7 +8,6 @@ use App\Models\RendezVous;
 use App\Models\User;
 use App\Services\RendezVous\Affichage;
 use App\Services\RendezVous\DemandeConsultationService;
-use App\Services\RendezVous\QuestionnaireTri;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -42,7 +41,9 @@ final class DossierConsultation
                 'prenom' => $patient->prenom,
                 'nom' => mb_strtoupper((string) $patient->nom),
                 'age' => $patient->date_naissance ? (int) $patient->date_naissance->diffInYears(CarbonImmutable::now()) : null,
-                'sexe' => match ($patient->sexe) { 'F' => 'Femme', 'M' => 'Homme', default => null },
+                'sexe' => match ($patient->sexe) {
+                    'F' => 'Femme', 'M' => 'Homme', default => null
+                },
                 'commune' => $patient->commune,
             ],
             'demande' => [
