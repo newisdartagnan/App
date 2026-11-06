@@ -22,6 +22,7 @@ use App\Http\Controllers\Personnel\Medecin\AgendaController;
 use App\Http\Controllers\Personnel\Medecin\AnnulationRendezVousController;
 use App\Http\Controllers\Personnel\Medecin\PlageController;
 use App\Http\Controllers\Personnel\Medecin\ReversementsMedecinController;
+use App\Services\Paiement\SimulationPaiement;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('personnel')->name('personnel.')->group(function () {
@@ -88,6 +89,11 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
                 ->whereUuid('remboursement')->name('remboursements.valider');
             Route::post('/remboursements/{remboursement}/refus', [RemboursementController::class, 'refuser'])
                 ->whereUuid('remboursement')->name('remboursements.refuser');
+            // Simulation locale seulement : absente hors local et tests (et revérifiée par le contrôleur).
+            if (SimulationPaiement::disponible()) {
+                Route::post('/remboursements/{remboursement}/simulation', [RemboursementController::class, 'simuler'])
+                    ->whereUuid('remboursement')->middleware('throttle:20,1')->name('remboursements.simuler');
+            }
 
             Route::get('/journal', JournalController::class)->name('journal');
 

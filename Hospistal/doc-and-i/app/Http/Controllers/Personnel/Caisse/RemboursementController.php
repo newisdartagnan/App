@@ -6,6 +6,7 @@ use App\Enums\StatutRemboursement;
 use App\Models\Facture;
 use App\Models\Remboursement;
 use App\Services\Paiement\RemboursementService;
+use App\Services\Paiement\SimulationPaiement;
 use App\Support\Montant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class RemboursementController extends ControleurCaisse
     {
         $moi = $request->user()->id;
         $numero = mb_strtoupper(trim((string) $request->query('numero', '')));
+        $simulation = SimulationPaiement::disponible();
 
         $presenter = fn (Remboursement $r) => [
             'id' => $r->id,
@@ -36,6 +38,8 @@ class RemboursementController extends ControleurCaisse
             'motifRefus' => $r->motif_refus,
             // Quatre yeux : le demandeur ne voit pas de bouton « Valider » sur sa demande.
             'peutValider' => $r->statut === StatutRemboursement::AValider && $r->demande_par !== $moi,
+            // Développement seulement : déclencher le rappel signé de l'opérateur.
+            'simulable' => $simulation && $r->statut === StatutRemboursement::EnCours && $r->reference_fournisseur !== null,
         ];
 
         $relations = ['paiement.facture', 'paiement.patient', 'demandeur'];
@@ -89,6 +93,28 @@ class RemboursementController extends ControleurCaisse
             fn () => $this->remboursements->refuser($r, $request->user(), $request->input('motif')),
             'motif', 'Remboursement refusé : le montant redevient remboursable.',
         );
+    }
+
+    /**
+     * Développement seulement (pilote « simulation », local ou tests) : le
+     * rappel signé que l'opérateur enverrait pour ce remboursement. Route
+     * absente ailleurs, et revérifiée ici.
+     */
+    public function simuler(Request $request, string $remboursement, SimulationPaiement $simulation): RedirectResponse
+    {
+        abort_unless(SimulationPaiement::disponible(), 404);
+        $r = Remboursement::findOrFail($remboursement);
+        $donnees = $request->validate(['resultat' => ['required', 'in:reussi,echoue']]);
+
+        if ($r->statut !== StatutRemboursement::EnCours || $r->reference_fournisseur === null) {
+            return back()->withErrors(['remboursement' => 'Ce remboursement n\'attend pas de réponse de l\'opérateur.']);
+        }
+
+        $simulation->declencherRemboursement($r, $donnees['resultat'] === 'reussi');
+
+        return back()->with('succes', $donnees['resultat'] === 'reussi'
+            ? 'Simulation : remboursement confirmé par l\'opérateur.'
+            : 'Simulation : remboursement refusé par l\'opérateur.');
     }
 
     /** Geste commercial sur un paiement retrouvé par le numéro de sa facture. */
