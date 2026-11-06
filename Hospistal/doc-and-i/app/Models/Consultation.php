@@ -30,6 +30,17 @@ class Consultation extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // Salle close (terminée, absence) : les signaux WebRTC relayés ne
+        // servent plus, ils sont purgés dans la même transaction (TLC-01).
+        static::updated(function (Consultation $consultation) {
+            if ($consultation->wasChanged('statut') && ! $consultation->statut->estOuverte()) {
+                SignalConsultation::where('consultation_id', $consultation->id)->delete();
+            }
+        });
+    }
+
     /** À appeler sous verrou (lockForUpdate), dans une transaction. */
     public function transitionVers(StatutConsultation $cible): void
     {

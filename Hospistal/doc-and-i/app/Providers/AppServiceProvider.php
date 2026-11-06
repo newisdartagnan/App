@@ -83,5 +83,13 @@ class AppServiceProvider extends ServiceProvider
         // PAY-04 : rappels de l'agrégateur, large (ses serveurs sont peu
         // nombreux et rejouent leurs rappels) mais borné contre l'inondation.
         RateLimiter::for('paiement-rappel', $parIp('paiement-rappel', 300));
+
+        // TLC-01 : signalisation de l'appel vidéo, par utilisateur. Envoi borné
+        // (une offre, une réponse, quelques dizaines de candidats par appel) ;
+        // lecture : une interrogation toutes les 1,5 seconde environ.
+        RateLimiter::for('signaux-consultation', fn (Request $requete) => Limit::perMinute((int) config('doc-and-i.teleconsultation.signaux_par_minute'))
+            ->by('signaux-envoi|'.($requete->user()?->id ?? CodeConnexionService::cleIp($requete->ip()))));
+        RateLimiter::for('signaux-consultation-lecture', fn (Request $requete) => Limit::perMinute(120)
+            ->by('signaux-lecture|'.($requete->user()?->id ?? CodeConnexionService::cleIp($requete->ip()))));
     }
 }

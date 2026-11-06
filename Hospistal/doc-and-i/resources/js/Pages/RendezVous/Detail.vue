@@ -60,6 +60,12 @@ const texteRemboursement = computed(() => {
         <p v-else class="mt-4 rounded-lg bg-white p-3 font-medium shadow-sm">{{ rendezVous.statut_libelle }}</p>
         <p v-if="$page.props.errors.paiement" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ $page.props.errors.paiement }}</p>
 
+        <div v-if="actions.rejoindre" class="mt-4 rounded-lg border border-vert-200 bg-vert-50 p-4">
+            <p class="font-semibold text-vert-900">La salle de consultation est ouverte.</p>
+            <Link :href="`/consultation/${rendezVous.id}`" class="bouton mt-3">Rejoindre la consultation</Link>
+        </div>
+        <p v-if="$page.props.errors.consultation" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ $page.props.errors.consultation }}</p>
+
         <section v-if="paiements.some((p) => p.statut === 'reussi')" class="mt-4 rounded-lg bg-white p-4 shadow-sm">
             <h2 class="font-semibold">Paiement</h2>
             <template v-for="p in paiements" :key="p.id">

@@ -37,6 +37,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // authentifié par sa signature (RappelPaiementController).
         $middleware->validateCsrfTokens(except: ['paiement/rappel/*']);
 
+        // TLC-01 : une description de session WebRTC se termine par un saut de
+        // ligne obligatoire ; elle est relayée telle quelle, sans être rognée.
+        $middleware->trimStrings(except: ['charge.sdp']);
+
         $middleware->alias([
             'profil.complet' => ProfilComplet::class,
             'consentement' => ConsentementAJour::class,

@@ -1,5 +1,5 @@
 <script setup>
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
 
@@ -33,6 +33,13 @@ const annuler = (rdv) => {
     });
 };
 
+// TLC-01 : « Rejoindre la consultation » pour les rendez-vous confirmés du jour
+// (heure de Kinshasa). Le serveur revérifie la fenêtre d'ouverture de la salle.
+const aujourdhui = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Kinshasa',
+}).format(new Date());
+const rejoignable = (rdv) => rdv.statutCode === 'confirme' && rdv.date === aujourdhui;
+
 const couleur = (code) => ({
     confirme: 'bg-vert-50 text-vert-900',
     en_attente_paiement: 'bg-amber-50 text-amber-900',
@@ -45,6 +52,7 @@ const couleur = (code) => ({
         <h1 class="text-2xl font-bold">Agenda</h1>
         <p class="mt-2 text-slate-700">Vos rendez-vous à venir, heure de Kinshasa.</p>
 
+        <p v-if="$page.props.errors.consultation" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ $page.props.errors.consultation }}</p>
         <p v-if="rendezVous.length === 0" class="mt-6 text-slate-600">Aucun rendez-vous à venir.</p>
 
         <section v-for="jour in parJour" :key="jour.date" class="mt-6">
@@ -58,6 +66,10 @@ const couleur = (code) => ({
                     <p v-if="rdv.patient" class="mt-1">{{ rdv.patient }}</p>
                     <p v-else class="mt-1 text-sm text-slate-500">Patient et motif affichés seulement pour un rendez-vous confirmé.</p>
                     <p v-if="rdv.motif" class="text-sm text-slate-600">{{ rdv.motif }}</p>
+
+                    <Link v-if="rejoignable(rdv)" :href="`/personnel/medecin/consultation/${rdv.id}`" class="bouton mt-2 w-auto">
+                        Rejoindre la consultation
+                    </Link>
 
                     <button v-if="rdv.annulable && enAnnulation !== rdv.id" type="button"
                             class="mt-2 text-sm text-red-700 underline" @click="ouvrir(rdv.id)">
