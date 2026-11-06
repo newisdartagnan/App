@@ -309,14 +309,30 @@ class FinConsultationTest extends TestCase
                 ->where('rendezVous.0.id', $this->rdv->id)
                 ->where('rendezVous.0.consultation', 'en_cours')
                 ->where('rendezVous.0.consultationLibelle', 'En cours')
+                ->where('rendezVous.0.rejoignable', true)
                 ->where('rendezVous.1.id', $sansSalle->id)
-                ->where('rendezVous.1.consultation', null));
+                ->where('rendezVous.1.consultation', null)
+                ->where('rendezVous.1.rejoignable', false));
 
         $this->terminer();
         $this->commeMedecinRdv()->get(route('personnel.medecin.agenda'))
             ->assertInertia(fn ($page) => $page->where('rendezVous.0.consultationLibelle', 'Terminée')
                 ->where('rendezVous.0.statut', 'Terminé')
+                ->where('rendezVous.0.rejoignable', false)
                 ->whereNot('rendezVous.0.patient', null));
+    }
+
+    public function test_un_rendez_vous_devient_rejoignable_dix_minutes_avant_l_heure(): void
+    {
+        $this->travelTo($this->lundi('08:49'));
+        $this->commeMedecinRdv()->get(route('personnel.medecin.agenda'))->assertInertia(fn ($page) => $page->where('rendezVous.0.rejoignable', false));
+
+        $this->travelTo($this->lundi('08:50'));
+        $this->commeMedecinRdv()->get(route('personnel.medecin.agenda'))->assertInertia(fn ($page) => $page->where('rendezVous.0.rejoignable', true));
+
+        // Un rendez-vous en attente de paiement n'est jamais rejoignable.
+        $this->rdv->forceFill(['statut' => StatutRendezVous::EnAttentePaiement, 'expire_le' => now()->addMinutes(15)])->save();
+        $this->commeMedecinRdv()->get(route('personnel.medecin.agenda'))->assertInertia(fn ($page) => $page->where('rendezVous.0.rejoignable', false));
     }
 
     // --- Effets sur les reversements et le tableau de bord ---------------------------------------------

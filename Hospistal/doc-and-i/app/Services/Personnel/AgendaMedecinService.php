@@ -6,6 +6,7 @@ use App\Enums\StatutRendezVous;
 use App\Models\Consultation;
 use App\Models\Medecin;
 use App\Models\RendezVous;
+use App\Services\Teleconsultation\AccesConsultation;
 
 /**
  * Agenda du médecin (lecture seule pour ce lot) : ses rendez-vous à venir,
@@ -53,6 +54,10 @@ final class AgendaMedecinService
                     'annulable' => $rdv->statut === StatutRendezVous::Confirme && $rdv->debut->isFuture(),
                     'consultation' => $salle?->statut->value,
                     'consultationLibelle' => $salle?->statut->libelle(),
+                    // Bouton « Rejoindre » : rendez-vous confirmé, salle dans sa fenêtre horaire, pas close.
+                    'rejoignable' => $rdv->statut === StatutRendezVous::Confirme
+                        && app(AccesConsultation::class)->dansLaFenetre($rdv)
+                        && ($salle === null || $salle->statut->estOuverte()),
                 ];
             })->all();
     }
