@@ -54,6 +54,9 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
         Route::get('/', AccueilPersonnelController::class)->name('accueil');
         Route::get('/codes-de-recuperation', [ActivationController::class, 'codesRecuperation'])->name('codes-recuperation');
 
+        // Espace administrateur (ADM-01, ADM-02) : rôle admin_fonctionnel.
+        require __DIR__.'/admin.php';
+
         // Espace médecin (RDV-04, côté médecin). Chaque contrôleur ne lit que
         // les données du médecin connecté.
         Route::middleware('role:medecin')->prefix('medecin')->name('medecin.')->group(function () {

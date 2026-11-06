@@ -77,5 +77,17 @@ class DemonstrationLocaleSeeder extends Seeder
             $user->save();
             $user->syncRoles([Role::findOrCreate('caisse', 'web')]);
         }
+
+        // Administrateur fonctionnel de démonstration (ADM-01, ADM-02), au nom
+        // de l'administrateur désigné par le client ; courriel et numéro fictifs.
+        $admin = User::where('email', 'admin.demo@doc-and-i.local')->first() ?? tap(new User)->forceFill([
+            'email' => 'admin.demo@doc-and-i.local',
+            'telephone' => '+243810000021',
+            'telephone_verifie_le' => now(),
+            'nom' => 'IKULA',
+            'prenom' => 'Boris',
+        ]);
+        $admin->save();
+        $admin->syncRoles([Role::findOrCreate('admin_fonctionnel', 'web')]);
     }
 }

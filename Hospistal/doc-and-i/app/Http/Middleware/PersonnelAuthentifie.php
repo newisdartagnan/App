@@ -34,6 +34,14 @@ class PersonnelAuthentifie
             abort(403);
         }
 
+        // Désactivé par l'administration : la session en cours se ferme aussi.
+        if ($user->estDesactive()) {
+            $this->fermer($request);
+
+            return redirect()->route('personnel.connexion')
+                ->withErrors(['email' => 'Ce compte est désactivé. Adressez-vous à l\'administration.']);
+        }
+
         if (! AuthentificationPersonnel::pour($user)?->estActive()) {
             $this->fermer($request);
 

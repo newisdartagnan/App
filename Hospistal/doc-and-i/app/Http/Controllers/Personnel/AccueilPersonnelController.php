@@ -17,6 +17,10 @@ class AccueilPersonnelController extends Controller
             return redirect()->route('personnel.medecin.accueil');
         }
 
+        if ($request->user()->hasRole('admin_fonctionnel')) {
+            return redirect()->route('personnel.admin.accueil');
+        }
+
         if ($request->user()->hasRole('caisse')) {
             return redirect()->route('personnel.caisse.accueil');
         }
