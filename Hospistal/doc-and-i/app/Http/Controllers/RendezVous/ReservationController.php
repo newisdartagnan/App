@@ -46,8 +46,10 @@ class ReservationController extends Controller
 
         if ($choix['medecin'] === self::PREMIER_DISPONIBLE) {
             $medecin = null;
-            if ($type->prix === null) {
-                return $versChoix('Le prix de cette consultation n\'est pas encore fixé : elle ne peut pas encore être réservée.');
+            try {
+                $creneaux->verifierType($type);
+            } catch (ReservationRefusee $e) {
+                return $versChoix($e->getMessage());
             }
             $liste = $creneaux->premiersDisponibles($type);
         } else {
