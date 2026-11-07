@@ -26,6 +26,16 @@ class FinConsultationController extends ConsultationJsonController
         });
     }
 
+    public function interrompre(Request $request, string $rendezVous): Response
+    {
+        return $this->repondre(function () use ($request, $rendezVous) {
+            $rdv = $this->rendezVous($rendezVous);
+            $this->fin->interrompre($request->user(), $rdv);
+
+            return $this->fin->etat($request->user(), $rdv->fresh()) + ['message' => 'Consultation interrompue : le patient est remboursé et pourra reprendre un créneau.'];
+        });
+    }
+
     public function patientAbsent(Request $request, string $rendezVous): Response
     {
         return $this->repondre(function () use ($request, $rendezVous) {

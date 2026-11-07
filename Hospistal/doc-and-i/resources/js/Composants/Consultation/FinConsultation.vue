@@ -21,11 +21,12 @@ let minuterie = null;
 
 const ACTIONS = {
     terminer: { libelle: 'Terminer la consultation', chemin: 'terminer', confirmation: 'Terminer la consultation ? Elle ne pourra plus reprendre.', classe: 'bouton' },
+    interrompre: { libelle: 'Consultation interrompue', chemin: 'interruption', confirmation: 'L\'appel est coupé pour de bon ou l\'échange n\'a pas pu avoir lieu ? Le patient sera remboursé intégralement et pourra reprendre un créneau.', classe: 'bouton-secondaire' },
     patient_absent: { libelle: 'Constater l\'absence du patient', chemin: 'patient-absent', confirmation: 'Le patient n\'est pas venu : constater son absence ? Il ne sera pas remboursé.', classe: 'bouton-secondaire' },
     medecin_absent: { libelle: 'Le médecin n\'est pas venu', chemin: 'medecin-absent', confirmation: 'Signaler que le médecin n\'est pas venu ? Vous serez remboursé intégralement.', classe: 'bouton-secondaire' },
 };
 
-const FINAUX = ['terminee', 'patient_absent', 'medecin_absent'];
+const FINAUX = ['terminee', 'interrompue', 'patient_absent', 'medecin_absent'];
 
 function mettreAJour(nouvel) {
     etat.value = nouvel;
@@ -78,7 +79,10 @@ onBeforeUnmount(() => window.clearInterval(minuterie));
                 {{ ACTIONS[cle].libelle }}
             </button>
         </div>
-        <p v-else-if="etat.absenceDisponibleA" class="text-sm text-slate-600">
+        <p v-if="etat.terminerDansSecondes" class="text-sm text-slate-600">
+            La consultation pourra être terminée après encore {{ Math.ceil(etat.terminerDansSecondes / 60) }} minute(s) d'échange.
+        </p>
+        <p v-else-if="!etat.actions.length && etat.absenceDisponibleA" class="text-sm text-slate-600">
             Si l'autre participant n'arrive pas, son absence pourra être constatée à partir de {{ etat.absenceDisponibleA }}.
         </p>
         <p v-if="erreur" class="erreur" role="alert">{{ erreur }}</p>

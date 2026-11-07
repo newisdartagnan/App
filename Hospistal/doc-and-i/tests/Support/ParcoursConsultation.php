@@ -7,6 +7,7 @@ use App\Models\Medecin;
 use App\Models\RendezVous;
 use App\Models\User;
 use App\Services\Teleconsultation\AccesConsultation;
+use App\Services\Teleconsultation\Presence;
 
 /**
  * Consultation fictive pour les tests : lundi 7 décembre 2026, 09:00–09:20,
@@ -39,6 +40,29 @@ trait ParcoursConsultation
         $this->entrer($this->patientRdv);
 
         return $this->entrer($this->medecinRdv->user);
+    }
+
+    /**
+     * Les deux navigateurs connectés ensemble (battements de présence, comme
+     * l'appel vidéo les envoie), pendant $secondes de temps réel partagé.
+     * Les deux participants doivent être entrés.
+     */
+    protected function connectesEnsemble(int $secondes = 0, ?RendezVous $rdv = null): Consultation
+    {
+        $rdv ??= $this->rdv;
+        $presence = app(Presence::class);
+        $consultation = Consultation::where('rendez_vous_id', $rdv->id)->firstOrFail();
+        $medecin = $rdv->medecin->user;
+
+        $presence->battement($consultation, $medecin);
+        $presence->battement($consultation, $rdv->patient);
+        for ($restant = $secondes; $restant > 0; $restant -= 15) {
+            $this->travel(min(15, $restant))->seconds();
+            $presence->battement($consultation, $medecin);
+            $presence->battement($consultation, $rdv->patient);
+        }
+
+        return $consultation->fresh();
     }
 
     protected function commePatientRdv(): static
