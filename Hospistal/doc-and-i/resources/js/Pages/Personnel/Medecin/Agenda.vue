@@ -3,7 +3,14 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
 
-const props = defineProps({ rendezVous: Array });
+const props = defineProps({ rendezVous: Array, recentes: { type: Array, default: () => [] } });
+
+// DOS-02 : état de la note des consultations terminées.
+const NOTES = {
+    a_rediger: { libelle: 'Note à rédiger', classe: 'bg-amber-50 text-amber-900' },
+    brouillon: { libelle: 'Note à signer', classe: 'bg-amber-50 text-amber-900' },
+    signee: { libelle: 'Note signée', classe: 'bg-vert-50 text-vert-900' },
+};
 
 // Regroupés par jour, dans l'ordre déjà donné par le serveur.
 const parJour = computed(() => {
@@ -91,6 +98,20 @@ const couleur = (code) => ({
                             <button type="button" class="bouton-secondaire" @click="enAnnulation = null">Garder</button>
                         </div>
                     </form>
+                </li>
+            </ul>
+        </section>
+
+        <section v-if="recentes.length" class="mt-8">
+            <h2 class="text-lg font-semibold">Consultations terminées (30 derniers jours)</h2>
+            <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+                <li v-for="rdv in recentes" :key="rdv.id" class="flex items-center justify-between gap-2 px-4 py-3">
+                    <span>
+                        <span class="block font-medium">{{ rdv.patient }}</span>
+                        <span class="block text-sm text-slate-600"><span class="first-letter:uppercase">{{ rdv.date }}</span>, {{ rdv.heure }}</span>
+                        <span class="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium" :class="NOTES[rdv.note].classe">{{ NOTES[rdv.note].libelle }}</span>
+                    </span>
+                    <Link :href="`/personnel/medecin/rendez-vous/${rdv.id}/note`" class="bouton-secondaire w-auto">Note</Link>
                 </li>
             </ul>
         </section>
