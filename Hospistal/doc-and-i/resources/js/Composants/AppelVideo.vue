@@ -28,6 +28,9 @@ const props = defineProps({
     iceTransportPolicy: { type: String, default: 'all' },
     statut: { type: String, default: 'en_attente' },
     secondesEnsemble: { type: Number, default: 0 },
+    // Une offre par émetteur toutes les quelques secondes (borne du serveur).
+    intervalleOffreMs: { type: Number, default: 3500 },
+    attenteOffreMs: { type: Number, default: 0 },
 });
 
 const estMedecin = props.role === 'medecin';
@@ -58,7 +61,8 @@ let minuteurReconnexion = null;
 let minuteurPresence = null;
 let enPause = false;
 let candidatsEnAttente = [];
-let derniereOffre = 0;
+// Offre envoyée juste avant un rechargement : le délai restant vient du serveur.
+let derniereOffre = props.attenteOffreMs > 0 ? Date.now() - props.intervalleOffreMs + props.attenteOffreMs : 0;
 let mesurePrecedente = null;
 let echantillonsFaibles = 0;
 
@@ -186,8 +190,28 @@ const surEtatIce = () => {
 const relancer = () => {
     if (!actif || etat.value === 'quitte') return;
     if (pc && ['connected', 'completed'].includes(pc.iceConnectionState)) return;
-    if (estMedecin) nouvelleOffre();
+    if (estMedecin) offreDes('relance');
     else envoyer('pret', {});
+};
+
+/**
+ * Le serveur n'accepte qu'une offre toutes les quelques secondes par émetteur.
+ * Relance : une offre toute récente fait déjà la reprise. Demande du patient
+ * (« pret ») : l'offre part dès que possible, il en attend une.
+ */
+let offrePrevue = null;
+const offreDes = (raison) => {
+    const attente = derniereOffre + props.intervalleOffreMs - Date.now();
+    if (attente <= 0) {
+        nouvelleOffre();
+        return;
+    }
+    if (raison === 'relance') return;
+    clearTimeout(offrePrevue);
+    const demandeeA = Date.now();
+    offrePrevue = setTimeout(() => {
+        if (actif && etat.value !== 'quitte' && derniereOffre < demandeeA) nouvelleOffre();
+    }, attente);
 };
 
 const nouvelleOffre = async () => {
@@ -235,9 +259,8 @@ const traiter = async (signal) => {
         if (!pc.remoteDescription) candidatsEnAttente.push(charge);
         else await ajouterCandidat(charge);
     } else if (type === 'pret' && estMedecin) {
-        // Une offre toute récente attend déjà sa réponse : pas de seconde offre.
-        if (pc && pc.signalingState === 'have-local-offer' && Date.now() - derniereOffre < 5000) return;
-        await nouvelleOffre();
+        // Le patient (re)venu attend une offre neuve ; elle part dès que le serveur l'accepte.
+        offreDes('pret');
     } else if (type === 'raccroche') {
         fermerConnexion();
         etat.value = 'attente';
@@ -389,11 +412,13 @@ const raccrocher = async () => {
     enPause = true;
     clearTimeout(minuteurInterrogation);
     clearTimeout(minuteurReconnexion);
-    await envoyer('raccroche', {});
+    clearTimeout(offrePrevue);
+    // Caméra et micro coupés tout de suite, avant même de prévenir l'autre.
     fermerConnexion();
     fluxLocal?.getTracks().forEach((p) => p.stop());
     if (videoLocale.value) videoLocale.value.srcObject = null;
     message.value = '';
+    await envoyer('raccroche', {});
     envoiEnCours.value = false;
 };
 
@@ -415,7 +440,7 @@ const rejoindre = async () => {
     interroger();
     if (estMedecin) {
         etat.value = 'attente';
-        await nouvelleOffre();
+        offreDes('pret');
     } else {
         etat.value = 'attente';
         await envoyer('pret', {});
@@ -457,11 +482,9 @@ onMounted(async () => {
     minuteurPresence = setInterval(battre, props.presenceIntervalleMs);
     window.addEventListener('online', relancer);
 
-    if (estMedecin) await nouvelleOffre();
-    else {
-        etat.value = 'attente';
-        await envoyer('pret', {});
-    }
+    etat.value = 'attente';
+    if (estMedecin) offreDes('pret');
+    else await envoyer('pret', {});
 });
 
 onBeforeUnmount(() => {

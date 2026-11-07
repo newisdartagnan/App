@@ -3,7 +3,9 @@
 namespace App\Services\Teleconsultation;
 
 use App\Models\Consultation;
+use App\Models\SignalConsultation;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 
 /**
  * Ce que la page de la salle donne au composant AppelVideo, pour le patient
@@ -38,7 +40,26 @@ final class SalleAppel
             'seuilVideoKbps' => self::SEUIL_VIDEO_KBPS,
             'statut' => $consultation->statut->value,
             'secondesEnsemble' => (int) $consultation->secondes_ensemble,
+            // Une offre par émetteur toutes les quelques secondes (Signalisation) : la page
+            // rechargée juste après une offre attend le reste du délai au lieu d'essuyer un refus.
+            'intervalleOffreMs' => (int) $config['description_intervalle_secondes'] * 1000 + 500,
+            'attenteOffreMs' => $this->attenteOffre($consultation, $user, (int) $config['description_intervalle_secondes']),
         ];
+    }
+
+    private function attenteOffre(Consultation $consultation, User $user, int $intervalle): int
+    {
+        $derniere = SignalConsultation::where('consultation_id', $consultation->id)
+            ->where('emetteur_id', $user->id)->where('type', 'offre')
+            ->max('cree_le');
+
+        if ($derniere === null) {
+            return 0;
+        }
+
+        $restant = CarbonImmutable::parse($derniere)->addSeconds($intervalle)->getTimestamp() - CarbonImmutable::now()->getTimestamp();
+
+        return max(0, $restant) * 1000 + ($restant > 0 ? 500 : 0);
     }
 
     /**

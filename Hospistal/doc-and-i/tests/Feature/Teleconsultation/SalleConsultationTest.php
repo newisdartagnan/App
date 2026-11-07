@@ -143,6 +143,25 @@ class SalleConsultationTest extends TestCase
         $this->actingAs($this->patient)->get(route('consultation', $this->rdv))->assertStatus(429);
     }
 
+    public function test_une_page_rechargee_juste_apres_une_offre_attend_le_reste_du_delai(): void
+    {
+        $this->commePersonnel($this->medecin->user)->get($this->salleMedecin())
+            ->assertInertia(fn ($page) => $page->where('appel.attenteOffreMs', 0)->where('appel.intervalleOffreMs', 3500));
+
+        $this->commePersonnel($this->medecin->user)
+            ->postJson(route('personnel.medecin.consultation.signaux.envoyer', $this->rdv->id), ['type' => 'offre', 'charge' => ['type' => 'offer', 'sdp' => "v=0\r\n"]])
+            ->assertCreated();
+        $this->travel(1)->seconds();
+
+        // Rechargement 1 s après l'offre : 2 s restantes (plus une marge) avant la suivante.
+        $this->commePersonnel($this->medecin->user)->get($this->salleMedecin())
+            ->assertInertia(fn ($page) => $page->where('appel.attenteOffreMs', 2500));
+
+        $this->travel(5)->seconds();
+        $this->commePersonnel($this->medecin->user)->get($this->salleMedecin())
+            ->assertInertia(fn ($page) => $page->where('appel.attenteOffreMs', 0));
+    }
+
     public function test_avec_un_relais_turn_tout_passe_par_le_relais(): void
     {
         $this->actingAs($this->patient)->get(route('consultation', $this->rdv))

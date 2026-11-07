@@ -23,7 +23,8 @@ const salleClose = () => appelVideo.value?.fermer();
                     :dernier-signal="appel.dernierSignal" :intervalle-ms="appel.intervalleMs"
                     :seuil-video-kbps="appel.seuilVideoKbps" :presence="appel.presence"
                     :presence-intervalle-ms="appel.presenceIntervalleMs" :ice-transport-policy="appel.iceTransportPolicy"
-                    :statut="appel.statut" :secondes-ensemble="appel.secondesEnsemble" :correspondant="rendezVous.patient">
+                    :statut="appel.statut" :secondes-ensemble="appel.secondesEnsemble"
+                    :intervalle-offre-ms="appel.intervalleOffreMs" :attente-offre-ms="appel.attenteOffreMs" :correspondant="rendezVous.patient">
             <!-- TLC-05 : dossier du patient ; TLC-03 : messagerie ; RG-06, RG-07 : fin et absences. -->
             <FinConsultation class="mt-4" @close="salleClose" :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
             <DossierPatient class="mt-4" :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
