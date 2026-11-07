@@ -21,8 +21,6 @@ class VerificationOrdonnanceController extends Controller
             ->toResponse($request)
             ->withHeaders([
                 'Cache-Control' => 'private, no-store, max-age=0',
-                // Le code est dans l'adresse : il ne part pas vers d'autres sites.
-                'Referrer-Policy' => 'no-referrer',
                 'X-Robots-Tag' => 'noindex, nofollow',
             ]);
     }
