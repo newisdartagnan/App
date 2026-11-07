@@ -92,6 +92,14 @@ class VerificationOrdonnanceTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('verification.statut', 'alteree')->where('verification.lignes.0.dosage', '1000 mg'));
     }
 
+    public function test_des_consignes_modifiees_en_base_rendent_l_ordonnance_alteree(): void
+    {
+        $this->alterer('ordonnances', 'ordonnances_non_modifiables', ['consignes' => 'Doubler les doses.']);
+
+        $this->verifier($this->ordonnance->code_verification)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('verification.statut', 'alteree'));
+    }
+
     public function test_une_empreinte_modifiee_en_base_rend_l_ordonnance_alteree(): void
     {
         $this->alterer('ordonnances', 'ordonnances_non_modifiables', ['empreinte' => str_repeat('0', 64)]);

@@ -89,6 +89,15 @@ class OrdonnanceTest extends TestCase
         $this->assertTrue(OrdonnanceService::estAuthentique($o));
     }
 
+    public function test_l_ordonnance_reste_authentique_quand_l_emission_tombe_entre_deux_secondes(): void
+    {
+        // La base garde la seconde (arrondie) : l'empreinte doit porter sur la même valeur.
+        $this->travelTo($this->lundi('09:07')->addMicroseconds(700000));
+        $this->emettre()->assertCreated();
+
+        $this->assertTrue(OrdonnanceService::estAuthentique(Ordonnance::sole()));
+    }
+
     public function test_plusieurs_ordonnances_par_rendez_vous_numerotees_sans_trou(): void
     {
         $this->emettre()->assertCreated();

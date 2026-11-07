@@ -235,6 +235,20 @@ class NoteConsultationTest extends TestCase
         $this->assertNull(NoteConsultation::sole()->signee_le);
     }
 
+    public function test_l_empreinte_reste_verifiable_quand_la_signature_tombe_entre_deux_secondes(): void
+    {
+        $this->enregistrer()->assertOk();
+        // La base garde la seconde (arrondie) : l'empreinte doit porter sur la même valeur.
+        $this->travelTo($this->lundi('09:07')->addMicroseconds(700000));
+        $this->signer()->assertOk();
+        $this->avenant('Précision.')->assertCreated();
+
+        $this->assertTrue(NoteService::estIntegre(NoteConsultation::sole()));
+        $note = NoteConsultation::sole();
+        $avenant = AvenantNote::sole();
+        $this->assertSame($avenant->empreinte, Empreinte::de(NoteService::contenuAvenant($avenant, $note)));
+    }
+
     public function test_une_alteration_en_base_se_voit_a_l_empreinte(): void
     {
         $this->enregistrer()->assertOk();

@@ -115,6 +115,7 @@ class AlertesPrescriptionTest extends TestCase
         }
         $this->assertFalse(AlertesPrescription::serecouvrent('Paracétamol', 'Pénicilline'));
         $this->assertFalse(AlertesPrescription::serecouvrent('Vitamine C', 'C'), 'Trop court pour signifier quelque chose.');
+        $this->assertFalse(AlertesPrescription::serecouvrent('C', 'Vitamine C'), 'Dans les deux sens.');
         $this->assertSame('penicilline g injectable', AlertesPrescription::normaliser('  Pénicilline G, injectable ! '));
     }
 
