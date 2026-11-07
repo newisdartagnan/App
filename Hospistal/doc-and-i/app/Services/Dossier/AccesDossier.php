@@ -6,6 +6,7 @@ use App\Enums\StatutRendezVous;
 use App\Models\Medecin;
 use App\Models\RendezVous;
 use App\Models\User;
+use App\Services\Teleconsultation\AccesConsultation;
 
 /**
  * Qui lit et écrit le dossier médical d'un patient (DOS-01 à DOS-04).
@@ -29,13 +30,14 @@ final class AccesDossier
         return $user->is($patient) && $user->hasRole('patient');
     }
 
+    /** Médecin actif ET inscription à l'Ordre vérifiée (un médecin réactivé attend sa revérification). */
     public function medecinDe(User $user): ?Medecin
     {
         if (! $user->hasRole('medecin') || $user->estDesactive()) {
             return null;
         }
 
-        return Medecin::where('user_id', $user->id)->first();
+        return Medecin::where('user_id', $user->id)->whereNotNull('ordre_verifie_le')->first();
     }
 
     /** Le médecin $user suit-il ce patient (relation de soin) ? */
@@ -52,6 +54,32 @@ final class AccesDossier
     public function peutLire(User $user, User $patient): bool
     {
         return $this->estLePatient($user, $patient) || $this->medecinTraitant($user, $patient);
+    }
+
+    /**
+     * Modifier le dossier (antécédents, allergies, groupe sanguin, réponse à
+     * une rectification) : le patient pour ce qui le concerne, ou un médecin
+     * qui a VU le patient, c'est-à-dire un rendez-vous terminé, ou confirmé
+     * et dont la salle est ouverte (revue de sécurité). Un rendez-vous dans un
+     * mois permet de lire, pas de retirer une allergie.
+     */
+    public function peutModifier(User $user, User $patient): bool
+    {
+        if ($this->estLePatient($user, $patient)) {
+            return true;
+        }
+
+        $medecin = $this->medecinDe($user);
+        if ($medecin === null) {
+            return false;
+        }
+
+        $fenetre = app(AccesConsultation::class);
+
+        return RendezVous::where('medecin_id', $medecin->id)->where('patient_id', $patient->id)
+            ->whereIn('statut', [StatutRendezVous::Termine->value, StatutRendezVous::Confirme->value])
+            ->get()
+            ->contains(fn (RendezVous $rdv) => $rdv->statut === StatutRendezVous::Termine || $fenetre->dansLaFenetre($rdv));
     }
 
     /**

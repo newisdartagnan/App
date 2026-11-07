@@ -24,6 +24,10 @@ class EntreeAccesDossier extends Model
         'dossier' => 'Dossier médical',
         'dossier_appel' => 'Dossier pendant la consultation',
         'piece_jointe_appel' => 'Pièce jointe pendant la consultation',
+        'note' => 'Note de consultation',
+        'ordonnances' => 'Ordonnances',
+        'ordonnance_pdf' => 'Ordonnance (PDF)',
+        'alertes_prescription' => 'Allergies et traitements (alerte de prescription)',
     ];
 
     protected $table = 'acces_dossier';

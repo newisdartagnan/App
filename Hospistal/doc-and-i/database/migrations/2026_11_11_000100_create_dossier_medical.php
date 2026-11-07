@@ -83,8 +83,9 @@ return new class extends Migration
             $table->string('diagnostic_libelle', 255)->nullable();
             $table->text('conduite')->nullable();
             $table->timestamp('signee_le')->nullable();
-            // SHA-256 du contenu signé : toute altération en base se voit.
+            // Sceau HMAC-SHA256 du contenu signé (App\Support\Empreinte) et version de sa clé.
             $table->char('empreinte', 64)->nullable();
+            $table->unsignedSmallInteger('signature_version')->default(1);
             $table->timestamps();
 
             $table->index(['patient_id', 'signee_le']);
@@ -97,6 +98,7 @@ return new class extends Migration
             $table->text('contenu');
             $table->timestamp('signe_le');
             $table->char('empreinte', 64);
+            $table->unsignedSmallInteger('signature_version')->default(1);
             $table->timestamps();
         });
 
@@ -107,8 +109,15 @@ return new class extends Migration
             $table->foreignUuid('medecin_id')->constrained('medecins');
             $table->foreignUuid('patient_id')->constrained('users');
             $table->text('consignes')->nullable();
+            // Identités figées à la signature et couvertes par le sceau (revue de
+            // sécurité) : un changement de profil ne réattribue pas l'ordonnance.
+            $table->string('patient_nom', 255);
+            $table->date('patient_naissance')->nullable();
+            $table->string('medecin_nom', 255);
+            $table->string('medecin_numero_ordre', 50);
             $table->timestamp('signee_le');
             $table->char('empreinte', 64);
+            $table->unsignedSmallInteger('signature_version')->default(1);
             // PRE-03 : code aléatoire du QR code ; le pharmacien vérifie l'authenticité.
             $table->string('code_verification', 32)->unique();
             $table->timestamps();

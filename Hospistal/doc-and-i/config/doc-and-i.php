@@ -79,6 +79,16 @@ return [
     ],
 
     /*
+    | Dossier médical et ordonnance (DOS-01 à DOS-04, PRE-01 à PRE-03).
+    */
+    'dossier' => [
+        // Clé du sceau HMAC des notes, avenants et ordonnances signés (32
+        // caractères au moins), hors base et hors dépôt. La changer rend les
+        // documents déjà signés « altérés » : rotation par version seulement.
+        'secret_signature' => env('DOSSIER_SECRET_SIGNATURE'),
+    ],
+
+    /*
     | Téléconsultation (TLC-01 à TLC-06, RG-06, RG-07).
     */
     'teleconsultation' => [

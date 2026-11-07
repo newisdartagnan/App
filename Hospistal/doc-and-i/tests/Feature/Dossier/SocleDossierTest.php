@@ -51,6 +51,7 @@ class SocleDossierTest extends TestCase
         $o = new Ordonnance;
         $o->forceFill([
             'numero' => 'OR-2026-000001', 'rendez_vous_id' => $rdv->id, 'medecin_id' => $rdv->medecin_id, 'patient_id' => $rdv->patient_id,
+            'patient_nom' => 'Patient Test', 'medecin_nom' => 'Dr Test', 'medecin_numero_ordre' => 'CNOM-1',
             'signee_le' => now(), 'empreinte' => str_repeat('a', 64), 'code_verification' => Str::random(32),
         ])->save();
         $l = new LigneOrdonnance;
@@ -176,5 +177,53 @@ class SocleDossierTest extends TestCase
 
         $this->expectException(QueryException::class);
         DB::statement('DELETE FROM antecedents');
+    }
+
+    public function test_le_sceau_exige_la_cle_secrete(): void
+    {
+        $contenu = ['motif' => 'Toux', 'lignes' => [['medicament' => 'X']]];
+        $sceau = Empreinte::de($contenu);
+
+        // Sans la clé, recalculer un SHA-256 du contenu ne donne pas le sceau (revue de sécurité).
+        $this->assertNotSame(hash('sha256', json_encode(['lignes' => [['medicament' => 'X']], 'motif' => 'Toux'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)), $sceau);
+
+        config(['doc-and-i.dossier.secret_signature' => str_repeat('k', 32)]);
+        $this->assertFalse(Empreinte::verifier($contenu, $sceau), 'Une autre clé ne valide pas le sceau.');
+
+        config(['doc-and-i.dossier.secret_signature' => 'court']);
+        $this->expectException(\RuntimeException::class);
+        Empreinte::de($contenu);
+    }
+
+    public function test_lire_n_est_pas_modifier_un_medecin_doit_avoir_vu_le_patient(): void
+    {
+        $patient = $this->patient();
+        $medecin = $this->medecinActive();
+        $rdv = $this->rendezVousExistant($medecin, $patient, $this->lundi('09:00')->addWeeks(4));
+        $acces = app(AccesDossier::class);
+
+        $this->assertTrue($acces->peutLire($medecin->user, $patient));
+        $this->assertFalse($acces->peutModifier($medecin->user, $patient), 'Rendez-vous dans un mois : lecture seulement.');
+        $this->assertTrue($acces->peutModifier($patient, $patient));
+
+        // Salle ouverte : il voit le patient, il peut modifier.
+        $this->travelTo($rdv->debut->subMinutes(5));
+        $this->assertTrue($acces->peutModifier($medecin->user, $patient));
+
+        // Après : rendez-vous terminé.
+        $this->travelTo($rdv->debut->addDays(2));
+        $this->assertFalse($acces->peutModifier($medecin->user, $patient));
+        $rdv->forceFill(['statut' => StatutRendezVous::Termine])->save();
+        $this->assertTrue($acces->peutModifier($medecin->user, $patient));
+    }
+
+    public function test_un_medecin_dont_l_ordre_n_est_pas_verifie_n_accede_a_aucun_dossier(): void
+    {
+        $patient = $this->patient();
+        $medecin = $this->medecinActive();
+        $this->rendezVousExistant($medecin, $patient, $this->lundi('09:00'));
+        $medecin->forceFill(['ordre_verifie_le' => null])->save();
+
+        $this->assertFalse(app(AccesDossier::class)->peutLire($medecin->user, $patient));
     }
 }

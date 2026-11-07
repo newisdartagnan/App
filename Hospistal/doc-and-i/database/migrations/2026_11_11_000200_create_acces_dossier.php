@@ -32,7 +32,7 @@ return new class extends Migration
             $table->index(['patient_id', 'cree_le']);
             $table->index(['lecteur_id', 'cree_le']);
         });
-        DB::statement("ALTER TABLE acces_dossier ADD CONSTRAINT acces_dossier_objet CHECK (objet IN ('dossier', 'dossier_appel', 'piece_jointe_appel'))");
+        DB::statement("ALTER TABLE acces_dossier ADD CONSTRAINT acces_dossier_objet CHECK (objet IN ('dossier', 'dossier_appel', 'piece_jointe_appel', 'note', 'ordonnances', 'ordonnance_pdf', 'alertes_prescription'))");
 
         DB::unprepared(<<<'SQL'
             CREATE TRIGGER acces_dossier_non_modifiable BEFORE UPDATE OR DELETE ON acces_dossier
