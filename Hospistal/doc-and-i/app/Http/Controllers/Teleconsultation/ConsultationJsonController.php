@@ -27,10 +27,17 @@ abstract class ConsultationJsonController extends Controller
     {
         try {
             $resultat = $action();
+            $reponse = $resultat instanceof Response ? $resultat : new JsonResponse($resultat, $statut);
         } catch (AccesRefuse $refus) {
-            return new JsonResponse(['message' => $refus->getMessage()], 403);
+            $reponse = new JsonResponse(['message' => $refus->getMessage()], 403);
         }
 
-        return $resultat instanceof Response ? $resultat : new JsonResponse($resultat, $statut);
+        // Messages, dossier, état de la consultation : jamais dans un cache
+        // (navigateur partagé, proxy). Une photo garde l'en-tête qu'elle porte déjà.
+        if (! $reponse->headers->has('Cache-Control') || ! str_contains((string) $reponse->headers->get('Cache-Control'), 'no-store')) {
+            $reponse->headers->set('Cache-Control', 'private, no-store, max-age=0');
+        }
+
+        return $reponse;
     }
 }

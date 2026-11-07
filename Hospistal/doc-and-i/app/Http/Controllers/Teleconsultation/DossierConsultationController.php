@@ -13,10 +13,7 @@ class DossierConsultationController extends ConsultationJsonController
 
     public function voir(Request $request, string $rendezVous): Response
     {
-        $reponse = $this->repondre(fn () => $this->dossier->pour($request->user(), $this->rendezVous($rendezVous)));
-        $reponse->headers->set('Cache-Control', 'private, no-store, max-age=0');
-
-        return $reponse;
+        return $this->repondre(fn () => $this->dossier->pour($request->user(), $this->rendezVous($rendezVous)));
     }
 
     public function pieceJointe(Request $request, string $rendezVous, string $piece): Response

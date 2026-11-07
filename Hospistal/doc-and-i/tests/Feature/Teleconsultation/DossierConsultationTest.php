@@ -3,6 +3,7 @@
 namespace Tests\Feature\Teleconsultation;
 
 use App\Enums\StatutRendezVous;
+use App\Models\Consultation;
 use App\Models\PieceJointeDemande;
 use App\Services\RendezVous\QuestionnaireTri;
 use Database\Seeders\RolesSeeder;
@@ -29,6 +30,8 @@ class DossierConsultationTest extends TestCase
             'motif' => 'Fièvre et maux de tête', 'symptomes' => 'Frissons le soir', 'depuis' => 'quelques_jours',
             'tri_reponses' => QuestionnaireTri::trace($this->reponsesTri()),
         ])->save();
+        // Le patient est entré : la salle existe, on est dans sa fenêtre.
+        $this->entrer($this->patientRdv);
     }
 
     private function piece(): PieceJointeDemande
@@ -100,10 +103,46 @@ class DossierConsultationTest extends TestCase
         $this->commeMedecinRdv()->get($this->adresse('personnel.medecin.consultation.piece-jointe', ['piece' => $this->piece()->id]))->assertForbidden();
     }
 
-    public function test_une_consultation_terminee_garde_le_dossier_ouvert_au_medecin(): void
+    public function test_l_historique_ne_garde_que_les_relations_de_soin(): void
+    {
+        $semaine = $this->lundi('07:00')->subWeek();
+        $confirme = $this->rendezVousExistant($this->medecinRdv, $this->patientRdv, $semaine, statut: StatutRendezVous::Confirme);
+        foreach ([StatutRendezVous::AbsencePatient, StatutRendezVous::AbsenceMedecin, StatutRendezVous::AnnuleParPatient, StatutRendezVous::AnnuleParMedecin, StatutRendezVous::Expire, StatutRendezVous::EnAttentePaiement] as $i => $statut) {
+            $this->rendezVousExistant($this->medecinRdv, $this->patientRdv, $semaine->addHours($i + 1), statut: $statut);
+        }
+
+        $this->commeMedecinRdv()->getJson($this->adresse('personnel.medecin.consultation.dossier'))
+            ->assertOk()->assertJsonCount(1, 'historique')->assertJsonPath('historique.0.id', $confirme->id);
+    }
+
+    public function test_une_consultation_terminee_ne_garde_pas_le_dossier_ouvert(): void
     {
         $this->rdv->forceFill(['statut' => StatutRendezVous::Termine])->save();
 
+        $this->commeMedecinRdv()->getJson($this->adresse('personnel.medecin.consultation.dossier'))->assertForbidden();
+        $this->commeMedecinRdv()->get($this->adresse('personnel.medecin.consultation.piece-jointe', ['piece' => $this->piece()->id]))->assertForbidden();
+    }
+
+    public function test_hors_de_la_fenetre_de_la_salle_le_dossier_est_ferme(): void
+    {
+        $piece = $this->piece();
         $this->commeMedecinRdv()->getJson($this->adresse('personnel.medecin.consultation.dossier'))->assertOk();
+
+        // Rendez-vous toujours « confirmé » (la tâche de fermeture n'est pas passée), mais la salle est fermée.
+        $this->travelTo($this->lundi('10:21'));
+        $this->commeMedecinRdv()->getJson($this->adresse('personnel.medecin.consultation.dossier'))->assertForbidden()
+            ->assertJsonPath('message', 'Le dossier s\'ouvre pendant la consultation, quand la salle est ouverte.');
+        $this->commeMedecinRdv()->get($this->adresse('personnel.medecin.consultation.piece-jointe', ['piece' => $piece->id]))->assertForbidden();
+    }
+
+    public function test_sans_salle_creee_le_dossier_est_ferme(): void
+    {
+        // Rendez-vous confirmé de la semaine suivante : pas de salle, hors fenêtre.
+        $plusTard = $this->rendezVousExistant($this->medecinRdv, $this->patientRdv, $this->lundi('09:00')->addWeek());
+        $this->commeMedecinRdv()->getJson(route('personnel.medecin.consultation.dossier', ['rendezVous' => $plusTard->id]))->assertForbidden();
+
+        // Dans la fenêtre, mais la salle n'a pas été créée.
+        Consultation::where('rendez_vous_id', $this->rdv->id)->delete();
+        $this->commeMedecinRdv()->getJson($this->adresse('personnel.medecin.consultation.dossier'))->assertForbidden();
     }
 }

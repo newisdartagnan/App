@@ -2,15 +2,19 @@
 
 namespace App\Services\Teleconsultation;
 
+use App\Enums\StatutRendezVous;
 use App\Models\Consultation;
 use App\Models\MessageConsultation;
 use App\Models\RendezVous;
 use App\Models\User;
+use App\Support\NettoyagePhoto;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -21,8 +25,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * - Écriture : pendant la fenêtre de la salle, salle ouverte, débit borné.
  * - Lecture du fil : aussi après la consultation (salle close), par les deux mêmes.
  * - Photo : JPEG, PNG ou WebP, type lu dans le CONTENU (finfo) et image
- *   réellement décodable, taille bornée ; disque privé, nom aléatoire,
- *   servie seulement par une route qui revérifie l'accès.
+ *   réellement décodable, taille bornée ; métadonnées (GPS…) retirées avant
+ *   stockage ; quota par participant ; disque privé, nom aléatoire, servie
+ *   seulement par une route qui revérifie l'accès.
  * - Un message est une donnée du dossier : ni modification ni suppression.
  */
 final class Messagerie
@@ -81,20 +86,53 @@ final class Messagerie
         $type = self::verifierPhoto($photo);
         $consultation = $this->inscriptible($user, $rdv);
 
+        // Revue de sécurité : métadonnées retirées (position GPS, appareil, date)
+        // avant tout stockage ; l'image doit rester lisible après nettoyage.
+        try {
+            $octets = NettoyagePhoto::nettoyer((string) file_get_contents($photo->getRealPath()), $type);
+        } catch (InvalidArgumentException) {
+            throw new AccesRefuse('Cette photo n\'a pas pu être lue. Envoyez-en une autre.');
+        }
+        $image = @getimagesizefromstring($octets);
+        if ($image === false || ($image['mime'] ?? null) !== $type) {
+            throw new AccesRefuse('Cette photo n\'a pas pu être lue. Envoyez-en une autre.');
+        }
+        $this->verifierQuota($consultation, $user, strlen($octets));
+
         // Nom aléatoire, sans extension ni nom d'origine : rien à deviner.
-        $chemin = $photo->storeAs('consultations/'.$consultation->id, Str::random(40), self::DISQUE);
-        if ($chemin === false) {
+        $chemin = 'consultations/'.$consultation->id.'/'.Str::random(40);
+        if (! Storage::disk(self::DISQUE)->put($chemin, $octets)) {
             throw new AccesRefuse('La photo n\'a pas pu être enregistrée. Réessayez.');
         }
 
         try {
-            $message = $this->creer($consultation, $user, ['piece_chemin' => $chemin, 'piece_type' => $type, 'piece_taille' => $photo->getSize()]);
+            // Quota revérifié sous verrou de la salle : deux envois simultanés ne le dépassent pas.
+            $message = DB::transaction(function () use ($consultation, $user, $chemin, $type, $octets) {
+                Consultation::whereKey($consultation->id)->lockForUpdate()->firstOrFail();
+                $this->verifierQuota($consultation, $user, strlen($octets));
+
+                return $this->creer($consultation, $user, ['piece_chemin' => $chemin, 'piece_type' => $type, 'piece_taille' => strlen($octets)]);
+            });
         } catch (\Throwable $e) {
             Storage::disk(self::DISQUE)->delete($chemin);
             throw $e;
         }
 
         return $this->presenter($message, $user, $rdv);
+    }
+
+    /** Photos par participant et par consultation, en nombre et en octets. @throws AccesRefuse */
+    private function verifierQuota(Consultation $consultation, User $user, int $octetsEnPlus): void
+    {
+        $deja = MessageConsultation::where('consultation_id', $consultation->id)->where('auteur_id', $user->id)
+            ->whereNotNull('piece_chemin')->toBase()->selectRaw('COUNT(*) AS nombre, COALESCE(SUM(piece_taille), 0) AS octets')->first();
+        $config = config('doc-and-i.teleconsultation');
+
+        if ((int) $deja->nombre >= (int) $config['photos_par_participant']
+            || (int) $deja->octets + $octetsEnPlus > (int) $config['photos_octets_par_participant']) {
+            throw new AccesRefuse(sprintf('Limite de photos atteinte pour cette consultation (%d photos, %d Mo).',
+                $config['photos_par_participant'], intdiv((int) $config['photos_octets_par_participant'], 1024 * 1024)));
+        }
     }
 
     /** La photo d'un message, à qui peut lire le fil, jamais en cache. @throws AccesRefuse */
@@ -159,6 +197,11 @@ final class Messagerie
 
         if (! $consultation->statut->estOuverte()) {
             throw new AccesRefuse('Cette consultation est close : le fil reste lisible, mais on n\'y écrit plus.');
+        }
+
+        // Annulé ou reporté : la salle ouverte avant ne sert plus à écrire.
+        if ($rdv->fresh()->statut !== StatutRendezVous::Confirme) {
+            throw new AccesRefuse('Ce rendez-vous n\'est plus confirmé : on n\'écrit plus dans cette consultation.');
         }
 
         if (! $this->acces->dansLaFenetre($rdv)) {

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Teleconsultation;
 
 use App\Enums\StatutConsultation;
+use App\Enums\StatutRendezVous;
 use App\Models\Consultation;
 use App\Models\MessageConsultation;
 use App\Services\Teleconsultation\AccesConsultation;
@@ -16,12 +17,13 @@ use Illuminate\Testing\TestResponse;
 use Tests\Support\ParcoursConsultation;
 use Tests\Support\ParcoursRendezVous;
 use Tests\Support\PersonnelDeTest;
+use Tests\Support\PhotosDeTest;
 use Tests\TestCase;
 
 /** TLC-03 : messagerie de la consultation, entre le patient et son médecin seulement. */
 class MessagerieConsultationTest extends TestCase
 {
-    use ParcoursConsultation, ParcoursRendezVous, PersonnelDeTest, RefreshDatabase;
+    use ParcoursConsultation, ParcoursRendezVous, PersonnelDeTest, PhotosDeTest, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -82,7 +84,7 @@ class MessagerieConsultationTest extends TestCase
 
     public function test_une_photo_est_gardee_sur_le_disque_prive_sous_un_nom_aleatoire_et_servie_aux_participants(): void
     {
-        $this->commePatientRdv()->post($this->adresse('consultation.messages.envoyer'), ['photo' => UploadedFile::fake()->image('eruption-bras.jpg', 40, 40)], ['Accept' => 'application/json'])
+        $this->commePatientRdv()->post($this->adresse('consultation.messages.envoyer'), ['photo' => $this->photo($this->jpegAvecGps(), 'eruption-bras.jpg')], ['Accept' => 'application/json'])
             ->assertCreated()->assertJsonPath('message.photo', true);
 
         $message = MessageConsultation::sole();
@@ -125,12 +127,12 @@ class MessagerieConsultationTest extends TestCase
     {
         config(['doc-and-i.teleconsultation.photo_octets_max' => 2048]);
 
-        $this->commePatientRdv()->post($this->adresse('consultation.messages.envoyer'), ['photo' => UploadedFile::fake()->image('grande.jpg', 400, 400)->size(50)], ['Accept' => 'application/json'])
+        $this->commePatientRdv()->post($this->adresse('consultation.messages.envoyer'), ['photo' => $this->photo($this->jpegSimple().str_repeat("\0", 3000), 'grande.jpg')], ['Accept' => 'application/json'])
             ->assertStatus(422);
 
         $this->assertSame(0, MessageConsultation::count());
         $this->expectException(AccesRefuse::class);
-        Messagerie::verifierPhoto(UploadedFile::fake()->image('grande.jpg', 400, 400)->size(50));
+        Messagerie::verifierPhoto($this->photo($this->jpegSimple().str_repeat("\0", 3000), 'grande.jpg'));
     }
 
     public function test_hors_de_la_fenetre_ou_salle_close_on_lit_mais_on_n_ecrit_plus(): void
@@ -180,7 +182,7 @@ class MessagerieConsultationTest extends TestCase
 
     public function test_la_photo_d_une_autre_consultation_n_est_pas_servie(): void
     {
-        $this->commePatientRdv()->post($this->adresse('consultation.messages.envoyer'), ['photo' => UploadedFile::fake()->image('a.png', 10, 10)], ['Accept' => 'application/json']);
+        $this->commePatientRdv()->post($this->adresse('consultation.messages.envoyer'), ['photo' => $this->photo($this->pngSimple(), 'a.png')], ['Accept' => 'application/json']);
         $message = MessageConsultation::sole();
 
         // Même patient, même médecin, autre rendez-vous : le message n'appartient pas à cette salle.
@@ -189,5 +191,95 @@ class MessagerieConsultationTest extends TestCase
         app(AccesConsultation::class)->entrer($this->patientRdv, $autre);
 
         $this->commePatientRdv()->get(route('consultation.messages.photo', ['rendezVous' => $autre->id, 'message' => $message->id]))->assertForbidden();
+    }
+
+    private function envoyerPhotoPatient(string $octets, string $nom = 'photo.jpg'): TestResponse
+    {
+        return $this->commePatientRdv()->post($this->adresse('consultation.messages.envoyer'), ['photo' => $this->photo($octets, $nom)], ['Accept' => 'application/json']);
+    }
+
+    public function test_la_photo_est_stockee_sans_sa_position_gps_et_reste_lisible(): void
+    {
+        foreach ([[$this->jpegAvecGps(), 'a.jpg', 'image/jpeg'], [$this->pngAvecGps(), 'b.png', 'image/png'], [$this->webpAvecGps(), 'c.webp', 'image/webp']] as [$octets, $nom, $type]) {
+            $this->assertStringContainsString('GPSLatitude', $octets);
+            $this->envoyerPhotoPatient($octets, $nom)->assertCreated();
+
+            $message = MessageConsultation::latest('rang')->first();
+            $stockee = Storage::disk('local')->get($message->piece_chemin);
+            $this->assertStringNotContainsString('GPSLatitude', $stockee, "Position retirée ({$type}).");
+            $this->assertStringNotContainsString($this->exifAvecGps(), $stockee);
+            $this->assertStringNotContainsString('Lemba', $stockee);
+            $this->assertSame($type, getimagesizefromstring($stockee)['mime']);
+            $this->assertSame(strlen($stockee), $message->piece_taille);
+
+            $servie = $this->commeMedecinRdv()->get($this->adresse('personnel.medecin.consultation.messages.photo', ['message' => $message->id]))->streamedContent();
+            $this->assertSame($stockee, $servie);
+        }
+    }
+
+    public function test_le_nombre_de_photos_par_participant_est_borne(): void
+    {
+        config(['doc-and-i.teleconsultation.photos_par_participant' => 2]);
+
+        $this->envoyerPhotoPatient($this->jpegSimple())->assertCreated();
+        $this->envoyerPhotoPatient($this->pngSimple(), 'a.png')->assertCreated();
+        $this->envoyerPhotoPatient($this->webpSimple(), 'b.webp')->assertForbidden()
+            ->assertJsonPath('message', 'Limite de photos atteinte pour cette consultation (2 photos, 40 Mo).');
+
+        // Le texte reste possible, et le quota du médecin est le sien.
+        $this->envoyerTextePatient('Je vous écris plutôt.')->assertCreated();
+        $this->commeMedecinRdv()->post($this->adresse('personnel.medecin.consultation.messages.envoyer'), ['photo' => $this->photo($this->jpegSimple())], ['Accept' => 'application/json'])->assertCreated();
+
+        $this->assertSame(3, MessageConsultation::whereNotNull('piece_chemin')->count());
+        $this->assertCount(3, Storage::disk('local')->allFiles());
+    }
+
+    public function test_le_volume_de_photos_par_participant_est_borne(): void
+    {
+        $taille = strlen($this->jpegSimple());
+        config(['doc-and-i.teleconsultation.photos_octets_par_participant' => 2 * $taille + 10]);
+
+        $this->envoyerPhotoPatient($this->jpegSimple())->assertCreated();
+        $this->envoyerPhotoPatient($this->jpegSimple())->assertCreated();
+        $this->envoyerPhotoPatient($this->jpegSimple())->assertForbidden();
+
+        $this->assertSame(2, MessageConsultation::count());
+        $this->assertCount(2, Storage::disk('local')->allFiles(), 'Rien n\'est gardé sur le disque pour une photo refusée.');
+    }
+
+    public function test_le_quota_compte_la_taille_apres_nettoyage(): void
+    {
+        // La photo brute dépasse le volume permis, la photo nettoyée non.
+        config(['doc-and-i.teleconsultation.photos_octets_par_participant' => strlen($this->jpegAvecGps()) - 1]);
+
+        $this->envoyerPhotoPatient($this->jpegAvecGps())->assertCreated();
+    }
+
+    public function test_un_rendez_vous_qui_n_est_plus_confirme_n_accepte_plus_de_message(): void
+    {
+        $this->envoyerTextePatient('Avant.')->assertCreated();
+        $this->rdv->forceFill(['statut' => StatutRendezVous::AnnuleParMedecin])->save();
+
+        $this->envoyerTextePatient('Après.')->assertForbidden()
+            ->assertJsonPath('message', 'Ce rendez-vous n\'est plus confirmé : on n\'écrit plus dans cette consultation.');
+        $this->envoyerPhotoPatient($this->jpegSimple())->assertForbidden();
+        $this->assertSame(1, MessageConsultation::count());
+        $this->assertSame([], Storage::disk('local')->allFiles());
+    }
+
+    public function test_les_reponses_json_de_la_consultation_ne_sont_pas_mises_en_cache(): void
+    {
+        foreach ([
+            $this->envoyerTextePatient('Bonjour'),
+            $this->commePatientRdv()->getJson($this->adresse('consultation.messages')),
+            $this->commeMedecinRdv()->getJson($this->adresse('personnel.medecin.consultation.messages')),
+            $this->commePatientRdv()->getJson($this->adresse('consultation.fin')),
+        ] as $reponse) {
+            $this->assertStringContainsString('no-store', (string) $reponse->headers->get('Cache-Control'));
+        }
+        // Un refus aussi.
+        $this->travelTo($this->lundi('10:21'));
+        $refus = $this->envoyerTextePatient('Trop tard.')->assertForbidden();
+        $this->assertStringContainsString('no-store', (string) $refus->headers->get('Cache-Control'));
     }
 }

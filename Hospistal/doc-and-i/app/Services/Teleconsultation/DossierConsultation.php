@@ -3,6 +3,7 @@
 namespace App\Services\Teleconsultation;
 
 use App\Enums\StatutRendezVous;
+use App\Models\Consultation;
 use App\Models\PieceJointeDemande;
 use App\Models\RendezVous;
 use App\Models\User;
@@ -19,13 +20,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * rendez-vous passés du patient avec ce médecin. Les antécédents viendront
  * du dossier médical (DOS-01).
  *
- * Relation de soin : rendez-vous confirmé ou consultation terminée. Un
- * rendez-vous annulé, expiré ou manqué n'ouvre pas le dossier.
+ * Ouvert seulement pendant l'appel : rendez-vous confirmé, salle créée,
+ * dans sa fenêtre horaire. Ensuite, plus rien (le dossier complet relève
+ * du lot dossier médical).
  */
 final class DossierConsultation
 {
-    private const STATUTS_OUVRANT_LE_DOSSIER = [StatutRendezVous::Confirme, StatutRendezVous::Termine];
-
     public function __construct(private readonly AccesConsultation $acces) {}
 
     /** @throws AccesRefuse */
@@ -63,6 +63,8 @@ final class DossierConsultation
             'historique' => RendezVous::with('demande:id,motif')
                 ->where('patient_id', $rdv->patient_id)->where('medecin_id', $rdv->medecin_id)
                 ->whereKeyNot($rdv->id)->where('debut', '<', CarbonImmutable::now())
+                // Relations de soin seulement : ni créneau non payé, ni annulation, ni absence.
+                ->whereIn('statut', [StatutRendezVous::Confirme->value, StatutRendezVous::Termine->value])
                 ->orderByDesc('debut')->limit(20)->get()
                 ->map(fn (RendezVous $r) => [
                     'id' => $r->id,
@@ -101,8 +103,15 @@ final class DossierConsultation
             throw new AccesRefuse('Ce dossier ne vous est pas ouvert.');
         }
 
-        if (! in_array($rdv->statut, self::STATUTS_OUVRANT_LE_DOSSIER, true)) {
-            throw new AccesRefuse('Ce rendez-vous n\'ouvre plus le dossier ('.mb_strtolower($rdv->statut->libelle()).').');
+        // Revue de sécurité : le dossier n'est ouvert que PENDANT l'appel —
+        // rendez-vous confirmé, salle créée, dans sa fenêtre horaire. Le dossier
+        // complet hors appel relève du dossier médical (DOS-01), avec son propre contrôle.
+        if ($rdv->statut !== StatutRendezVous::Confirme) {
+            throw new AccesRefuse('Ce rendez-vous n\'ouvre pas le dossier ('.mb_strtolower($rdv->statut->libelle()).').');
+        }
+
+        if (! Consultation::where('rendez_vous_id', $rdv->id)->exists() || ! $this->acces->dansLaFenetre($rdv)) {
+            throw new AccesRefuse('Le dossier s\'ouvre pendant la consultation, quand la salle est ouverte.');
         }
     }
 }
