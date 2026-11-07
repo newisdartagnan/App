@@ -82,6 +82,9 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
             // Téléconsultation : salle et signalisation de l'appel vidéo (TLC-01).
             require __DIR__.'/teleconsultation-medecin.php';
 
+            // Note de consultation et ordonnance (DOS-02, PRE-01 à PRE-03, RG-11).
+            require __DIR__.'/note-ordonnance-medecin.php';
+
             // Consultation, côté médecin (TLC-03, TLC-05, RG-06, RG-07) : points
             // d'accès JSON des composants de la salle ; chaque requête revérifie
             // que le rendez-vous est le sien.

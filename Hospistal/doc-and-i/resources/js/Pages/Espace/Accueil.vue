@@ -19,6 +19,7 @@ defineProps({ prenom: String });
         <nav class="mt-6 space-y-3">
             <Link href="/mes-rendez-vous" class="bouton-secondaire">Mes rendez-vous</Link>
             <Link href="/mes-paiements" class="bouton-secondaire">Mes paiements</Link>
+            <Link href="/mes-ordonnances" class="bouton-secondaire">Mes ordonnances</Link>
             <Link href="/profil" class="bouton-secondaire">Mon profil</Link>
             <Link href="/consentement" class="bouton-secondaire">Mes accords</Link>
         </nav>
