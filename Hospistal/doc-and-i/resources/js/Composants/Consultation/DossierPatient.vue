@@ -32,6 +32,16 @@ onMounted(async () => {
         <p v-else-if="erreur" class="erreur" role="alert">{{ erreur }}</p>
 
         <template v-else-if="dossier">
+            <!-- Allergies d'abord, bien visibles (DOS-01). -->
+            <div v-if="dossier.antecedents" class="rounded-lg border-2 p-3" role="note"
+                 :class="dossier.antecedents.allergies.length ? 'border-red-600 bg-red-50 text-red-900' : 'border-slate-200 bg-white text-slate-700'">
+                <h3 class="text-base font-bold">Allergies</h3>
+                <ul v-if="dossier.antecedents.allergies.length" class="ml-4 list-disc font-semibold">
+                    <li v-for="(a, i) in dossier.antecedents.allergies" :key="`a${i}`">{{ a }}</li>
+                </ul>
+                <p v-else>Aucune allergie déclarée (ce qui ne veut pas dire aucune : demandez au patient).</p>
+            </div>
+
             <div class="rounded-lg border border-slate-200 bg-white p-3">
                 <h3 class="text-base font-semibold">{{ dossier.patient.prenom }} {{ dossier.patient.nom }}</h3>
                 <p class="text-slate-700">
@@ -82,9 +92,35 @@ onMounted(async () => {
                 <p v-else class="text-slate-500">Première consultation avec ce patient.</p>
             </div>
 
-            <div class="rounded-lg border border-dashed border-slate-300 p-3 text-slate-500">
-                <h3 class="font-semibold text-slate-700">Antécédents</h3>
-                <p v-if="!dossier.antecedents">Disponibles avec le dossier médical (lot à venir).</p>
+            <div v-if="dossier.antecedents" class="rounded-lg border border-slate-200 bg-white p-3">
+                <h3 class="font-semibold">Dossier médical</h3>
+                <p class="mt-1">
+                    Groupe sanguin :
+                    <strong v-if="dossier.antecedents.groupeSanguin">{{ dossier.antecedents.groupeSanguin }}</strong>
+                    <span v-else class="text-slate-500">inconnu</span>
+                </p>
+
+                <h4 class="mt-3 font-semibold">Traitements en cours</h4>
+                <ul v-if="dossier.antecedents.traitements.length" class="ml-4 list-disc">
+                    <li v-for="(t, i) in dossier.antecedents.traitements" :key="`t${i}`">{{ t }}</li>
+                </ul>
+                <p v-else class="text-slate-500">Aucun déclaré.</p>
+
+                <template v-for="(libelle, cle) in { medical: 'Antécédents médicaux', chirurgical: 'Antécédents chirurgicaux', familial: 'Antécédents familiaux' }" :key="cle">
+                    <h4 class="mt-3 font-semibold">{{ libelle }}</h4>
+                    <ul v-if="dossier.antecedents.antecedents[cle].length" class="ml-4 list-disc">
+                        <li v-for="(a, i) in dossier.antecedents.antecedents[cle]" :key="`${cle}${i}`">{{ a }}</li>
+                    </ul>
+                    <p v-else class="text-slate-500">Aucun déclaré.</p>
+                </template>
+
+                <h4 class="mt-3 font-semibold">Dernières constantes</h4>
+                <ul v-if="dossier.antecedents.constantes.length" class="mt-1 space-y-1">
+                    <li v-for="c in dossier.antecedents.constantes" :key="c.type" class="flex justify-between gap-2">
+                        <span>{{ c.libelle }}</span><span><strong>{{ c.valeur }}</strong> <span class="text-slate-500">· {{ c.quand }}</span></span>
+                    </li>
+                </ul>
+                <p v-else class="text-slate-500">Aucune mesure.</p>
             </div>
         </template>
     </section>

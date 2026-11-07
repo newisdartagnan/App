@@ -72,6 +72,12 @@ const couleur = (code) => ({
                         Rejoindre la consultation
                     </Link>
 
+                    <!-- DOS-03 : dossier du patient, pour un rendez-vous qui ouvre la relation de soin (le serveur revérifie). -->
+                    <Link v-if="['confirme', 'termine'].includes(rdv.statutCode)" :href="`/personnel/medecin/rendez-vous/${rdv.id}/dossier`"
+                          class="mt-2 mr-4 inline-block text-sm text-marque-700 underline">
+                        Dossier du patient
+                    </Link>
+
                     <button v-if="rdv.annulable && enAnnulation !== rdv.id" type="button"
                             class="mt-2 text-sm text-red-700 underline" @click="ouvrir(rdv.id)">
                         Annuler ce rendez-vous
