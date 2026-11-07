@@ -10,6 +10,7 @@ use App\Models\RendezVous;
 use App\Models\SignalConsultation;
 use App\Models\User;
 use App\Services\Teleconsultation\AccesConsultation;
+use App\Services\Teleconsultation\Presence;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -243,6 +244,9 @@ class SignalisationTest extends TestCase
         app(AccesConsultation::class)->entrer($this->medecin->user, $this->rdv);
         $this->envoiMedecin('offre', $this->offre())->assertCreated();
         $this->envoiPatient('pret')->assertCreated();
+        // « En cours » seulement par les battements des deux navigateurs connectés.
+        app(Presence::class)->battement($this->consultation, $this->patient);
+        app(Presence::class)->battement($this->consultation, $this->medecin->user);
 
         DB::transaction(function () {
             $c = Consultation::whereKey($this->consultation->id)->lockForUpdate()->firstOrFail();
@@ -311,5 +315,105 @@ class SignalisationTest extends TestCase
     public function test_un_identifiant_mal_forme_donne_404(): void
     {
         $this->actingAs($this->patient)->getJson('/consultation/abc/signaux')->assertNotFound();
+    }
+
+    // --- Revue de sécurité : bornes par type, lecture bornée, pas de cache ---
+
+    private function candidat(int $port = 54321): array
+    {
+        return ['candidate' => "candidate:1 1 udp 2122260223 192.168.1.10 {$port} typ host", 'sdpMid' => '0', 'sdpMLineIndex' => 0];
+    }
+
+    public function test_une_offre_ou_une_reponse_par_emetteur_toutes_les_quelques_secondes(): void
+    {
+        $this->envoiMedecin('offre', $this->offre())->assertCreated();
+        $this->envoiMedecin('offre', $this->offre())->assertStatus(429)->assertJson(['message' => 'Une offre vient d\'être envoyée : patientez quelques secondes.']);
+        $this->envoiPatient('reponse', ['type' => 'answer', 'sdp' => self::SDP])->assertCreated();
+        $this->envoiPatient('reponse', ['type' => 'answer', 'sdp' => self::SDP])->assertStatus(429);
+
+        $this->travel(4)->seconds();
+        $this->envoiMedecin('offre', $this->offre())->assertCreated();
+        $this->assertSame(3, SignalConsultation::count());
+    }
+
+    public function test_un_candidat_tient_en_un_kilo_octet(): void
+    {
+        $long = $this->candidat() + ['usernameFragment' => str_repeat('u', 200)];
+        $long['candidate'] .= ' '.str_repeat('x', 900);
+
+        $this->envoiMedecin('candidat', $long)->assertStatus(422)->assertJsonValidationErrors(['charge' => 'Candidat réseau trop volumineux.']);
+        $this->envoiMedecin('candidat', $this->candidat())->assertCreated();
+    }
+
+    public function test_la_fin_des_candidats_vide_est_refusee_proprement(): void
+    {
+        foreach (['', null] as $vide) {
+            $this->envoiMedecin('candidat', ['candidate' => $vide, 'sdpMid' => '0', 'sdpMLineIndex' => 0])
+                ->assertStatus(422)->assertJsonValidationErrors(['charge' => 'Candidat réseau vide : la fin des candidats n\'est pas relayée.']);
+        }
+        $this->assertSame(0, SignalConsultation::count());
+    }
+
+    public function test_plafond_de_candidats_et_plafond_total_par_consultation(): void
+    {
+        config(['doc-and-i.teleconsultation.candidats_max_par_consultation' => 3, 'doc-and-i.teleconsultation.signaux_max_par_consultation' => 5]);
+
+        foreach (range(1, 3) as $i) {
+            $this->envoiMedecin('candidat', $this->candidat(50000 + $i))->assertCreated();
+        }
+        $this->envoiPatient('candidat', $this->candidat(60000))->assertStatus(429)->assertJson(['message' => 'Trop de candidats réseau pour cette consultation.']);
+
+        $this->envoiPatient('pret')->assertCreated();
+        $this->envoiMedecin('audio_seul', ['actif' => true, 'raison' => 'manuel'])->assertCreated();
+        $this->envoiPatient('pret')->assertStatus(429)->assertJson(['message' => 'Trop de signaux pour cette consultation.']);
+        $this->assertSame(5, SignalConsultation::count());
+    }
+
+    public function test_un_signal_deja_accepte_renvoye_avec_sa_cle_passe_meme_au_plafond(): void
+    {
+        config(['doc-and-i.teleconsultation.signaux_max_par_consultation' => 1]);
+        $cle = (string) Str::uuid();
+
+        $this->envoiPatient('pret', [], $cle)->assertCreated();
+        $this->envoiPatient('pret', [], $cle)->assertOk();
+        $this->envoiPatient('pret')->assertStatus(429);
+    }
+
+    public function test_la_lecture_est_bornee_en_nombre_et_en_octets(): void
+    {
+        foreach (range(1, 4) as $i) {
+            $this->envoiMedecin('candidat', $this->candidat(50000 + $i))->assertCreated();
+        }
+
+        config(['doc-and-i.teleconsultation.lecture_signaux_max' => 3]);
+        $lu = $this->lecturePatient()->json();
+        $this->assertCount(3, $lu['signaux']);
+        $this->assertTrue($lu['encore']);
+
+        config(['doc-and-i.teleconsultation.lecture_signaux_max' => 100, 'doc-and-i.teleconsultation.lecture_octets_max' => 300]);
+        $lu = $this->lecturePatient()->json();
+        $this->assertCount(2, $lu['signaux'], 'Environ 130 octets par candidat : deux tiennent dans 300.');
+        $this->assertTrue($lu['encore']);
+        $suite = $this->lecturePatient(end($lu['signaux'])['id'])->json();
+        $this->assertCount(2, $suite['signaux']);
+        $this->assertFalse($suite['encore']);
+
+        // Le client ne relit pas en boucle quand la réponse est pleine.
+        $this->assertStringNotContainsString('encore ? 0', file_get_contents(resource_path('js/Composants/AppelVideo.vue')));
+    }
+
+    public function test_les_reponses_de_la_signalisation_ne_sont_pas_mises_en_cache(): void
+    {
+        $reponses = [
+            $this->envoiMedecin('offre', $this->offre()),
+            $this->lecturePatient(),
+            $this->actingAs($this->patient())->getJson(route('consultation.signaux', $this->rdv)),
+            $this->envoiMedecin('offre', $this->offre()),
+        ];
+
+        $this->assertSame([201, 200, 403, 429], array_map(fn ($r) => $r->status(), $reponses));
+        foreach ($reponses as $reponse) {
+            $this->assertStringContainsString('no-store', $reponse->headers->get('Cache-Control'));
+        }
     }
 }

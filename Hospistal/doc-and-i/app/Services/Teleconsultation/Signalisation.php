@@ -9,6 +9,7 @@ use App\Models\SignalConsultation;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -28,9 +29,6 @@ use Illuminate\Validation\ValidationException;
 final class Signalisation
 {
     public const TYPES = ['offre', 'reponse', 'candidat', 'raccroche', 'audio_seul', 'pret'];
-
-    /** Signaux rendus par lecture : au-delà, le suivant les lit au tour d'après. */
-    public const LIMITE_LECTURE = 100;
 
     /** Un signal plus vieux ne sert plus à rien (purge planifiée). */
     public const DUREE_VIE_MINUTES = 120;
@@ -61,24 +59,58 @@ final class Signalisation
             return $existant;
         }
 
-        $signal = new SignalConsultation;
-        $signal->forceFill([
-            'consultation_id' => $consultation->id,
-            'emetteur_id' => $user->id,
-            'destinataire' => AccesConsultation::autreRole($role),
-            'type' => $type,
-            'charge' => $charge,
-            'cle' => $cle,
-        ]);
-
         try {
-            $signal->save();
+            return DB::transaction(function () use ($consultation, $user, $role, $type, $charge, $cle) {
+                // Bornes vérifiées sous verrou de la salle : deux envois simultanés ne les dépassent pas.
+                DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['signaux:'.$consultation->id]);
+                $this->verifierBornes($consultation, $user, $type);
+
+                $signal = new SignalConsultation;
+                $signal->forceFill([
+                    'consultation_id' => $consultation->id,
+                    'emetteur_id' => $user->id,
+                    'destinataire' => AccesConsultation::autreRole($role),
+                    'type' => $type,
+                    'charge' => $charge,
+                    'cle' => $cle,
+                ])->save();
+
+                return $signal;
+            });
         } catch (UniqueConstraintViolationException $e) {
             // Deux envois simultanés de la même clé : l'autre l'a enregistré.
             return $this->parCle($consultation, $user, (string) $cle) ?? throw $e;
         }
+    }
 
-        return $signal;
+    /**
+     * Bornes par type et par consultation (revue de sécurité) : une offre ou
+     * une réponse par émetteur toutes les quelques secondes, un plafond de
+     * candidats et un plafond total par consultation. Dépassement : 429.
+     *
+     * @throws ThrottleRequestsException
+     */
+    private function verifierBornes(Consultation $consultation, User $user, string $type): void
+    {
+        $config = config('doc-and-i.teleconsultation');
+        $signaux = SignalConsultation::where('consultation_id', $consultation->id);
+
+        if (in_array($type, ['offre', 'reponse'], true)) {
+            $recent = (clone $signaux)->where('emetteur_id', $user->id)->where('type', $type)
+                ->where('cree_le', '>', CarbonImmutable::now()->subSeconds((int) $config['description_intervalle_secondes']))
+                ->exists();
+            if ($recent) {
+                throw new ThrottleRequestsException(($type === 'offre' ? 'Une offre' : 'Une réponse').' vient d\'être envoyée : patientez quelques secondes.');
+            }
+        }
+
+        if ($type === 'candidat' && (clone $signaux)->where('type', 'candidat')->count() >= (int) $config['candidats_max_par_consultation']) {
+            throw new ThrottleRequestsException('Trop de candidats réseau pour cette consultation.');
+        }
+
+        if ((clone $signaux)->count() >= (int) $config['signaux_max_par_consultation']) {
+            throw new ThrottleRequestsException('Trop de signaux pour cette consultation.');
+        }
     }
 
     /**
@@ -92,16 +124,34 @@ final class Signalisation
     {
         $role = $this->verifier($consultation, $user);
 
-        $signaux = SignalConsultation::where('consultation_id', $consultation->id)
+        $maxSignaux = (int) config('doc-and-i.teleconsultation.lecture_signaux_max');
+        $maxOctets = (int) config('doc-and-i.teleconsultation.lecture_octets_max');
+
+        $lus = SignalConsultation::where('consultation_id', $consultation->id)
             ->where('destinataire', $role)
             ->where('id', '>', $apresId)
             ->orderBy('id')
-            ->limit(self::LIMITE_LECTURE)
-            ->get(['id', 'type', 'charge'])
-            ->map(fn (SignalConsultation $s) => ['id' => $s->id, 'type' => $s->type, 'charge' => $s->charge ?? []])
-            ->all();
+            ->limit($maxSignaux)
+            ->get(['id', 'type', 'charge']);
 
-        return ['role' => $role, 'statut' => $consultation->statut->value, 'signaux' => $signaux];
+        // Lecture bornée en nombre ET en octets ; le reste au tour suivant (« encore »).
+        $signaux = [];
+        $octets = 0;
+        foreach ($lus as $s) {
+            $taille = strlen(json_encode($s->charge ?? []));
+            if ($signaux !== [] && $octets + $taille > $maxOctets) {
+                break;
+            }
+            $octets += $taille;
+            $signaux[] = ['id' => $s->id, 'type' => $s->type, 'charge' => $s->charge ?? []];
+        }
+
+        return [
+            'role' => $role,
+            'statut' => $consultation->statut->value,
+            'signaux' => $signaux,
+            'encore' => count($signaux) < $lus->count() || $lus->count() >= $maxSignaux,
+        ];
     }
 
     /** Dernier signal adressé à $role : un participant qui (re)vient ne relit pas l'historique. */
@@ -189,7 +239,13 @@ final class Signalisation
         $index = $charge['sdpMLineIndex'] ?? null;
         $ufrag = $charge['usernameFragment'] ?? null;
 
-        $valide = is_string($candidate) && ($candidate === '' || str_starts_with($candidate, 'candidate:')) && strlen($candidate) <= 1024
+        // Le signal « fin des candidats » (candidat vide) n'est pas relayé :
+        // inutile en échange au fil de l'eau (trickle ICE), le navigateur ne l'envoie pas.
+        if ($candidate === null || $candidate === '') {
+            throw $refus('Candidat réseau vide : la fin des candidats n\'est pas relayée.');
+        }
+
+        $valide = is_string($candidate) && str_starts_with($candidate, 'candidate:')
             && ($mid === null || (is_string($mid) && strlen($mid) <= 64))
             && ($index === null || (is_int($index) && $index >= 0 && $index < 64))
             && ($ufrag === null || (is_string($ufrag) && strlen($ufrag) <= 256))
@@ -199,7 +255,12 @@ final class Signalisation
             throw $refus('Candidat réseau mal formé.');
         }
 
-        return ['candidate' => $candidate, 'sdpMid' => $mid, 'sdpMLineIndex' => $index, 'usernameFragment' => $ufrag];
+        $candidat = ['candidate' => $candidate, 'sdpMid' => $mid, 'sdpMLineIndex' => $index, 'usernameFragment' => $ufrag];
+        if (strlen(json_encode($candidat, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)) > (int) config('doc-and-i.teleconsultation.candidat_octets_max')) {
+            throw $refus('Candidat réseau trop volumineux.');
+        }
+
+        return $candidat;
     }
 
     private function parCle(Consultation $consultation, User $user, string $cle): ?SignalConsultation

@@ -30,7 +30,7 @@ class SallePatientController extends Controller
 
         return Inertia::render('Teleconsultation/Salle', [
             'rendezVous' => Affichage::resume($rdv),
-            'appel' => $salle->proprietes($consultation, $request->user(), $role, route('consultation.signaux', $rdv)),
+            'appel' => $salle->proprietes($consultation, $request->user(), $role, route('consultation.signaux', $rdv), route('consultation.presence', $rdv)),
         ]);
     }
 }

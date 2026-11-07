@@ -37,7 +37,7 @@ class ConsultationController extends ControleurMedecin
                 'heure' => $debut->format('H:i').' – '.$rdv->fin->setTimezone(DisponibilitesMedecinService::FUSEAU)->format('H:i'),
                 'patient' => trim($rdv->patient->prenom.' '.mb_strtoupper((string) $rdv->patient->nom)),
             ],
-            'appel' => $salle->proprietes($consultation, $request->user(), $role, route('personnel.medecin.consultation.signaux', $rdv->id)),
+            'appel' => $salle->proprietes($consultation, $request->user(), $role, route('personnel.medecin.consultation.signaux', $rdv->id), route('personnel.medecin.consultation.presence', $rdv->id)),
         ]);
     }
 }
