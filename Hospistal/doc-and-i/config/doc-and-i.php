@@ -94,6 +94,13 @@ return [
         // Secret partagé avec coturn (use-auth-secret), 32 caractères au moins.
         'turn_secret' => env('TLC_TURN_SECRET'),
         'turn_validite_secondes' => 4 * 3600,
+        // Présence réelle dans l'appel (revue de sécurité) : battement des
+        // navigateurs connectés ; deux battements à moins de « tolérance »
+        // d'écart = ensemble. Sous « durée minimale » passée ensemble, la
+        // consultation ne peut être que « interrompue » (RG-07, remboursée).
+        'presence_intervalle_secondes' => 15,
+        'presence_tolerance_secondes' => 45,
+        'duree_minimale_secondes' => 120,
         // Signaux WebRTC : taille et débit bornés (une offre SDP fait quelques Ko).
         'signal_octets_max' => 16 * 1024,
         'signaux_par_minute' => 240,

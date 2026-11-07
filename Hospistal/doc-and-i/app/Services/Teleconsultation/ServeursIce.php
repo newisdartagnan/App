@@ -16,8 +16,12 @@ use App\Models\User;
  */
 final class ServeursIce
 {
-    /** @return list<array{urls: list<string>, username?: string, credential?: string}> */
-    public function pour(User $user): array
+    /**
+     * @param  ?\DateTimeInterface  $jusquA  fin de validité des identifiants TURN : la fermeture de
+     *                                       la salle (revue de sécurité), sinon turn_validite_secondes
+     * @return list<array{urls: list<string>, username?: string, credential?: string}>
+     */
+    public function pour(User $user, ?\DateTimeInterface $jusquA = null): array
     {
         $config = config('doc-and-i.teleconsultation');
         $serveurs = [];
@@ -30,7 +34,10 @@ final class ServeursIce
         $turn = array_values(array_filter(array_map('trim', explode(',', (string) $config['turn']))));
         $secret = (string) $config['turn_secret'];
         if ($turn !== [] && strlen($secret) >= 32) {
-            $utilisateur = (time() + (int) $config['turn_validite_secondes']).':'.$user->id;
+            $expiration = $jusquA !== null
+                ? min($jusquA->getTimestamp(), time() + (int) $config['turn_validite_secondes'])
+                : time() + (int) $config['turn_validite_secondes'];
+            $utilisateur = max($expiration, time() + 60).':'.$user->id;
             $serveurs[] = [
                 'urls' => $turn,
                 'username' => $utilisateur,

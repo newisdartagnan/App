@@ -55,10 +55,11 @@ final class AccesConsultation
     }
 
     /**
-     * Entre dans la salle : la crée au premier passage, note l'arrivée du
-     * participant ; dès que les deux sont venus, la consultation est « en
-     * cours ». Idempotent : revenir après une coupure (TLC-04) rouvre la même
-     * salle et compte la reconnexion.
+     * Entre dans la salle : la crée au premier passage, note la première
+     * arrivée du participant (il est « venu »). Elle ne passe pas « en
+     * cours » ici : seule la connexion réelle des deux navigateurs le prouve
+     * (Presence::battement). Idempotent : revenir après une coupure (TLC-04)
+     * rouvre la même salle et compte la reconnexion.
      *
      * @return array{0: Consultation, 1: string} la salle et le rôle de $user
      *
@@ -71,6 +72,11 @@ final class AccesConsultation
         return DB::transaction(function () use ($rdv, $role) {
             $rdv = RendezVous::whereKey($rdv->id)->lockForUpdate()->firstOrFail();
             $consultation = $this->salleSousVerrou($rdv);
+
+            // Annulé ou reporté hors de la fenêtre après l'ouverture de la salle : plus d'entrée.
+            if ($consultation !== null && $rdv->statut !== StatutRendezVous::Confirme) {
+                throw new AccesRefuse($this->raisonFermee($rdv));
+            }
 
             if ($consultation === null || ! $consultation->statut->estOuverte()) {
                 throw new AccesRefuse($consultation === null
@@ -90,11 +96,8 @@ final class AccesConsultation
                 $consultation->reconnexions = $consultation->reconnexions + 1;
             }
 
-            if ($consultation->statut === StatutConsultation::EnAttente
-                && $consultation->patient_rejoint_le !== null && $consultation->medecin_rejoint_le !== null) {
-                $consultation->transitionVers(StatutConsultation::EnCours);
-                $consultation->debut_le = $maintenant;
-            }
+            // La salle ne passe « en cours » que par Presence::battement() : les deux
+            // navigateurs connectés ensemble. Ouvrir la page ne prouve rien (revue de sécurité).
 
             $consultation->save();
 

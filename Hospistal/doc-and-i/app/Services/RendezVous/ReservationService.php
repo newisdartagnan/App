@@ -3,8 +3,10 @@
 namespace App\Services\RendezVous;
 
 use App\Enums\MotifRemboursement;
+use App\Enums\StatutConsultation;
 use App\Enums\StatutPaiement;
 use App\Enums\StatutRendezVous;
+use App\Models\Consultation;
 use App\Models\DemandeConsultation;
 use App\Models\Medecin;
 use App\Models\Paiement;
@@ -244,6 +246,8 @@ class ReservationService
             $rdv = RendezVous::whereKey($rendezVous->id)->lockForUpdate()->firstOrFail();
             $maintenant = CarbonImmutable::now();
 
+            $this->refuserSiConsultationCommencee($rdv);
+
             $taux = match ($rdv->statut) {
                 StatutRendezVous::EnAttentePaiement => null,
                 StatutRendezVous::Confirme => $maintenant >= $rdv->debut
@@ -288,6 +292,7 @@ class ReservationService
         return DB::transaction(function () use ($rendezVous, $motif) {
             $this->verrouillerMedecin($rendezVous->medecin_id);
             $rdv = RendezVous::whereKey($rendezVous->id)->lockForUpdate()->firstOrFail();
+            $this->refuserSiConsultationCommencee($rdv);
 
             if ($rdv->statut !== StatutRendezVous::Confirme) {
                 throw new ReservationRefusee('Seul un rendez-vous confirmé peut être annulé par le médecin.');
@@ -332,6 +337,7 @@ class ReservationService
         return $this->traduireViolations(fn () => DB::transaction(function () use ($rendezVous, $nouveauDebut) {
             $this->verrouillerMedecin($rendezVous->medecin_id);
             $rdv = RendezVous::whereKey($rendezVous->id)->lockForUpdate()->firstOrFail();
+            $this->refuserSiConsultationCommencee($rdv);
             $maintenant = CarbonImmutable::now();
 
             if ($rdv->statut !== StatutRendezVous::Confirme) {
@@ -440,6 +446,32 @@ class ReservationService
         $seuil = (int) config('doc-and-i.rendez_vous.annulation.remboursement_partiel_heures') * 3600;
 
         return $rdv->debut->getTimestamp() - $maintenant->getTimestamp() < $seuil;
+    }
+
+    /**
+     * Revue de sécurité (téléconsultation) : une consultation commencée (les
+     * deux connectés) ou close ne s'annule ni ne se reporte ; sa fin passe
+     * par FinConsultation. Une salle seulement ouverte (personne ne s'est vu)
+     * est remise à zéro : les passages d'avant ne comptent plus pour le
+     * nouvel horaire ni pour une absence. À appeler sous verrou du rendez-vous.
+     *
+     * @throws ReservationRefusee
+     */
+    private function refuserSiConsultationCommencee(RendezVous $rdv): void
+    {
+        $salle = Consultation::where('rendez_vous_id', $rdv->id)->lockForUpdate()->first();
+        if ($salle === null) {
+            return;
+        }
+
+        if ($salle->statut !== StatutConsultation::EnAttente) {
+            throw new ReservationRefusee('La consultation a déjà eu lieu ou est en cours : ce rendez-vous ne peut plus être annulé ni déplacé.');
+        }
+
+        $salle->forceFill([
+            'patient_rejoint_le' => null, 'medecin_rejoint_le' => null,
+            'presence_patient_le' => null, 'presence_medecin_le' => null, 'mesure_ensemble_le' => null,
+        ])->save();
     }
 
     public function estEchue(RendezVous $rdv): bool

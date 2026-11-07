@@ -27,6 +27,11 @@ class Consultation extends Model
             'debut_le' => 'immutable_datetime',
             'fin_le' => 'immutable_datetime',
             'reconnexions' => 'integer',
+            'presence_patient_le' => 'immutable_datetime',
+            'presence_medecin_le' => 'immutable_datetime',
+            'ensemble_le' => 'immutable_datetime',
+            'mesure_ensemble_le' => 'immutable_datetime',
+            'secondes_ensemble' => 'integer',
         ];
     }
 

@@ -25,7 +25,7 @@ final class SalleAppel
         return [
             'role' => $role,
             'signaux' => $adresseSignaux,
-            'iceServers' => $this->serveurs->pour($user),
+            'iceServers' => $this->serveurs->pour($user, $consultation->rendezVous->fin->addMinutes((int) config('doc-and-i.teleconsultation.fermeture_minutes_apres'))),
             'dernierSignal' => $this->signalisation->dernierId($consultation, $role),
             'intervalleMs' => self::INTERVALLE_MS,
             'seuilVideoKbps' => self::SEUIL_VIDEO_KBPS,
