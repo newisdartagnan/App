@@ -94,11 +94,35 @@ return [
         // Secret partagé avec coturn (use-auth-secret), 32 caractères au moins.
         'turn_secret' => env('TLC_TURN_SECRET'),
         'turn_validite_secondes' => 4 * 3600,
+        // Présence réelle dans l'appel (revue de sécurité) : battement des
+        // navigateurs connectés ; deux battements à moins de « tolérance »
+        // d'écart = ensemble. Sous « durée minimale » passée ensemble, la
+        // consultation ne peut être que « interrompue » (RG-07, remboursée).
+        'presence_intervalle_secondes' => 15,
+        'presence_tolerance_secondes' => 45,
+        'duree_minimale_secondes' => 120,
         // Signaux WebRTC : taille et débit bornés (une offre SDP fait quelques Ko).
         'signal_octets_max' => 16 * 1024,
         'signaux_par_minute' => 240,
+        // Bornes par type et par consultation (revue de sécurité) : une offre
+        // ou une réponse par émetteur toutes les quelques secondes ; un
+        // candidat réseau tient en 1 Ko ; plafonds de candidats et de signaux
+        // par consultation ; une lecture rend au plus N signaux et N octets.
+        'description_intervalle_secondes' => 3,
+        'candidat_octets_max' => 1024,
+        'candidats_max_par_consultation' => 300,
+        'signaux_max_par_consultation' => 600,
+        'lecture_signaux_max' => 100,
+        'lecture_octets_max' => 64 * 1024,
+        // Avec un serveur TURN, tout passe par le relais (iceTransportPolicy
+        // « relay ») : l'adresse IP de l'un n'est jamais donnée à l'autre. Sans
+        // TURN (poste de développement), connexion directe.
+        'relais_seulement' => (bool) env('TLC_RELAIS_SEULEMENT', true),
         // Messagerie (TLC-03) : photos seulement, 5 Mo.
         'photo_octets_max' => 5 * 1024 * 1024,
+        // Quota de photos par participant et par consultation (revue de sécurité).
+        'photos_par_participant' => 20,
+        'photos_octets_par_participant' => 40 * 1024 * 1024,
     ],
 
     /*

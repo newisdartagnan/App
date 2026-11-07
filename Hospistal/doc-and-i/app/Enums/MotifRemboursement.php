@@ -10,6 +10,8 @@ enum MotifRemboursement: string
     case AnnulationMedecin = 'annulation_medecin';
     /** RG-06 : médecin absent à la consultation, remboursement intégral. */
     case AbsenceMedecin = 'absence_medecin';
+    /** RG-07 : consultation interrompue (coupure, échange trop court), remboursement intégral. */
+    case ConsultationInterrompue = 'consultation_interrompue';
     /** RG-03 : paiement confirmé après la libération du créneau. */
     case PaiementTardif = 'paiement_tardif';
     /** Deux débits pour un même rendez-vous : le second est rendu. */
@@ -20,7 +22,7 @@ enum MotifRemboursement: string
     /** Remboursements de règle, exécutés sans validation humaine. */
     public function estAutomatique(): bool
     {
-        return in_array($this, [self::PaiementTardif, self::PaiementEnDouble, self::AbsenceMedecin], true);
+        return in_array($this, [self::PaiementTardif, self::PaiementEnDouble, self::AbsenceMedecin, self::ConsultationInterrompue], true);
     }
 
     public function libelle(): string
@@ -29,6 +31,7 @@ enum MotifRemboursement: string
             self::AnnulationPatient => 'Annulation par le patient',
             self::AnnulationMedecin => 'Annulation par le médecin',
             self::AbsenceMedecin => 'Médecin absent à la consultation',
+            self::ConsultationInterrompue => 'Consultation interrompue',
             self::PaiementTardif => 'Paiement reçu après la libération du créneau',
             self::PaiementEnDouble => 'Paiement en double',
             self::GesteCommercial => 'Geste commercial',

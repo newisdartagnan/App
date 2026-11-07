@@ -40,6 +40,9 @@ Route::middleware(['auth', 'role:patient'])->group(function () {
 
             // Paiement, reçus et factures du patient (lot paiement).
             require __DIR__.'/paiement.php';
+
+            // Consultation : messagerie et fin, côté patient (lot téléconsultation).
+            require __DIR__.'/consultation-messagerie.php';
         });
     });
 });

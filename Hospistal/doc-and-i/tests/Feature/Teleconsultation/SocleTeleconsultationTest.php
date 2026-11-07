@@ -10,8 +10,11 @@ use App\Models\Medecin;
 use App\Models\MessageConsultation;
 use App\Models\RendezVous;
 use App\Models\User;
+use App\Services\RendezVous\ReservationRefusee;
+use App\Services\RendezVous\ReservationService;
 use App\Services\Teleconsultation\AccesConsultation;
 use App\Services\Teleconsultation\AccesRefuse;
+use App\Services\Teleconsultation\Presence;
 use App\Services\Teleconsultation\ServeursIce;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Database\QueryException;
@@ -107,27 +110,118 @@ class SocleTeleconsultationTest extends TestCase
         $this->assertSame(0, Consultation::count());
     }
 
-    public function test_la_consultation_est_en_cours_quand_les_deux_sont_venus_et_une_reconnexion_rouvre_la_meme(): void
+    private function battement(User $user): array
+    {
+        return app(Presence::class)->battement(Consultation::firstOrFail(), $user);
+    }
+
+    public function test_ouvrir_la_page_ne_met_pas_la_consultation_en_cours_et_une_reconnexion_rouvre_la_meme(): void
     {
         [$a] = $this->acces()->entrer($this->patient, $this->rdv);
         [$b, $role] = $this->acces()->entrer($this->medecin->user, $this->rdv);
 
         $this->assertTrue($a->is($b));
         $this->assertSame('medecin', $role);
-        $this->assertSame(StatutConsultation::EnCours, $b->statut);
-        $this->assertNotNull($b->debut_le);
+        // Revue de sécurité : les deux pages ouvertes ne prouvent pas une consultation.
+        $this->assertSame(StatutConsultation::EnAttente, $b->statut);
+        $this->assertNotNull($b->patient_rejoint_le);
+        $this->assertNotNull($b->medecin_rejoint_le);
 
-        // Coupure puis retour du patient (TLC-04, RG-07) : même salle, reconnexion comptée.
+        // Retour du patient (TLC-04) : même salle.
         [$c] = $this->acces()->entrer($this->patient, $this->rdv);
         $this->assertTrue($c->is($a));
-        $this->assertSame(1, $c->reconnexions);
         $this->assertSame(1, Consultation::count());
+    }
+
+    public function test_la_consultation_est_en_cours_quand_les_deux_navigateurs_sont_connectes_ensemble(): void
+    {
+        $this->acces()->entrer($this->patient, $this->rdv);
+        $this->acces()->entrer($this->medecin->user, $this->rdv);
+
+        $this->assertFalse($this->battement($this->medecin->user)['ensemble'], 'Seul : pas encore ensemble.');
+        $this->travel(10)->seconds();
+        $etat = $this->battement($this->patient);
+
+        $this->assertTrue($etat['ensemble']);
+        $this->assertSame('en_cours', $etat['statut']);
+        $this->assertNotNull(Consultation::first()->ensemble_le);
+    }
+
+    public function test_le_temps_passe_ensemble_ne_compte_que_les_moments_partages(): void
+    {
+        $this->acces()->entrer($this->patient, $this->rdv);
+        $this->acces()->entrer($this->medecin->user, $this->rdv);
+        $this->battement($this->medecin->user);
+        $this->battement($this->patient);
+
+        // 4 battements à 15 s d'intervalle, les deux présents : 60 s.
+        foreach (range(1, 4) as $i) {
+            $this->travel(15)->seconds();
+            $this->battement($this->medecin->user);
+            $this->battement($this->patient);
+        }
+        $this->assertSame(60, Consultation::first()->secondes_ensemble);
+
+        // Le patient disparaît 10 minutes : le médecin seul ne cumule rien.
+        $this->travel(10)->minutes();
+        $this->assertFalse($this->battement($this->medecin->user)['ensemble']);
+        // Retour : la coupure ne compte pas, on repart de la retrouvaille.
+        $this->battement($this->patient);
+        $this->travel(15)->seconds();
+        $this->battement($this->medecin->user);
+        $this->assertSame(75, Consultation::first()->secondes_ensemble);
+    }
+
+    public function test_un_tiers_ou_une_salle_close_refuse_le_battement(): void
+    {
+        $this->acces()->entrer($this->patient, $this->rdv);
+
+        try {
+            $this->battement($this->patient());
+            $this->fail('Battement accepté pour un tiers.');
+        } catch (AccesRefuse) {
+            $this->addToAssertionCount(1);
+        }
+
+        $this->travelTo($this->lundi('10:21'));
+        $this->expectException(AccesRefuse::class);
+        $this->battement($this->patient);
+    }
+
+    public function test_une_consultation_commencee_ne_s_annule_ni_ne_se_reporte(): void
+    {
+        $this->acces()->entrer($this->patient, $this->rdv);
+        $this->acces()->entrer($this->medecin->user, $this->rdv);
+        $this->battement($this->medecin->user);
+        $this->battement($this->patient);
+
+        $reservation = app(ReservationService::class);
+        foreach ([fn () => $reservation->annulerParPatient($this->rdv), fn () => $reservation->annulerParMedecin($this->rdv, 'Urgence')] as $action) {
+            try {
+                $action();
+                $this->fail('Annulation acceptée pendant la consultation.');
+            } catch (ReservationRefusee $e) {
+                $this->assertStringContainsString('consultation a déjà eu lieu ou est en cours', $e->getMessage());
+            }
+        }
+        $this->assertSame(StatutRendezVous::Confirme, $this->rdv->fresh()->statut);
+    }
+
+    public function test_un_rendez_vous_annule_apres_l_ouverture_de_la_salle_n_y_donne_plus_acces(): void
+    {
+        $this->acces()->entrer($this->medecin->user, $this->rdv);
+        $this->rdv->forceFill(['statut' => StatutRendezVous::AnnuleParPatient])->save();
+
+        $this->expectException(AccesRefuse::class);
+        $this->acces()->entrer($this->medecin->user, $this->rdv);
     }
 
     public function test_une_consultation_close_ne_se_rouvre_pas(): void
     {
         [$salle] = $this->acces()->entrer($this->patient, $this->rdv);
         $this->acces()->entrer($this->medecin->user, $this->rdv);
+        $this->battement($this->medecin->user);
+        $this->battement($this->patient);
         DB::transaction(function () use ($salle) {
             $s = Consultation::whereKey($salle->id)->lockForUpdate()->first();
             $s->transitionVers(StatutConsultation::Terminee);

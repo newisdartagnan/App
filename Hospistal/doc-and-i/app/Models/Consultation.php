@@ -27,7 +27,23 @@ class Consultation extends Model
             'debut_le' => 'immutable_datetime',
             'fin_le' => 'immutable_datetime',
             'reconnexions' => 'integer',
+            'presence_patient_le' => 'immutable_datetime',
+            'presence_medecin_le' => 'immutable_datetime',
+            'ensemble_le' => 'immutable_datetime',
+            'mesure_ensemble_le' => 'immutable_datetime',
+            'secondes_ensemble' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Salle close (terminée, absence) : les signaux WebRTC relayés ne
+        // servent plus, ils sont purgés dans la même transaction (TLC-01).
+        static::updated(function (Consultation $consultation) {
+            if ($consultation->wasChanged('statut') && ! $consultation->statut->estOuverte()) {
+                SignalConsultation::where('consultation_id', $consultation->id)->delete();
+            }
+        });
     }
 
     /** À appeler sous verrou (lockForUpdate), dans une transaction. */

@@ -22,6 +22,9 @@ use App\Http\Controllers\Personnel\Medecin\AgendaController;
 use App\Http\Controllers\Personnel\Medecin\AnnulationRendezVousController;
 use App\Http\Controllers\Personnel\Medecin\PlageController;
 use App\Http\Controllers\Personnel\Medecin\ReversementsMedecinController;
+use App\Http\Controllers\Teleconsultation\DossierConsultationController;
+use App\Http\Controllers\Teleconsultation\FinConsultationController;
+use App\Http\Controllers\Teleconsultation\MessagerieController;
 use App\Services\Paiement\SimulationPaiement;
 use Illuminate\Support\Facades\Route;
 
@@ -75,6 +78,31 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
             Route::get('/reversements', ReversementsMedecinController::class)->name('reversements');
             Route::post('/rendez-vous/{rendezVous}/annulation', AnnulationRendezVousController::class)
                 ->whereUuid('rendezVous')->middleware('throttle:30,1,annulation-medecin')->name('rendez-vous.annuler');
+
+            // Téléconsultation : salle et signalisation de l'appel vidéo (TLC-01).
+            require __DIR__.'/teleconsultation-medecin.php';
+
+            // Consultation, côté médecin (TLC-03, TLC-05, RG-06, RG-07) : points
+            // d'accès JSON des composants de la salle ; chaque requête revérifie
+            // que le rendez-vous est le sien.
+            Route::prefix('/consultation/{rendezVous}')->whereUuid('rendezVous')->name('consultation.')->group(function () {
+                Route::get('/messages', [MessagerieController::class, 'lister'])
+                    ->middleware('throttle:120,1,tlc-lecture-medecin')->name('messages');
+                Route::post('/messages', [MessagerieController::class, 'envoyer'])
+                    ->middleware('throttle:30,1,tlc-envoi-medecin')->name('messages.envoyer');
+                Route::get('/messages/{message}/photo', [MessagerieController::class, 'photo'])
+                    ->whereUuid('message')->middleware('throttle:120,1,tlc-photo-medecin')->name('messages.photo');
+
+                Route::get('/dossier', [DossierConsultationController::class, 'voir'])->middleware('throttle:60,1,tlc-dossier')->name('dossier');
+                Route::get('/pieces-jointes/{piece}', [DossierConsultationController::class, 'pieceJointe'])
+                    ->whereUuid('piece')->middleware('throttle:60,1,tlc-pieces')->name('piece-jointe');
+
+                Route::get('/fin', [FinConsultationController::class, 'etat'])->middleware('throttle:120,1,tlc-fin-medecin')->name('fin');
+                Route::post('/terminer', [FinConsultationController::class, 'terminer'])->middleware('throttle:10,1,tlc-terminer')->name('terminer');
+                Route::post('/interruption', [FinConsultationController::class, 'interrompre'])->middleware('throttle:10,1,tlc-interruption')->name('interrompre');
+                Route::post('/patient-absent', [FinConsultationController::class, 'patientAbsent'])
+                    ->middleware('throttle:10,1,tlc-absence-medecin')->name('patient-absent');
+            });
         });
 
         // Espace caisse (PAY-01, PAY-05 à PAY-09). Quatre yeux et plafonds
