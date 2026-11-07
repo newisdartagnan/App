@@ -172,6 +172,8 @@ final class LectureDossier
 
         return $evenements
             ->filter(fn (array $e) => $e['instant'] !== null)
+            // À instant égal, le dernier écrit d'abord (un retrait après son ajout) : tri stable sur l'ordre inversé.
+            ->reverse()
             ->sortByDesc(fn (array $e) => $e['instant']->getTimestamp())
             ->map(fn (array $e) => ['date' => Affichage::dateHeure($e['instant'])] + array_diff_key($e, ['instant' => true]))
             ->values()->all();

@@ -297,7 +297,9 @@ final class DossierService
         }
 
         if ($centiemes < Montant::enCentimes($min) || $centiemes > Montant::enCentimes($max)) {
-            throw new DossierRefuse("{$libelle} : la valeur doit être entre {$min} et {$max} {$unite}. Vérifiez la mesure.");
+            [$bas, $haut] = str_replace('.', ',', [$min, $max]);
+
+            throw new DossierRefuse("{$libelle} : la valeur doit être entre {$bas} et {$haut} {$unite}. Vérifiez la mesure.");
         }
 
         return Montant::depuisCentimes($centiemes);
