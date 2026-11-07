@@ -91,5 +91,11 @@ class AppServiceProvider extends ServiceProvider
             ->by('signaux-envoi|'.($requete->user()?->id ?? CodeConnexionService::cleIp($requete->ip()))));
         RateLimiter::for('signaux-consultation-lecture', fn (Request $requete) => Limit::perMinute(120)
             ->by('signaux-lecture|'.($requete->user()?->id ?? CodeConnexionService::cleIp($requete->ip()))));
+        // Battement de présence : un toutes les presence_intervalle_secondes (15 s), avec de la marge.
+        RateLimiter::for('presence-consultation', fn (Request $requete) => Limit::perMinute(12)
+            ->by('presence|'.($requete->user()?->id ?? CodeConnexionService::cleIp($requete->ip()))));
+        // Page de la salle : l'entrée écrit sous verrou (arrivée, reconnexion).
+        RateLimiter::for('salle-consultation', fn (Request $requete) => Limit::perMinute(20)
+            ->by('salle|'.($requete->user()?->id ?? CodeConnexionService::cleIp($requete->ip()))));
     }
 }

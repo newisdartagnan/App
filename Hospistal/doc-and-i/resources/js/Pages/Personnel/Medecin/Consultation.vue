@@ -21,7 +21,9 @@ const salleClose = () => appelVideo.value?.fermer();
 
         <AppelVideo ref="appelVideo" class="mt-4" :role="appel.role" :signaux="appel.signaux" :ice-servers="appel.iceServers"
                     :dernier-signal="appel.dernierSignal" :intervalle-ms="appel.intervalleMs"
-                    :seuil-video-kbps="appel.seuilVideoKbps" :correspondant="rendezVous.patient">
+                    :seuil-video-kbps="appel.seuilVideoKbps" :presence="appel.presence"
+                    :presence-intervalle-ms="appel.presenceIntervalleMs" :ice-transport-policy="appel.iceTransportPolicy"
+                    :statut="appel.statut" :secondes-ensemble="appel.secondesEnsemble" :correspondant="rendezVous.patient">
             <!-- TLC-05 : dossier du patient ; TLC-03 : messagerie ; RG-06, RG-07 : fin et absences. -->
             <FinConsultation class="mt-4" @close="salleClose" :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
             <DossierPatient class="mt-4" :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />

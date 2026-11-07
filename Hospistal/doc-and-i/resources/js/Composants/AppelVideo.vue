@@ -21,6 +21,13 @@ const props = defineProps({
     intervalleMs: { type: Number, default: 1500 },
     seuilVideoKbps: { type: Number, default: 150 },
     correspondant: { type: String, default: '' },
+    // Présence réelle (RG-06, RG-07) : battement tant que la connexion WebRTC est établie.
+    presence: { type: String, default: '' },
+    presenceIntervalleMs: { type: Number, default: 15000 },
+    // « relay » avec un serveur TURN : l'adresse IP de l'un n'est pas donnée à l'autre.
+    iceTransportPolicy: { type: String, default: 'all' },
+    statut: { type: String, default: 'en_attente' },
+    secondesEnsemble: { type: Number, default: 0 },
 });
 
 const estMedecin = props.role === 'medecin';
@@ -37,6 +44,8 @@ const cameraDisponible = ref(true);
 const audioSeul = ref(false);
 const raisonAudioSeul = ref('');
 const envoiEnCours = ref(false);
+const statutSalle = ref(props.statut);
+const secondesEnsemble = ref(props.secondesEnsemble);
 
 let pc = null;
 let fluxLocal = null;
@@ -46,6 +55,8 @@ let actif = true;
 let minuteurInterrogation = null;
 let minuteurMesure = null;
 let minuteurReconnexion = null;
+let minuteurPresence = null;
+let enPause = false;
 let candidatsEnAttente = [];
 let derniereOffre = 0;
 let mesurePrecedente = null;
@@ -74,6 +85,7 @@ const entetes = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpReques
 const terminer = (nouvelEtat, texte) => {
     actif = false;
     clearTimeout(minuteurInterrogation);
+    clearInterval(minuteurPresence);
     etat.value = nouvelEtat;
     message.value = texte;
     fermerConnexion();
@@ -127,7 +139,7 @@ const fermerConnexion = () => {
 
 const creerConnexion = () => {
     fermerConnexion();
-    pc = new RTCPeerConnection({ iceServers: props.iceServers });
+    pc = new RTCPeerConnection({ iceServers: props.iceServers, iceTransportPolicy: props.iceTransportPolicy });
     candidatsEnAttente = [];
     mesurePrecedente = null;
     echantillonsFaibles = 0;
@@ -136,7 +148,7 @@ const creerConnexion = () => {
         const expediteur = pc.addTrack(piste, fluxLocal);
         if (piste.kind === 'video') {
             expediteurVideo = expediteur;
-            if (audioSeul.value) expediteur.replaceTrack(null);
+            if (audioSeul.value || !camera.value) expediteur.replaceTrack(null);
         }
     }
 
@@ -158,6 +170,7 @@ const surEtatIce = () => {
         clearTimeout(minuteurReconnexion);
         etat.value = 'connecte';
         message.value = '';
+        battre(); // Présence signalée dès la connexion établie.
     } else if (pc.iceConnectionState === 'disconnected') {
         // TLC-04 : une coupure brève se rattrape souvent seule ; sinon on relance.
         etat.value = 'reconnexion';
@@ -202,6 +215,8 @@ const viderCandidats = async () => {
 
 const traiter = async (signal) => {
     const { type, charge } = signal;
+    // Après « Raccrocher », rien ne rétablit l'appel à distance : il faut cliquer « Rejoindre de nouveau ».
+    if (etat.value === 'quitte' && ['offre', 'pret', 'reponse', 'candidat'].includes(type)) return;
     if (type === 'offre' && !estMedecin) {
         // Toujours une connexion neuve : le médecin a pu recharger sa page.
         creerConnexion();
@@ -241,8 +256,7 @@ const utiles = (signaux) => {
 };
 
 const interroger = async () => {
-    if (!actif) return;
-    let encore = false;
+    if (!actif || enPause) return;
     try {
         const reponse = await fetch(`${props.signaux}?apres=${dernier}`, { credentials: 'same-origin', headers: entetes });
         if (reponse.status === 403) {
@@ -264,12 +278,61 @@ const interroger = async () => {
                     // Un signal inexploitable n'arrête pas l'appel.
                 }
             }
-            encore = donnees.signaux.length >= 100;
         }
     } catch {
         // Réseau coupé : on réessaie au tour suivant.
     }
-    minuteurInterrogation = setTimeout(interroger, encore ? 0 : props.intervalleMs);
+    // Même quand la réponse est pleine (« encore »), pas de relecture immédiate en boucle :
+    // le reste arrive au tour suivant.
+    if (actif && !enPause) minuteurInterrogation = setTimeout(interroger, props.intervalleMs);
+};
+
+/** Avant de rejoindre : passe les signaux arrivés pendant l'absence, sans les traiter. */
+const rattraper = async () => {
+    for (let tour = 0; tour < 20 && actif; tour += 1) {
+        const reponse = await fetch(`${props.signaux}?apres=${dernier}`, { credentials: 'same-origin', headers: entetes });
+        if (reponse.status === 403) {
+            const donnees = await reponse.json().catch(() => ({}));
+            terminer('close', donnees.message ?? 'La salle de consultation est fermée.');
+            return;
+        }
+        if (!reponse.ok) return;
+        const donnees = await reponse.json();
+        if (donnees.close) {
+            terminer('close', donnees.close);
+            return;
+        }
+        if (donnees.signaux.length) dernier = donnees.signaux[donnees.signaux.length - 1].id;
+        if (!donnees.encore) return;
+    }
+};
+
+// --- Présence réelle (RG-06, RG-07) ---------------------------------------
+
+/** Battement de présence : seulement tant que la connexion WebRTC est établie. */
+const battre = async () => {
+    if (!actif || !props.presence || etat.value === 'quitte') return;
+    if (!pc || !['connected', 'completed'].includes(pc.iceConnectionState)) return;
+    try {
+        const reponse = await fetch(props.presence, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { ...entetes, 'Content-Type': 'application/json', 'X-XSRF-TOKEN': jetonXsrf() },
+            body: '{}',
+        });
+        if (reponse.status === 403) {
+            const donnees = await reponse.json().catch(() => ({}));
+            terminer('close', donnees.message ?? 'La salle de consultation est fermée.');
+            return;
+        }
+        if (reponse.ok) {
+            const donnees = await reponse.json();
+            statutSalle.value = donnees.statut;
+            secondesEnsemble.value = donnees.secondes_ensemble;
+        }
+    } catch {
+        // Réseau coupé : le prochain battement réessaiera.
+    }
 };
 
 // --- TLC-02 : audio seul ---------------------------------------------------
@@ -319,11 +382,17 @@ const basculerCamera = async () => {
     if (expediteurVideo && !audioSeul.value) await expediteurVideo.replaceTrack(camera.value ? pisteVideo : null);
 };
 
+/** Raccrocher : caméra et micro coupés, interrogation suspendue ; rien ne reprend sans « Rejoindre de nouveau ». */
 const raccrocher = async () => {
     envoiEnCours.value = true;
+    etat.value = 'quitte';
+    enPause = true;
+    clearTimeout(minuteurInterrogation);
+    clearTimeout(minuteurReconnexion);
     await envoyer('raccroche', {});
     fermerConnexion();
-    etat.value = 'quitte';
+    fluxLocal?.getTracks().forEach((p) => p.stop());
+    if (videoLocale.value) videoLocale.value.srcObject = null;
     message.value = '';
     envoiEnCours.value = false;
 };
@@ -331,8 +400,23 @@ const raccrocher = async () => {
 const rejoindre = async () => {
     envoiEnCours.value = true;
     message.value = '';
-    if (estMedecin) await nouvelleOffre();
-    else {
+    try {
+        fluxLocal = await obtenirMedias();
+    } catch {
+        message.value = 'Autorisez l\'accès au micro (et à la caméra) pour cette page.';
+        envoiEnCours.value = false;
+        return;
+    }
+    fluxLocal.getAudioTracks().forEach((p) => { p.enabled = micro.value; });
+    if (videoLocale.value) videoLocale.value.srcObject = fluxLocal;
+    await rattraper();
+    if (!actif) return;
+    enPause = false;
+    interroger();
+    if (estMedecin) {
+        etat.value = 'attente';
+        await nouvelleOffre();
+    } else {
         etat.value = 'attente';
         await envoyer('pret', {});
     }
@@ -370,6 +454,7 @@ onMounted(async () => {
 
     interroger();
     minuteurMesure = setInterval(mesurer, 2000);
+    minuteurPresence = setInterval(battre, props.presenceIntervalleMs);
     window.addEventListener('online', relancer);
 
     if (estMedecin) await nouvelleOffre();
@@ -384,6 +469,7 @@ onBeforeUnmount(() => {
     clearTimeout(minuteurInterrogation);
     clearTimeout(minuteurReconnexion);
     clearInterval(minuteurMesure);
+    clearInterval(minuteurPresence);
     window.removeEventListener('online', relancer);
     fermerConnexion();
     fluxLocal?.getTracks().forEach((p) => p.stop());
@@ -402,7 +488,8 @@ const bandeau = computed(() => ({
 </script>
 
 <template>
-    <div class="appel" :data-etat="etat" :data-etat-ice="etatIce" :data-audio-seul="audioSeul ? 'oui' : 'non'">
+    <div class="appel" :data-etat="etat" :data-etat-ice="etatIce" :data-audio-seul="audioSeul ? 'oui' : 'non'"
+         :data-statut-salle="statutSalle" :data-secondes-ensemble="secondesEnsemble">
         <p v-if="bandeau" class="rounded-lg px-4 py-3 text-sm font-medium" role="status" aria-live="polite"
            :class="etat === 'reconnexion' ? 'bg-amber-50 text-amber-900' : 'bg-marque-50 text-marque-900'">
             {{ bandeau }}
@@ -440,6 +527,10 @@ const bandeau = computed(() => ({
             </button>
             <button v-else type="button" class="bouton" :disabled="envoiEnCours" @click="rejoindre">Rejoindre de nouveau</button>
         </div>
+
+        <p v-if="statutSalle === 'en_cours' && etat === 'connecte'" class="mt-2 text-sm text-vert-700" role="status">
+            Consultation en cours<template v-if="secondesEnsemble >= 60"> · {{ Math.floor(secondesEnsemble / 60) }} min ensemble</template>.
+        </p>
 
         <p class="mt-3 text-xs text-slate-500">
             Cet appel n'est jamais enregistré, ni le son ni l'image. Il passe directement entre vous et votre correspondant, chiffré.

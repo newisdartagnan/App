@@ -8,6 +8,7 @@ use App\Models\RendezVous;
 use App\Services\Teleconsultation\AccesConsultation;
 use App\Services\Teleconsultation\AccesRefuse;
 use App\Services\Teleconsultation\Signalisation;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -50,15 +51,28 @@ class SignauxController extends Controller
         }, $rendezVous);
     }
 
+    /** Accès vérifié ; réponse jamais mise en cache (revue de sécurité), refus compris. */
     private function accesVerifie(\Closure $action, RendezVous $rendezVous): JsonResponse
     {
         try {
             $consultation = Consultation::where('rendez_vous_id', $rendezVous->id)->first()
                 ?? throw new AccesRefuse('La salle de consultation n\'est pas encore ouverte.');
 
-            return $action($consultation);
+            $reponse = $action($consultation);
         } catch (AccesRefuse $refus) {
-            return response()->json(['message' => $refus->getMessage()], 403);
+            $reponse = response()->json(['message' => $refus->getMessage()], 403);
+        } catch (ThrottleRequestsException $trop) {
+            // Bornes par type et par consultation (Signalisation::verifierBornes).
+            $reponse = response()->json(['message' => $trop->getMessage()], 429);
         }
+
+        return self::sansCache($reponse);
+    }
+
+    public static function sansCache(JsonResponse $reponse): JsonResponse
+    {
+        $reponse->headers->set('Cache-Control', 'no-store, private, max-age=0');
+
+        return $reponse;
     }
 }
