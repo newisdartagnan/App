@@ -99,6 +99,7 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
 
                 Route::get('/fin', [FinConsultationController::class, 'etat'])->middleware('throttle:120,1,tlc-fin-medecin')->name('fin');
                 Route::post('/terminer', [FinConsultationController::class, 'terminer'])->middleware('throttle:10,1,tlc-terminer')->name('terminer');
+                Route::post('/interruption', [FinConsultationController::class, 'interrompre'])->middleware('throttle:10,1,tlc-interruption')->name('interrompre');
                 Route::post('/patient-absent', [FinConsultationController::class, 'patientAbsent'])
                     ->middleware('throttle:10,1,tlc-absence-medecin')->name('patient-absent');
             });

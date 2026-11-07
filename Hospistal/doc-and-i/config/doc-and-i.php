@@ -120,6 +120,9 @@ return [
         'relais_seulement' => (bool) env('TLC_RELAIS_SEULEMENT', true),
         // Messagerie (TLC-03) : photos seulement, 5 Mo.
         'photo_octets_max' => 5 * 1024 * 1024,
+        // Quota de photos par participant et par consultation (revue de sécurité).
+        'photos_par_participant' => 20,
+        'photos_octets_par_participant' => 40 * 1024 * 1024,
     ],
 
     /*

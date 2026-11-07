@@ -20,8 +20,8 @@ class ConstaterSallesFermees extends Command
     {
         $compte = $fin->constaterLesSallesFermees();
 
-        $this->info(sprintf('%d terminée(s), %d patient(s) absent(s), %d médecin(s) absent(s).',
-            $compte['terminees'], $compte['patient_absent'], $compte['medecin_absent']));
+        $this->info(sprintf('%d terminée(s), %d interrompue(s), %d patient(s) absent(s), %d médecin(s) absent(s).',
+            $compte['terminees'], $compte['interrompues'], $compte['patient_absent'], $compte['medecin_absent']));
 
         return self::SUCCESS;
     }
