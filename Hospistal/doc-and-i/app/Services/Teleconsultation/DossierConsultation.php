@@ -7,6 +7,8 @@ use App\Models\Consultation;
 use App\Models\PieceJointeDemande;
 use App\Models\RendezVous;
 use App\Models\User;
+use App\Services\Dossier\JournalAccesDossier;
+use App\Services\Dossier\LectureDossier;
 use App\Services\RendezVous\Affichage;
 use App\Services\RendezVous\DemandeConsultationService;
 use Carbon\CarbonImmutable;
@@ -17,8 +19,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * Dossier du patient pendant l'appel (TLC-05), pour le MÉDECIN DE CE
  * RENDEZ-VOUS seulement : identité utile (âge, sexe, commune ; jamais le
  * téléphone), la demande et ses réponses au tri, les pièces jointes, les
- * rendez-vous passés du patient avec ce médecin. Les antécédents viendront
- * du dossier médical (DOS-01).
+ * rendez-vous passés du patient avec ce médecin, et l'essentiel du dossier
+ * médical (DOS-01). Chaque lecture va au journal des accès au dossier.
  *
  * Ouvert seulement pendant l'appel : rendez-vous confirmé, salle créée,
  * dans sa fenêtre horaire. Ensuite, plus rien (le dossier complet relève
@@ -26,12 +28,18 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 final class DossierConsultation
 {
-    public function __construct(private readonly AccesConsultation $acces) {}
+    public function __construct(
+        private readonly AccesConsultation $acces,
+        private readonly JournalAccesDossier $journal,
+        private readonly LectureDossier $lecture,
+    ) {}
 
     /** @throws AccesRefuse */
     public function pour(User $medecin, RendezVous $rdv): array
     {
         $this->verifier($medecin, $rdv);
+        // Journal des accès au dossier (revue de sécurité) : le patient voit cette lecture.
+        $this->journal->noter($medecin, $rdv->patient_id, 'dossier_appel', $rdv->id);
         $rdv->loadMissing(['patient', 'demande.piecesJointes']);
         $patient = $rdv->patient;
         $demande = $rdv->demande;
@@ -72,8 +80,9 @@ final class DossierConsultation
                     'statut' => $r->statut->libelle(),
                     'motif' => $r->demande?->motif,
                 ])->all(),
-            // Emplacement réservé au dossier médical (DOS-01) : antécédents, traitements, allergies.
-            'antecedents' => null,
+            // Dossier médical (DOS-01) : allergies, traitements actifs, antécédents,
+            // dernières constantes, groupe sanguin (vide = inconnu).
+            'antecedents' => $this->lecture->resumePourAppel($patient),
         ];
     }
 
@@ -88,6 +97,7 @@ final class DossierConsultation
         if (! $disque->exists($piece->chemin)) {
             throw new AccesRefuse('Pièce jointe introuvable.');
         }
+        $this->journal->noter($medecin, $rdv->patient_id, 'piece_jointe_appel', $piece->id);
 
         return $disque->download($piece->chemin, $piece->nom_original, [
             'Content-Type' => $piece->type_mime,

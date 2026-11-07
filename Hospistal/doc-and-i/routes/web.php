@@ -43,6 +43,9 @@ Route::middleware(['auth', 'role:patient'])->group(function () {
 
             // Consultation : messagerie et fin, côté patient (lot téléconsultation).
             require __DIR__.'/consultation-messagerie.php';
+
+            // Dossier médical du patient (lot dossier, DOS-01, DOS-03, DOS-04).
+            require __DIR__.'/dossier.php';
         });
     });
 });
