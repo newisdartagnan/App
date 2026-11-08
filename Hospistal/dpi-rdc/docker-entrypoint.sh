@@ -65,6 +65,20 @@ else
     fi
 fi
 
+# ══════════════════════════════════════════════════════════════════
+# Le manifeste des paquets.
+#
+# `bootstrap/` est monté depuis le poste. Laravel y écrit la liste des
+# fournisseurs de services qu'il a trouvés dans `vendor/` — packages.php
+# et services.php. Si cette liste a été écrite ailleurs, par un conteneur
+# qui avait les dépendances de développement (les tests : Dusk,
+# Telescope, Pail), l'application la relit ici, où ces paquets n'existent
+# pas, et chaque commande meurt sur « Class Laravel\Dusk\DuskServiceProvider
+# not found ». On l'efface au démarrage : Laravel la refait aussitôt, à
+# partir du vendor de CE conteneur.
+# ══════════════════════════════════════════════════════════════════
+rm -f /var/www/bootstrap/cache/packages.php /var/www/bootstrap/cache/services.php
+
 # Publier les assets Livewire dans public/ (partagé avec nginx)
 if [ -f /var/www/artisan ]; then
     php /var/www/artisan livewire:publish --assets --force 2>/dev/null || true

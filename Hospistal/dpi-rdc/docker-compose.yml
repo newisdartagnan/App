@@ -180,6 +180,11 @@ services:
     volumes:
       - .:/var/www
       - vendor_tests:/var/www/vendor
+      # Le manifeste des paquets que Laravel écrit ici liste Dusk, Telescope
+      # et Pail, installés pour les tests seulement. Écrit dans bootstrap/
+      # du poste, il serait relu par le conteneur app — qui ne les a pas —
+      # et toute commande artisan y échouerait. Il reste donc dans un volume.
+      - bootstrap_cache_tests:/var/www/bootstrap/cache
     entrypoint: ["sh", "-c", "composer install --no-interaction --no-progress --quiet && exec \"$$@\"", "--"]
     command: ["php", "artisan", "test"]
     depends_on:
@@ -190,3 +195,4 @@ volumes:
   pgdata:
   redisdata:
   vendor_tests:
+  bootstrap_cache_tests:
