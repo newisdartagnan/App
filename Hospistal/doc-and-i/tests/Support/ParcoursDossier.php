@@ -47,6 +47,7 @@ trait ParcoursDossier
         $ordonnance->forceFill([
             'numero' => 'OR-2026-'.str_pad((string) random_int(1, 999999), 6, '0', STR_PAD_LEFT),
             'rendez_vous_id' => $rdv->id, 'medecin_id' => $rdv->medecin_id, 'patient_id' => $rdv->patient_id,
+            'patient_nom' => 'Patient Test', 'medecin_nom' => 'Dr Test', 'medecin_numero_ordre' => 'CNOM-1',
             'signee_le' => now(), 'empreinte' => str_repeat('a', 64), 'code_verification' => Str::random(32),
         ])->save();
         $ligne = new LigneOrdonnance;
