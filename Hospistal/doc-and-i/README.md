@@ -257,6 +257,9 @@ vérifie que `public/build` correspond aux sources.
   `redis`, `tests` (à la demande).
 - Intégration continue : `.github/workflows/doc-and-i.yml` à la racine du dépôt.
 
-Démonstration pas à pas de tout ce qui fonctionne : `docs/scenario-demonstration.md`.
+**Tout voir rapidement** (poste local seulement) : `docker compose exec app php artisan demo:preparer`
+prépare des comptes du personnel activés (mot de passe `MediHome-demo-2026`, code
+par `php artisan demo:code`) et des patients fictifs à toutes les étapes. Détails
+et parcours pas à pas : `docs/scenario-demonstration.md`.
 
 Règles de développement : voir `CLAUDE.md`.
