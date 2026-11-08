@@ -11,6 +11,32 @@ s'écrit dans le journal.
 Durée : 20 à 30 minutes. Téléphone en main pour l'application
 d'authentification (Google Authenticator, Microsoft Authenticator…).
 
+## Démonstration express : tout voir en 5 minutes
+
+Une seule commande prépare, sur le poste local seulement, des comptes du
+personnel déjà activés et des données fictives à toutes les étapes :
+
+```bash
+docker compose exec app php artisan demo:preparer
+```
+
+- Personnel : <http://localhost:8097/personnel/connexion>, mot de passe
+  `MediHome-demo-2026`, puis le code à 6 chiffres donné par
+  `docker compose exec app php artisan demo:code` (valable 30 secondes).
+  Comptes : `admin.demo`, `admin2.demo`, `medecin.demo`, `pediatre.demo`,
+  `caisse1.demo`, `caisse2.demo` (tous `@doc-and-i.local`).
+- Patients : <http://localhost:8097/connexion>, numéros `0810000101` (Grâce :
+  consultation terminée hier avec note signée et ordonnance, et une
+  consultation qui commence dans 5 minutes), `0810000102` (Jean-Paul :
+  remboursement à valider par la caisse), `0810000103` (Esther : pédiatrie
+  demain). Le code SMS : `docker compose exec app tail -n 5 storage/logs/laravel.log`.
+
+Chaque rôle a son espace : l'administrateur ne voit pas les dossiers
+médicaux (secret médical) ; pour voir le dossier, connectez-vous en médecin
+ou en patient. Une fenêtre de navigation privée par compte.
+
+La suite de ce document détaille le parcours complet pas à pas.
+
 ## 0. Préparer (une fois)
 
 Dans `Hospistal\doc-and-i` :
