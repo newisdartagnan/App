@@ -3,6 +3,7 @@
 namespace App\Services\Dossier;
 
 use App\Models\Antecedent;
+use App\Models\AvenantNote;
 use App\Models\Constante;
 use App\Models\DemandeRectification;
 use App\Models\DossierPatient;
@@ -49,6 +50,12 @@ final class DossierService
         'chirurgical' => 'Antécédent chirurgical',
         'familial' => 'Antécédent familial',
     ];
+
+    public const LECTURE_SEULE = 'Vous pourrez modifier ce dossier après avoir vu le patient : consultation ouverte ou terminée.';
+
+    public const AVENANT_D_ABORD = 'Rédigez d\'abord l\'avenant qui corrige la note, puis acceptez la demande.';
+
+    public const AUTEUR_SEUL = 'Seul l\'auteur de la note répond à une demande qui la concerne.';
 
     public function __construct(private readonly AccesDossier $acces) {}
 
@@ -186,7 +193,10 @@ final class DossierService
             if ($source === 'patient' && $dossier->groupe_sanguin_par !== null && $dossier->groupe_sanguin_par !== $patient->id) {
                 throw new DossierRefuse('Votre groupe sanguin a été saisi par un médecin : demandez-en la rectification.');
             }
-            if ($dossier->groupe_sanguin === $groupe) {
+            // Double envoi du même auteur : rien à changer. Une valeur identique
+            // confirmée par un médecin lui est attribuée (revue F1) : le patient
+            // ne pourra plus la changer.
+            if ($dossier->groupe_sanguin === $groupe && ($groupe === null || $dossier->groupe_sanguin_par === $auteur->id)) {
                 return $dossier;
             }
 
@@ -200,8 +210,13 @@ final class DossierService
         });
     }
 
-    /** DOS-04 : le patient demande la correction de son dossier. @throws DossierRefuse */
-    public function demanderRectification(User $patient, string $texte): DemandeRectification
+    /**
+     * DOS-04 : le patient demande la correction de son dossier, en visant au
+     * besoin une note signée (seul son auteur y répondra).
+     *
+     * @throws DossierRefuse
+     */
+    public function demanderRectification(User $patient, string $texte, ?string $noteId = null): DemandeRectification
     {
         if (! $this->acces->estLePatient($patient, $patient)) {
             throw new DossierRefuse('Seul le patient demande la rectification de son dossier.');
@@ -210,57 +225,89 @@ final class DossierService
         if (mb_strlen($texte) < 10 || mb_strlen($texte) > 2000) {
             throw new DossierRefuse('Expliquez ce qu\'il faut corriger (10 à 2000 caractères).');
         }
+        if ($noteId !== null && self::noteSignee($noteId, $patient) === null) {
+            throw new DossierRefuse('Cette note n\'est pas une note signée de votre dossier.');
+        }
 
-        return $this->sousVerrou($patient, function () use ($patient, $texte) {
-            $existante = DemandeRectification::where('patient_id', $patient->id)->where('statut', 'ouverte')->where('demande', $texte)->first();
+        return $this->sousVerrou($patient, function () use ($patient, $texte, $noteId) {
+            $existante = DemandeRectification::where('patient_id', $patient->id)->where('statut', 'ouverte')->where('demande', $texte)
+                ->when($noteId === null, fn ($q) => $q->whereNull('note_id'), fn ($q) => $q->where('note_id', $noteId))
+                ->first();
             if ($existante) {
                 return $existante;
             }
 
             $demande = new DemandeRectification;
-            $demande->forceFill(['patient_id' => $patient->id, 'demande' => $texte, 'statut' => 'ouverte'])->save();
+            $demande->forceFill(['patient_id' => $patient->id, 'demande' => $texte, 'statut' => 'ouverte', 'note_id' => $noteId])->save();
 
             return $demande;
         });
     }
 
     /**
-     * DOS-04 : un médecin traitant accepte ou refuse, avec un motif. Une note
-     * se corrige par avenant (service de la note) : la réponse y renvoie ;
-     * un antécédent se corrige par retrait puis ajout.
+     * DOS-04 : un médecin qui a vu le patient (peutModifier) accepte ou
+     * refuse, avec un motif. Une note se corrige par avenant
+     * (NoteService::avenant) : une demande qui vise une note, ou une
+     * acceptation qui y renvoie, n'est traitée que par l'auteur de la note
+     * (le médecin de son rendez-vous), et l'acceptation exige un avenant
+     * signé par lui après la demande (revue M2). Un antécédent se corrige par
+     * retrait puis ajout.
      *
      * @throws DossierRefuse
      */
     public function repondreRectification(User $medecin, DemandeRectification $demande, bool $accepter, string $motif, ?string $noteId = null): DemandeRectification
     {
         $patient = User::findOrFail($demande->patient_id);
-        if (! $this->acces->medecinTraitant($medecin, $patient)) {
-            throw new DossierRefuse('Ce dossier ne vous est pas ouvert.');
+        if ($this->source($medecin, $patient) !== 'medecin') {
+            throw new DossierRefuse('Seul un médecin qui suit le patient répond à une demande de rectification.');
         }
         $motif = trim($motif);
         if (mb_strlen($motif) < 3 || mb_strlen($motif) > 1000) {
             throw new DossierRefuse('Donnez le motif de votre réponse (3 à 1000 caractères).');
         }
-        if ($noteId !== null && ! NoteConsultation::whereKey($noteId)->where('patient_id', $patient->id)->whereNotNull('signee_le')->exists()) {
-            throw new DossierRefuse('Cette note n\'est pas une note signée de ce patient.');
-        }
 
-        return $this->sousVerrou($patient, function () use ($medecin, $demande, $accepter, $motif, $noteId) {
+        return $this->sousVerrou($patient, function () use ($medecin, $patient, $demande, $accepter, $motif, $noteId) {
             $d = DemandeRectification::whereKey($demande->id)->lockForUpdate()->firstOrFail();
             if ($d->statut !== 'ouverte') {
                 throw new DossierRefuse('Cette demande a déjà reçu une réponse.');
             }
 
+            // La note visée par le patient prime ; sinon celle donnée pour une acceptation.
+            if ($d->note_id !== null && $noteId !== null && $noteId !== $d->note_id) {
+                throw new DossierRefuse('Cette demande vise une autre note.');
+            }
+            $cible = $d->note_id ?? ($accepter ? $noteId : null);
+
+            if ($cible !== null) {
+                $note = self::noteSignee($cible, $patient) ?? throw new DossierRefuse('Cette note n\'est pas une note signée de ce patient.');
+                if ($note->medecin_id !== $this->acces->medecinDe($medecin)?->id) {
+                    throw new DossierRefuse(self::AUTEUR_SEUL);
+                }
+                $avenantApres = AvenantNote::where('note_id', $note->id)->where('auteur_id', $medecin->id)
+                    ->where('signe_le', '>=', $d->created_at)->exists();
+                if ($accepter && ! $avenantApres) {
+                    throw new DossierRefuse(self::AVENANT_D_ABORD);
+                }
+            }
+
             $d->forceFill([
                 'statut' => $accepter ? 'acceptee' : 'refusee',
                 'reponse' => $motif,
-                'note_id' => $accepter ? $noteId : null,
+                'note_id' => $cible,
                 'traitee_par' => $medecin->id,
                 'traitee_le' => CarbonImmutable::now(),
             ])->save();
 
             return $d;
         });
+    }
+
+    /** Note SIGNÉE de ce patient, ou null. */
+    private static function noteSignee(string $noteId, User $patient): ?NoteConsultation
+    {
+        return str($noteId)->isUuid()
+            ? NoteConsultation::whereKey($noteId)->where('patient_id', $patient->id)->whereNotNull('signee_le')->first()
+            : null;
     }
 
     public function dossier(User $patient): DossierPatient
@@ -276,12 +323,17 @@ final class DossierService
         return $dossier;
     }
 
-    /** « patient » ou « medecin » selon l'auteur ; refus pour tout autre. @throws DossierRefuse */
+    /**
+     * « patient » ou « medecin » selon l'auteur, pour une ÉCRITURE : un médecin
+     * doit avoir vu le patient (AccesDossier::peutModifier, revue M3) ; lire
+     * le dossier ne suffit pas. Refus pour tout autre. @throws DossierRefuse
+     */
     private function source(User $auteur, User $patient): string
     {
         return match (true) {
             $this->acces->estLePatient($auteur, $patient) => 'patient',
-            $this->acces->medecinTraitant($auteur, $patient) => 'medecin',
+            $this->acces->peutModifier($auteur, $patient) => 'medecin',
+            $this->acces->medecinTraitant($auteur, $patient) => throw new DossierRefuse(self::LECTURE_SEULE),
             default => throw new DossierRefuse('Ce dossier ne vous est pas ouvert.'),
         };
     }

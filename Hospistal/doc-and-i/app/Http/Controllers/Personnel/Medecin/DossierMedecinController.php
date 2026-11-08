@@ -64,6 +64,8 @@ class DossierMedecinController extends ControleurMedecin
             'historique' => $this->lecture->historique($patient, false),
             'rectifications' => $this->lecture->rectifications($patient),
             'notes' => $this->lecture->notesSignees($patient),
+            // Lire n'est pas modifier (revue M3) : les formulaires ne s'affichent qu'après avoir vu le patient.
+            'modifiable' => $this->acces->peutModifier($request->user(), $patient),
             'categories' => collect(DossierService::CATEGORIES)->map(fn ($l, $c) => ['valeur' => $c, 'libelle' => $l])->values(),
             'mesures' => collect(DossierService::CONSTANTES)->map(fn ($r, $t) => ['valeur' => $t, 'libelle' => $r['libelle'], 'unite' => $r['unite']])->values(),
             'groupes' => DossierPatient::GROUPES_SANGUINS,
@@ -97,7 +99,7 @@ class DossierMedecinController extends ControleurMedecin
     {
         $patient = $this->patientSuivi($request, $patient);
         $demande = DemandeRectification::where('patient_id', $patient->id)->findOrFail($demande);
-        $donnees = $request->validate([
+        $donnees = $this->valider($request, [
             'decision' => ['required', 'in:acceptee,refusee'],
             'motif' => ['required', 'string', 'max:1000'],
             'note_id' => ['nullable', 'uuid'],

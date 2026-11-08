@@ -41,6 +41,8 @@ class MonDossierController extends Controller
             ...$this->lecture->etat($patient),
             'historique' => $this->lecture->historique($patient, true),
             'rectifications' => $this->lecture->rectifications($patient),
+            'notes' => $this->lecture->notesSignees($patient),
+            'modifiable' => true,
             'acces' => $this->lecture->accesAuDossier($patient),
             'categories' => collect(DossierService::CATEGORIES)->map(fn ($l, $c) => ['valeur' => $c, 'libelle' => $l])->values(),
             'mesures' => collect(DossierService::CONSTANTES)->map(fn ($r, $t) => ['valeur' => $t, 'libelle' => $r['libelle'], 'unite' => $r['unite']])->values(),
@@ -72,12 +74,15 @@ class MonDossierController extends Controller
 
     public function demanderRectification(Request $request): RedirectResponse
     {
-        $donnees = $request->validate(['demande' => ['required', 'string', 'max:2000']], [
+        $donnees = $this->valider($request, [
+            'demande' => ['required', 'string', 'max:2000'],
+            'note_id' => ['nullable', 'uuid'],
+        ], [
             'demande.required' => 'Expliquez ce qu\'il faut corriger.',
         ]);
 
         try {
-            $this->dossier->demanderRectification($request->user(), $donnees['demande']);
+            $this->dossier->demanderRectification($request->user(), $donnees['demande'], $donnees['note_id'] ?? null);
         } catch (DossierRefuse $refus) {
             return back()->withErrors(['demande' => $refus->getMessage()]);
         }
