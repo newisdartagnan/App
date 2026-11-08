@@ -12,14 +12,16 @@ defineProps({
     constantes: Array,
     historique: Array,
     rectifications: Array,
+    notes: { type: Array, default: () => [] },
+    modifiable: { type: Boolean, default: true },
     acces: Array,
     categories: Array,
     mesures: Array,
     groupes: Array,
 });
 
-const rectification = useForm({ demande: '' });
-const demander = () => rectification.post('/mon-dossier/rectifications', {
+const rectification = useForm({ demande: '', note_id: '' });
+const demander = () => rectification.transform((d) => ({ ...d, note_id: d.note_id || null })).post('/mon-dossier/rectifications', {
     preserveScroll: true,
     onSuccess: () => rectification.reset(),
 });
@@ -53,6 +55,13 @@ const couleur = (statut) => ({
             <form class="mt-3 space-y-3" @submit.prevent="demander">
                 <label for="demande" class="etiquette">Ce qu'il faut corriger</label>
                 <textarea id="demande" v-model="rectification.demande" class="champ" rows="3" maxlength="2000" required />
+                <div v-if="notes.length">
+                    <label for="note-visee" class="etiquette">Note concernée (facultatif)</label>
+                    <select id="note-visee" v-model="rectification.note_id" class="champ">
+                        <option value="">Aucune en particulier</option>
+                        <option v-for="n in notes" :key="n.id" :value="n.id">{{ n.libelle }}</option>
+                    </select>
+                </div>
                 <p v-if="rectification.errors.demande" class="erreur" role="alert">{{ rectification.errors.demande }}</p>
                 <button type="submit" class="bouton" :disabled="rectification.processing">Envoyer la demande</button>
             </form>

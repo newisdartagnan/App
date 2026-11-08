@@ -9,6 +9,8 @@ const props = defineProps({
     base: { type: String, required: true },
     // true : le patient lui-même (il ne retire pas ce qu'un médecin a saisi).
     estPatient: { type: Boolean, default: false },
+    // Lire n'est pas modifier : un médecin qui n'a pas encore vu le patient lit seulement.
+    modifiable: { type: Boolean, default: true },
     groupeSanguin: { type: String, default: null },
     groupeSanguinParMedecin: { type: Boolean, default: false },
     elements: { type: Array, required: true },
@@ -30,7 +32,7 @@ const ajouterElement = () => element.post(`${props.base}/antecedents`, {
 
 const retrait = useForm({});
 const enRetrait = ref(null);
-const retirable = (e) => !props.estPatient || e.source === 'patient';
+const retirable = (e) => props.modifiable && (!props.estPatient || e.source === 'patient');
 const retirer = (e) => {
     if (!window.confirm(`Retirer « ${e.libelle} » du dossier ? Il restera visible dans l'historique.`)) {
         return;
@@ -54,7 +56,7 @@ const enregistrerGroupe = () => groupe.post(`${props.base}/groupe-sanguin`, {
     preserveScroll: true,
     onSuccess: () => groupe.reset(),
 });
-const groupeModifiable = computed(() => !props.estPatient || !props.groupeSanguinParMedecin);
+const groupeModifiable = computed(() => props.modifiable && (!props.estPatient || !props.groupeSanguinParMedecin));
 const erreurRetrait = computed(() => retrait.errors.retrait);
 </script>
 
@@ -84,7 +86,7 @@ const erreurRetrait = computed(() => retrait.errors.retrait);
                 <span v-else class="text-slate-600">Inconnu</span>
                 <span v-if="groupeSanguin && groupeSanguinParMedecin" class="text-sm text-slate-600"> · saisi par un médecin</span>
             </p>
-            <p v-if="!groupeModifiable" class="mt-2 text-sm text-slate-600">
+            <p v-if="estPatient && !groupeModifiable" class="mt-2 text-sm text-slate-600">
                 S'il est faux, demandez une rectification plus bas.
             </p>
             <form v-else class="mt-3" @submit.prevent="enregistrerGroupe">
@@ -122,7 +124,7 @@ const erreurRetrait = computed(() => retrait.errors.retrait);
             <p v-else class="mt-1 text-slate-600">Rien de déclaré.</p>
         </section>
 
-        <section class="rounded-lg border border-slate-200 bg-white p-4">
+        <section v-if="modifiable" class="rounded-lg border border-slate-200 bg-white p-4">
             <h2 class="text-lg font-semibold">Ajouter au dossier</h2>
             <form class="mt-3 space-y-3" @submit.prevent="ajouterElement">
                 <div>
@@ -160,6 +162,7 @@ const erreurRetrait = computed(() => retrait.errors.retrait);
             </ul>
             <p v-else class="mt-1 text-slate-600">Aucune mesure.</p>
 
+            <template v-if="modifiable">
             <h3 class="mt-4 font-semibold">Noter une mesure</h3>
             <form class="mt-2 space-y-3" @submit.prevent="ajouterMesure">
                 <div>
@@ -190,6 +193,7 @@ const erreurRetrait = computed(() => retrait.errors.retrait);
                 <p v-if="mesure.errors.constante" class="erreur" role="alert">{{ mesure.errors.constante }}</p>
                 <button type="submit" class="bouton" :disabled="mesure.processing">Enregistrer la mesure</button>
             </form>
+            </template>
         </section>
     </div>
 </template>

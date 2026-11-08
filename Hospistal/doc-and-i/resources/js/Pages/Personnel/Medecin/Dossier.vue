@@ -16,11 +16,15 @@ const props = defineProps({
     historique: Array,
     rectifications: Array,
     notes: Array,
+    modifiable: Boolean,
     categories: Array,
     mesures: Array,
     groupes: Array,
     consulteLe: String,
 });
+
+const noteDe = (id) => props.notes.find((n) => n.id === id) ?? null;
+const pageNote = (note) => `/personnel/medecin/rendez-vous/${note.rendezVousId}/note`;
 
 const base = computed(() => `/personnel/medecin/patients/${props.patient.id}/dossier`);
 
@@ -52,7 +56,11 @@ const couleur = (statut) => ({
         </p>
         <p class="mt-1 text-xs text-slate-500">Consulté le {{ consulteLe }}. Le patient voit qui a consulté son dossier.</p>
 
-        <EtatDossier class="mt-6" :base="base"
+        <p v-if="!modifiable" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="note">
+            Lecture seule : vous pourrez modifier ce dossier après avoir vu le patient (consultation ouverte ou terminée).
+        </p>
+
+        <EtatDossier class="mt-6" :base="base" :modifiable="modifiable"
                      :groupe-sanguin="groupeSanguin" :groupe-sanguin-par-medecin="groupeSanguinParMedecin"
                      :elements="elements" :constantes="constantes"
                      :categories="categories" :mesures="mesures" :groupes="groupes" />
@@ -60,7 +68,8 @@ const couleur = (statut) => ({
         <section class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
             <h2 class="text-lg font-semibold">Demandes de rectification</h2>
             <p class="mt-1 text-sm text-slate-600">
-                Si vous acceptez : corrigez une note par avenant, ou un élément par retrait puis ajout.
+                Une note se corrige par un avenant, rédigé AVANT d'accepter ; seul l'auteur de la note répond à une demande qui la vise.
+                Un élément se corrige par retrait puis ajout.
             </p>
             <p v-if="$page.props.errors.rectification" class="erreur mt-2" role="alert">{{ $page.props.errors.rectification }}</p>
             <ul v-if="rectifications.length" class="mt-2 divide-y divide-slate-100">
@@ -70,9 +79,13 @@ const couleur = (statut) => ({
                         <span class="rounded-full px-2 py-0.5 font-medium" :class="couleur(r.statut)">{{ r.statutLibelle }}</span>
                     </div>
                     <p class="mt-1 whitespace-pre-wrap">{{ r.demande }}</p>
+                    <p v-if="r.noteId && noteDe(r.noteId)" class="mt-1 text-sm text-slate-700">
+                        Vise la {{ noteDe(r.noteId).libelle.toLowerCase() }} ·
+                        <a :href="pageNote(noteDe(r.noteId))" class="text-marque-700 underline">ouvrir la note (avenant)</a>
+                    </p>
                     <p v-if="r.reponse" class="mt-1 text-sm text-slate-700">Réponse du {{ r.traiteeLe }} : {{ r.reponse }}</p>
 
-                    <button v-if="r.statut === 'ouverte' && enReponse !== r.id" type="button"
+                    <button v-if="modifiable && r.statut === 'ouverte' && enReponse !== r.id" type="button"
                             class="mt-2 text-sm text-marque-700 underline" @click="ouvrir(r.id)">
                         Répondre
                     </button>
@@ -83,12 +96,13 @@ const couleur = (statut) => ({
                             <label class="mt-1 flex items-center gap-2"><input v-model="reponse.decision" type="radio" value="refusee"> Refuser</label>
                         </fieldset>
                         <p v-if="reponse.errors.decision" class="erreur">{{ reponse.errors.decision }}</p>
-                        <div v-if="reponse.decision === 'acceptee' && notes.length">
+                        <div v-if="reponse.decision === 'acceptee' && !r.noteId && notes.length">
                             <label :for="`note-${r.id}`" class="etiquette">Note corrigée par avenant (facultatif)</label>
                             <select :id="`note-${r.id}`" v-model="reponse.note_id" class="champ">
                                 <option value="">Aucune</option>
                                 <option v-for="n in notes" :key="n.id" :value="n.id">{{ n.libelle }}</option>
                             </select>
+                            <p class="mt-1 text-xs text-slate-600">Rédigez d'abord l'avenant depuis la page de la note.</p>
                             <p v-if="reponse.errors.note_id" class="erreur">{{ reponse.errors.note_id }}</p>
                         </div>
                         <div>

@@ -8,9 +8,11 @@ use App\Models\User;
 use App\Services\Dossier\DossierRefuse;
 use App\Services\Dossier\DossierService;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Saisie du dossier (DOS-01), commune au patient et au médecin traitant :
@@ -23,7 +25,7 @@ trait SaisieDossier
 
     protected function saisirAntecedent(Request $request, User $patient): RedirectResponse
     {
-        $donnees = $request->validate([
+        $donnees = $this->valider($request, [
             'categorie' => ['required', Rule::in(array_keys(DossierService::CATEGORIES))],
             'libelle' => ['required', 'string', 'max:200'],
             'precision' => ['nullable', 'string', 'max:500'],
@@ -45,7 +47,7 @@ trait SaisieDossier
 
     protected function saisirConstante(Request $request, User $patient): RedirectResponse
     {
-        $donnees = $request->validate([
+        $donnees = $this->valider($request, [
             'type' => ['required', Rule::in(array_keys(DossierService::CONSTANTES))],
             'valeur' => ['required', 'string', 'max:12'],
             'valeur2' => ['nullable', 'string', 'max:12'],
@@ -65,7 +67,7 @@ trait SaisieDossier
     protected function saisirGroupeSanguin(Request $request, User $patient): RedirectResponse
     {
         // Choix explicite obligatoire : un groupe, ou « je ne sais pas » (vide). Rien n'est supposé.
-        $donnees = $request->validate([
+        $donnees = $this->valider($request, [
             'groupe_sanguin' => ['required', Rule::in([...DossierPatient::GROUPES_SANGUINS, 'inconnu'])],
         ], [
             'groupe_sanguin.required' => 'Choisissez votre groupe sanguin, ou « je ne sais pas ».',
@@ -75,6 +77,22 @@ trait SaisieDossier
 
         return $this->executer(fn () => $this->dossierService()->definirGroupeSanguin($request->user(), $patient, $groupe),
             'groupe_sanguin', 'Groupe sanguin enregistré.');
+    }
+
+    /**
+     * Valide sans remettre la saisie en session : un libellé d'allergie ou un
+     * texte de rectification n'a rien à faire dans le stockage des sessions
+     * (revue de sécurité). Inertia garde l'état du formulaire côté navigateur.
+     *
+     * @throws HttpResponseException
+     */
+    protected function valider(Request $request, array $regles, array $messages = []): array
+    {
+        try {
+            return $request->validate($regles, $messages);
+        } catch (ValidationException $e) {
+            throw new HttpResponseException(back()->withErrors($e->errors()));
+        }
     }
 
     protected function executer(\Closure $action, string $champ, string $succes): RedirectResponse

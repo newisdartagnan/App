@@ -9,6 +9,7 @@ use App\Models\RendezVous;
 use App\Models\User;
 use App\Services\Dossier\DossierService;
 use App\Services\Dossier\LectureDossier;
+use App\Services\Dossier\NoteService;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\ParcoursDossier;
@@ -21,6 +22,10 @@ class RectificationDossierTest extends TestCase
 {
     use ParcoursDossier, ParcoursRendezVous, PersonnelDeTest, RefreshDatabase;
 
+    private const AVENANT_D_ABORD = 'Rédigez d\'abord l\'avenant qui corrige la note, puis acceptez la demande.';
+
+    private const AUTEUR_SEUL = 'Seul l\'auteur de la note répond à une demande qui la concerne.';
+
     private User $patientDossier;
 
     private Medecin $medecinTraitant;
@@ -31,7 +36,8 @@ class RectificationDossierTest extends TestCase
     {
         parent::setUp();
         $this->seed(RolesSeeder::class);
-        $this->voyagerAuLundi();
+        // Salle du rendez-vous de 9 h ouverte : le médecin a vu le patient (peutModifier).
+        $this->voyagerAuLundi('08:55');
         $this->patientDossier = $this->patient();
         $this->medecinTraitant = $this->medecinActive();
         $this->rdv = $this->rendezVousExistant($this->medecinTraitant, $this->patientDossier, $this->lundi('09:00'));
@@ -104,6 +110,8 @@ class RectificationDossierTest extends TestCase
         $brouillon = $this->noteExistante($this->rdv, false);
         $autrePatient = $this->patient();
         $noteAutre = $this->noteExistante($this->rendezVousExistant($this->medecinTraitant, $autrePatient, $this->lundi('07:00')->subDays(2), statut: StatutRendezVous::Termine));
+        $this->avenantExistant($signee, 'Avenant écrit AVANT la demande');
+        $this->travel(1)->minutes();
         $demande = $this->rectification();
         $this->commePersonnel($this->medecinTraitant->user);
 
@@ -112,14 +120,87 @@ class RectificationDossierTest extends TestCase
                 ->assertSessionHasErrors(['rectification' => 'Cette note n\'est pas une note signée de ce patient.']);
         }
 
+        // M2 : sans avenant postérieur à la demande, accepter est refusé.
+        $this->post($this->urlReponse($demande), ['decision' => 'acceptee', 'motif' => 'Corrigé par avenant.', 'note_id' => $signee->id])
+            ->assertSessionHasErrors(['rectification' => self::AVENANT_D_ABORD]);
+        $this->assertSame('ouverte', $demande->fresh()->statut);
+
         $this->get('/personnel/medecin/patients/'.$this->patientDossier->id.'/dossier')
-            ->assertInertia(fn ($page) => $page->has('notes', 1)->where('notes.0.id', $signee->id));
+            ->assertInertia(fn ($page) => $page->has('notes', 1)->where('notes.0.id', $signee->id)->where('notes.0.rendezVousId', $termine->id));
+        $this->travel(1)->minutes();
+        app(NoteService::class)->avenant($this->medecinTraitant->user, $signee, 'Le patient n\'est pas diabétique : diagnostic retiré.');
         $this->post($this->urlReponse($demande), ['decision' => 'acceptee', 'motif' => 'Corrigé par avenant.', 'note_id' => $signee->id])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(['acceptee', $signee->id], [$demande->fresh()->statut, $demande->fresh()->note_id]);
         $this->actingAs($this->patientDossier)->get('/mon-dossier')->assertInertia(fn ($page) => $page
             ->where('rectifications.0.statutLibelle', 'Acceptée')->where('rectifications.0.noteId', $signee->id));
+    }
+
+    public function test_le_patient_lie_sa_demande_a_une_note_signee(): void
+    {
+        $termine = $this->rendezVousExistant($this->medecinTraitant, $this->patientDossier, $this->lundi('07:00')->subWeek(), statut: StatutRendezVous::Termine);
+        $signee = $this->noteExistante($termine);
+        $brouillon = $this->noteExistante($this->rdv, false);
+        $this->actingAs($this->patientDossier);
+
+        $this->get('/mon-dossier')->assertInertia(fn ($page) => $page->has('notes', 1)->where('notes.0.id', $signee->id));
+        $this->post('/mon-dossier/rectifications', ['demande' => 'Le diagnostic de cette note est faux.', 'note_id' => $brouillon->id])
+            ->assertSessionHasErrors(['demande' => 'Cette note n\'est pas une note signée de votre dossier.']);
+        $this->post('/mon-dossier/rectifications', ['demande' => 'Le diagnostic de cette note est faux.', 'note_id' => $signee->id])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($signee->id, DemandeRectification::sole()->note_id);
+    }
+
+    public function test_une_demande_liee_a_une_note_n_a_de_reponse_que_de_son_auteur(): void
+    {
+        $termine = $this->rendezVousExistant($this->medecinTraitant, $this->patientDossier, $this->lundi('07:00')->subWeek(), statut: StatutRendezVous::Termine);
+        $note = $this->noteExistante($termine);
+        $demande = app(DossierService::class)->demanderRectification($this->patientDossier, 'Le diagnostic de cette note est faux.', $note->id);
+
+        // Un autre médecin qui a vu le patient (consultation terminée) : ni accepter ni refuser.
+        $autre = $this->medecinActive();
+        $this->rendezVousExistant($autre, $this->patientDossier, $this->lundi('07:00')->subDays(3), statut: StatutRendezVous::Termine);
+        $this->travel(1)->minutes();
+        foreach (['acceptee', 'refusee'] as $decision) {
+            $this->commePersonnel($autre->user)->post($this->urlReponse($demande), ['decision' => $decision, 'motif' => 'Avis d\'un confrère.'])
+                ->assertSessionHasErrors(['rectification' => self::AUTEUR_SEUL]);
+        }
+        $this->assertSame('ouverte', $demande->fresh()->statut);
+
+        // L'auteur : sans avenant postérieur, il n'accepte pas ; avec, il accepte.
+        $this->commePersonnel($this->medecinTraitant->user)->post($this->urlReponse($demande), ['decision' => 'acceptee', 'motif' => 'Oui.'])
+            ->assertSessionHasErrors(['rectification' => self::AVENANT_D_ABORD]);
+        app(NoteService::class)->avenant($this->medecinTraitant->user, $note, 'Diagnostic corrigé à la demande du patient.');
+        $this->commePersonnel($this->medecinTraitant->user)->post($this->urlReponse($demande), ['decision' => 'acceptee', 'motif' => 'Corrigé par avenant.'])
+            ->assertSessionHasNoErrors();
+
+        $demande->refresh();
+        $this->assertSame(['acceptee', $note->id, $this->medecinTraitant->user_id], [$demande->statut, $demande->note_id, $demande->traitee_par]);
+    }
+
+    public function test_l_auteur_refuse_une_demande_liee_a_sa_note_sans_avenant(): void
+    {
+        $termine = $this->rendezVousExistant($this->medecinTraitant, $this->patientDossier, $this->lundi('07:00')->subWeek(), statut: StatutRendezVous::Termine);
+        $note = $this->noteExistante($termine);
+        $demande = app(DossierService::class)->demanderRectification($this->patientDossier, 'Le diagnostic de cette note est faux.', $note->id);
+
+        $this->commePersonnel($this->medecinTraitant->user)->post($this->urlReponse($demande), ['decision' => 'refusee', 'motif' => 'La note est exacte.'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(['refusee', $note->id], [$demande->fresh()->statut, $demande->fresh()->note_id], 'La note visée reste rattachée à la demande.');
+    }
+
+    public function test_accepter_avec_la_note_d_un_confrere_est_refuse(): void
+    {
+        $confrere = $this->medecinActive();
+        $noteConfrere = $this->noteExistante($this->rendezVousExistant($confrere, $this->patientDossier, $this->lundi('07:00')->subWeek(), statut: StatutRendezVous::Termine));
+        $demande = $this->rectification();
+
+        $this->commePersonnel($this->medecinTraitant->user)
+            ->post($this->urlReponse($demande), ['decision' => 'acceptee', 'motif' => 'Corrigé.', 'note_id' => $noteConfrere->id])
+            ->assertSessionHasErrors(['rectification' => self::AUTEUR_SEUL]);
+        $this->assertSame('ouverte', $demande->fresh()->statut);
     }
 
     public function test_un_refus_ne_garde_pas_de_note_liee(): void

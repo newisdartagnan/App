@@ -30,7 +30,8 @@ class SaisieDossierTest extends TestCase
     {
         parent::setUp();
         $this->seed(RolesSeeder::class);
-        $this->voyagerAuLundi();
+        // Salle du rendez-vous de 9 h ouverte : le médecin a vu le patient et peut modifier.
+        $this->voyagerAuLundi('08:55');
         $this->patientDossier = $this->patient();
         $this->medecinTraitant = $this->medecinActive();
         $this->rendezVousExistant($this->medecinTraitant, $this->patientDossier, $this->lundi('09:00'));
@@ -246,5 +247,29 @@ class SaisieDossierTest extends TestCase
     {
         $this->expectExceptionMessage('Ce dossier ne vous est pas ouvert.');
         app(DossierService::class)->ajouterAntecedent($this->patient(), $this->patientDossier, 'allergie', 'Aspirine');
+    }
+
+    /** Revue de sécurité : une saisie refusée par la validation ne laisse pas de donnée de santé en session (old input). */
+    public function test_une_validation_ratee_ne_garde_pas_la_saisie_en_session(): void
+    {
+        $envois = [
+            fn () => $this->actingAs($this->patientDossier)->post('/mon-dossier/antecedents', ['libelle' => 'Allergie-SECRETE', 'precision' => 'Précision-SECRETE']),
+            fn () => $this->actingAs($this->patientDossier)->post('/mon-dossier/constantes', ['valeur' => '73-SECRET']),
+            fn () => $this->actingAs($this->patientDossier)->post('/mon-dossier/groupe-sanguin', ['groupe_sanguin' => 'SECRET']),
+            fn () => $this->actingAs($this->patientDossier)->post('/mon-dossier/rectifications', ['demande' => 'SECRET '.str_repeat('x', 2001)]),
+            fn () => $this->commePersonnel($this->medecinTraitant->user)->post($this->urlMedecin('/antecedents'), ['libelle' => 'Allergie-SECRETE']),
+        ];
+        foreach ($envois as $envoyer) {
+            $reponse = $envoyer()->assertRedirect()->assertSessionHas('errors');
+            $reponse->assertSessionMissing('_old_input');
+            $this->assertStringNotContainsString('SECRET', serialize(session()->all()), 'Donnée de santé gardée en session.');
+            session()->flush();
+        }
+
+        $demande = app(DossierService::class)->demanderRectification($this->patientDossier, 'Je ne suis pas allergique.');
+        $this->commePersonnel($this->medecinTraitant->user)
+            ->post($this->urlMedecin("/rectifications/{$demande->id}/reponse"), ['motif' => 'Motif-SECRET'])
+            ->assertSessionHasErrors('decision')->assertSessionMissing('_old_input');
+        $this->assertStringNotContainsString('SECRET', serialize(session()->all()));
     }
 }

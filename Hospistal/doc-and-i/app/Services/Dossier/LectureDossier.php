@@ -199,7 +199,12 @@ final class LectureDossier
     public function notesSignees(User $patient): array
     {
         return NoteConsultation::where('patient_id', $patient->id)->whereNotNull('signee_le')->orderByDesc('signee_le')->get()
-            ->map(fn (NoteConsultation $n) => ['id' => $n->id, 'libelle' => 'Note du '.Affichage::dateHeure($n->signee_le)])->all();
+            ->map(fn (NoteConsultation $n) => [
+                'id' => $n->id,
+                'rendezVousId' => $n->rendez_vous_id,
+                'medecinId' => $n->medecin_id,
+                'libelle' => 'Note du '.Affichage::dateHeure($n->signee_le),
+            ])->all();
     }
 
     public function accesAuDossier(User $patient): array
