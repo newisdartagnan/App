@@ -141,7 +141,12 @@ onBeforeUnmount(() => {
             <form v-if="modifiable" class="space-y-3" @submit.prevent="signer">
                 <div v-for="champ in CHAMPS.slice(0, 3)" :key="champ.cle">
                     <label :for="`note-${champ.cle}`" class="etiquette">{{ champ.libelle }}</label>
+                    <!-- Indication seulement : le motif déclaré par le patient n'est jamais recopié dans la note. -->
+                    <p v-if="champ.cle === 'motif' && note.motifPatient" id="note-motif-patient" class="mb-1 text-xs text-slate-600">
+                        Déclaré par le patient : « {{ note.motifPatient }} »
+                    </p>
                     <textarea :id="`note-${champ.cle}`" v-model="saisie[champ.cle]" class="champ" :rows="champ.lignes" maxlength="5000"
+                              :aria-describedby="champ.cle === 'motif' && note.motifPatient ? 'note-motif-patient' : undefined"
                               @input="saisir" @blur="enregistrer" />
                 </div>
 

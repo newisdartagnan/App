@@ -4,6 +4,7 @@ namespace Tests\Feature\Dossier;
 
 use App\Enums\StatutRendezVous;
 use App\Models\AvenantNote;
+use App\Models\EntreeAccesDossier;
 use App\Models\NoteConsultation;
 use App\Services\Dossier\NoteService;
 use App\Services\Teleconsultation\AccesRefuse;
@@ -72,13 +73,34 @@ class NoteConsultationTest extends TestCase
             ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
     }
 
-    public function test_sans_note_le_motif_declare_par_le_patient_sert_de_point_de_depart(): void
+    public function test_le_motif_du_patient_est_une_indication_jamais_recopiee_dans_la_note(): void
     {
         $this->rdv->demande->forceFill(['motif' => 'Toux sèche'])->save();
 
         $this->commeMedecinRdv()->getJson($this->adresse('personnel.medecin.consultation.note'))
-            ->assertOk()->assertJsonPath('existe', false)->assertJsonPath('champs.motif', 'Toux sèche');
+            ->assertOk()->assertJsonPath('existe', false)
+            ->assertJsonPath('champs.motif', null)
+            ->assertJsonPath('motifPatient', 'Toux sèche');
         $this->assertSame(0, NoteConsultation::count(), 'Rien n\'est écrit tant que le médecin n\'enregistre pas.');
+
+        $this->enregistrer(['examen' => 'Gorge rouge'])->assertOk()->assertJsonPath('champs.motif', null)->assertJsonPath('motifPatient', 'Toux sèche');
+        $this->assertNull(NoteConsultation::sole()->motif);
+    }
+
+    public function test_chaque_lecture_de_la_note_par_le_medecin_est_notee_au_journal_des_acces(): void
+    {
+        $this->commeMedecinRdv()->getJson($this->adresse('personnel.medecin.consultation.note'))->assertOk();
+        $this->enregistrer()->assertOk();
+        $this->commeMedecinRdv()->getJson($this->adresse('personnel.medecin.consultation.note'))->assertOk();
+
+        $entrees = EntreeAccesDossier::where('objet', 'note')->orderBy('cree_le')->orderBy('id')->get();
+        $this->assertCount(2, $entrees);
+        $this->assertSame([$this->medecinRdv->user_id, $this->patientRdv->id], [$entrees[0]->lecteur_id, $entrees[0]->patient_id]);
+        $this->assertContains(NoteConsultation::sole()->id, $entrees->pluck('objet_id')->all());
+
+        // Un refus n'est pas une lecture.
+        $this->commePersonnel($this->medecinActive()->user)->getJson($this->adresse('personnel.medecin.consultation.note'))->assertForbidden();
+        $this->assertSame(2, EntreeAccesDossier::where('objet', 'note')->count());
     }
 
     public function test_un_champ_vide_est_enregistre_vide_jamais_avec_une_valeur_supposee(): void
@@ -187,8 +209,11 @@ class NoteConsultationTest extends TestCase
             'signee_le' => $this->lundi('09:10')->utc()->format('Y-m-d\TH:i:s\Z'),
             'motif' => self::NOTE['motif'], 'examen' => self::NOTE['examen'], 'hypotheses' => self::NOTE['hypotheses'],
             'diagnostic_code' => 'CA02', 'diagnostic_libelle' => self::NOTE['diagnostic_libelle'], 'conduite' => self::NOTE['conduite'],
+            'signature_version' => Empreinte::VERSION,
         ]);
         $this->assertSame($attendu, $note->empreinte);
+        $this->assertSame(Empreinte::VERSION, $note->signature_version);
+        $this->assertNotSame(hash('sha256', json_encode(NoteService::contenuSigne($note))), $note->empreinte, 'Un sceau, pas un SHA-256 recalculable.');
         $this->assertTrue(NoteService::estIntegre($note));
     }
 
@@ -282,7 +307,9 @@ class NoteConsultationTest extends TestCase
         $this->assertSame(Empreinte::de([
             'note_id' => $note->id, 'note_empreinte' => $note->empreinte, 'auteur_id' => $this->medecinRdv->user_id,
             'contenu' => 'Résultat du test rapide : négatif.', 'signe_le' => $this->lundi('10:05')->utc()->format('Y-m-d\TH:i:s\Z'),
+            'signature_version' => Empreinte::VERSION,
         ]), $avenant->empreinte);
+        $this->assertSame(Empreinte::VERSION, $avenant->signature_version);
         $this->assertTrue(NoteService::estIntegre($note), 'La note elle-même ne bouge pas.');
     }
 

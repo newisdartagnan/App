@@ -42,13 +42,15 @@ final class NoteService
      */
     public const FORMAT_CIM11 = '/^(?:[1-9A-HJ-NP-Z][A-HJ-NP-Z][0-9][0-9A-HJ-NP-Z](?:\.[0-9A-HJ-NP-Z]{1,2})?)(?:[&\/](?:[1-9A-HJ-NP-Z][A-HJ-NP-Z][0-9][0-9A-HJ-NP-Z](?:\.[0-9A-HJ-NP-Z]{1,2})?|X[0-9A-HJ-NP-Z]{3,6}))*$/';
 
-    public function __construct(private readonly RedactionConsultation $redaction) {}
+    public function __construct(private readonly RedactionConsultation $redaction, private readonly JournalAccesDossier $journal) {}
 
     /** La note du rendez-vous, pour son médecin. @throws AccesRefuse */
     public function etat(User $medecin, RendezVous $rdv): array
     {
         $this->redaction->exigerLecteur($medecin, $rdv);
         $note = NoteConsultation::with('avenants.auteur:id,nom,prenom')->where('rendez_vous_id', $rdv->id)->first();
+        // Lecture de la note et de ses avenants : notée au journal des accès du patient.
+        $this->journal->noter($medecin, $rdv->patient_id, 'note', $note?->id);
 
         return $this->presenter($note, $rdv);
     }
@@ -96,6 +98,7 @@ final class NoteService
             }
 
             $note->signee_le = CarbonImmutable::now()->startOfSecond();
+            $note->signature_version = Empreinte::VERSION;
             $note->empreinte = Empreinte::de(self::contenuSigne($note));
             $note->save();
 
@@ -139,6 +142,7 @@ final class NoteService
                     'auteur_id' => $auteur->id,
                     'contenu' => $contenu,
                     'signe_le' => CarbonImmutable::now()->startOfSecond(),
+                    'signature_version' => Empreinte::VERSION,
                     'cle_idempotence' => $cle,
                 ]);
                 $avenant->empreinte = Empreinte::de(self::contenuAvenant($avenant, $note));
@@ -162,6 +166,7 @@ final class NoteService
             'medecin_id' => $note->medecin_id,
             'patient_id' => $note->patient_id,
             'signee_le' => self::horodatage($note->signee_le),
+            'signature_version' => (int) $note->signature_version,
         ];
         foreach (NoteConsultation::CHAMPS as $champ) {
             $contenu[$champ] = $note->{$champ};
@@ -178,6 +183,7 @@ final class NoteService
             'auteur_id' => $avenant->auteur_id,
             'contenu' => $avenant->contenu,
             'signe_le' => self::horodatage($avenant->signe_le),
+            'signature_version' => (int) $avenant->signature_version,
         ];
     }
 
@@ -258,14 +264,13 @@ final class NoteService
         foreach (NoteConsultation::CHAMPS as $champ) {
             $champs[$champ] = $note?->{$champ};
         }
-        // Point de départ : le motif déclaré par le patient, tant que rien n'est écrit.
-        if ($note === null) {
-            $champs['motif'] = $rdv->demande?->motif;
-        }
 
         return [
             'existe' => $note !== null,
             'champs' => $champs,
+            // Revue de sécurité : le motif du patient est une indication affichée à côté
+            // du champ, jamais recopié dans la note ; le médecin écrit le sien.
+            'motifPatient' => $rdv->demande?->motif,
             'signee' => (bool) $note?->estSignee(),
             'signeeLe' => $note?->signee_le ? Affichage::dateHeure($note->signee_le) : null,
             'empreinte' => $note?->empreinte,

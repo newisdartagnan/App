@@ -3,6 +3,7 @@
 namespace Tests\Feature\Dossier;
 
 use App\Enums\StatutRendezVous;
+use App\Models\EntreeAccesDossier;
 use App\Models\LigneOrdonnance;
 use App\Models\Ordonnance;
 use App\Services\Dossier\DocumentOrdonnance;
@@ -78,8 +79,16 @@ class OrdonnanceTest extends TestCase
         $this->assertSame(['Paracétamol', 'Amoxicilline'], $o->lignes->pluck('medicament')->all());
         $this->assertNull($o->lignes[1]->consignes);
 
+        // Identités figées à la signature.
+        $patient = trim($this->patientRdv->prenom.' '.mb_strtoupper((string) $this->patientRdv->nom));
+        $medecin = 'Dr '.trim($this->medecinRdv->user->prenom.' '.mb_strtoupper((string) $this->medecinRdv->user->nom));
+        $this->assertSame([$patient, '1990-03-15', $medecin, 'CNOM-12345', Empreinte::VERSION],
+            [$o->patient_nom, substr((string) $o->patient_naissance, 0, 10), $o->medecin_nom, $o->medecin_numero_ordre, $o->signature_version]);
+
         $this->assertSame(Empreinte::de([
             'numero' => 'OR-2026-000001', 'rendez_vous_id' => $this->rdv->id, 'medecin_id' => $this->medecinRdv->id, 'patient_id' => $this->patientRdv->id,
+            'patient_nom' => $patient, 'patient_naissance' => '1990-03-15', 'medecin_nom' => $medecin, 'medecin_numero_ordre' => 'CNOM-12345',
+            'signature_version' => Empreinte::VERSION,
             'consignes' => 'Revenir si la fièvre persiste.', 'signee_le' => $this->lundi('09:05')->utc()->format('Y-m-d\TH:i:s\Z'),
             'lignes' => [
                 ['rang' => 1, 'medicament' => 'Paracétamol', 'dosage' => '500 mg', 'voie' => 'orale', 'posologie' => '1 comprimé 3 fois par jour', 'duree' => '5 jours', 'consignes' => 'Pendant les repas'],
@@ -303,6 +312,75 @@ class OrdonnanceTest extends TestCase
             $this->commePersonnel($this->personnelActive($role))->get(route('ordonnances.pdf', $o->id))->assertForbidden();
         }
         $this->assertNotSame(200, $this->commePatientRdv()->get(route('personnel.medecin.ordonnances.pdf', $o->id))->status());
+    }
+
+    public function test_le_pdf_n_est_plus_servi_au_medecin_quand_la_relation_de_soin_a_cesse(): void
+    {
+        $this->emettre()->assertCreated();
+        $o = Ordonnance::sole();
+        $this->rdv->forceFill(['statut' => StatutRendezVous::Termine])->save();
+        $this->commeMedecinRdv()->get(route('personnel.medecin.ordonnances.pdf', $o->id))->assertOk();
+
+        // Revue de sécurité : le rendez-vous passe ensuite à l'absence ou à l'annulation.
+        foreach ([StatutRendezVous::AbsencePatient, StatutRendezVous::AnnuleParMedecin] as $statut) {
+            $this->rdv->forceFill(['statut' => $statut])->save();
+            $this->commeMedecinRdv()->get(route('personnel.medecin.ordonnances.pdf', $o->id))->assertNotFound();
+        }
+
+        // Le patient garde la sienne.
+        $this->commePatientRdv()->get(route('ordonnances.pdf', $o->id))->assertOk();
+    }
+
+    public function test_chaque_lecture_du_pdf_par_le_medecin_est_notee_au_journal_des_acces(): void
+    {
+        $this->emettre()->assertCreated();
+        $o = Ordonnance::sole();
+
+        $this->commeMedecinRdv()->get(route('personnel.medecin.ordonnances.pdf', $o->id))->assertOk();
+        $this->commeMedecinRdv()->get(route('personnel.medecin.ordonnances.pdf', $o->id))->assertOk();
+        $this->commePersonnel($this->medecinActive()->user)->get(route('personnel.medecin.ordonnances.pdf', $o->id))->assertNotFound();
+        // Le patient qui lit la sienne n'est pas un accès à tracer.
+        $this->commePatientRdv()->get(route('ordonnances.pdf', $o->id))->assertOk();
+
+        $entrees = EntreeAccesDossier::where('objet', 'ordonnance_pdf')->get();
+        $this->assertCount(2, $entrees);
+        $this->assertSame([[$this->medecinRdv->user_id, $this->patientRdv->id, $o->id]], $entrees->map(fn ($e) => [$e->lecteur_id, $e->patient_id, $e->objet_id])->unique()->values()->all());
+    }
+
+    public function test_la_lecture_des_ordonnances_du_rendez_vous_est_notee_au_journal_des_acces(): void
+    {
+        $this->commeMedecinRdv()->getJson(route('personnel.medecin.consultation.ordonnances', $this->rdv->id))->assertOk();
+        $this->commePersonnel($this->medecinActive()->user)->getJson(route('personnel.medecin.consultation.ordonnances', $this->rdv->id))->assertForbidden();
+
+        $entree = EntreeAccesDossier::where('objet', 'ordonnances')->sole();
+        $this->assertSame([$this->medecinRdv->user_id, $this->patientRdv->id, $this->rdv->id], [$entree->lecteur_id, $entree->patient_id, $entree->objet_id]);
+    }
+
+    public function test_un_changement_de_profil_apres_l_emission_ne_change_ni_le_pdf_ni_la_verification(): void
+    {
+        $this->emettre()->assertCreated();
+        $o = Ordonnance::sole();
+        $document = app(DocumentOrdonnance::class);
+        $pdfAvant = $document->donneesPdf($o->fresh());
+        $verificationAvant = $document->verifier($o->code_verification);
+
+        $this->patientRdv->forceFill(['prenom' => 'Autre', 'nom' => 'Personne', 'date_naissance' => '2001-01-01'])->save();
+        $this->medecinRdv->user->forceFill(['prenom' => 'Usurpateur', 'nom' => 'Faux'])->save();
+        $this->medecinRdv->forceFill(['numero_ordre' => 'CNOM-99999'])->save();
+
+        $pdfApres = $document->donneesPdf($o->fresh());
+        foreach (['medecin', 'numeroOrdre', 'patient', 'age'] as $cle) {
+            $this->assertSame($pdfAvant[$cle], $pdfApres[$cle], $cle);
+        }
+        $this->assertSame(36, $pdfApres['age']);
+        $html = view('pdf.ordonnance', $pdfApres)->render();
+        foreach (['Autre', 'PERSONNE', 'Usurpateur', 'CNOM-99999'] as $absent) {
+            $this->assertStringNotContainsString($absent, $html);
+        }
+
+        $verificationApres = $document->verifier($o->code_verification);
+        $this->assertSame($verificationAvant, $verificationApres);
+        $this->assertSame('authentique', $verificationApres['statut']);
     }
 
     // --- Mes ordonnances ---------------------------------------------------------------------------------
