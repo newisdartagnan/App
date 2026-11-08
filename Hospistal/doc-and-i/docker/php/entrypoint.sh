@@ -47,6 +47,17 @@ if ! grep -q '^PAIEMENT_SECRET_RAPPEL=.\{32,\}' .env; then
     echo "MediHome : secret des rappels de paiement généré"
 fi
 
+# Sceau des documents signés : généré une fois, propre à ce poste.
+if ! grep -q '^DOSSIER_SECRET_SIGNATURE=.\{32,\}' .env; then
+    secret=$(php -r 'echo bin2hex(random_bytes(32));')
+    if grep -q '^DOSSIER_SECRET_SIGNATURE=' .env; then
+        sed -i "s#^DOSSIER_SECRET_SIGNATURE=.*#DOSSIER_SECRET_SIGNATURE=${secret}#" .env
+    else
+        printf 'DOSSIER_SECRET_SIGNATURE=%s\n' "$secret" >> .env
+    fi
+    echo "MediHome : clé du sceau des documents signés générée"
+fi
+
 if ! grep -q '^APP_KEY=base64:' .env; then
     php artisan key:generate --force
 fi

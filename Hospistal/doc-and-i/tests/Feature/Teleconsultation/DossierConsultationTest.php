@@ -56,7 +56,8 @@ class DossierConsultationTest extends TestCase
             ->assertJsonPath('demande.depuis', 'Depuis quelques jours')
             ->assertJsonPath('demande.alerte', false)
             ->assertJsonCount(count(QuestionnaireTri::QUESTIONS), 'demande.tri')
-            ->assertJsonPath('antecedents', null);
+            // Dossier médical (DOS-01) : vide tant que rien n'est déclaré, jamais une valeur supposée.
+            ->assertJsonPath('antecedents.groupeSanguin', null)->assertJsonPath('antecedents.allergies', []);
 
         $this->assertStringNotContainsString(substr($this->patientRdv->telephone, 4), $reponse->getContent(), 'Jamais le téléphone.');
         $this->assertStringContainsString('no-store', $reponse->headers->get('Cache-Control'));

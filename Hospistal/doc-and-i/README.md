@@ -181,6 +181,46 @@ pas d'auteur connecté.
 Démonstration locale : un administrateur fictif, `admin.demo@doc-and-i.local`,
 à activer par `php artisan personnel:lien-activation admin.demo@doc-and-i.local`.
 
+## Note de consultation et ordonnance (DOS-02, PRE-01 à PRE-03)
+
+- **Note** : rédigée par le médecin du rendez-vous dans la salle (enregistrée
+  automatiquement) ou après, depuis l'agenda (« Consultations terminées »,
+  bouton « Note »). Signée, elle ne change plus ; on la complète par un
+  avenant daté et signé.
+- **Diagnostic CIM-11** : le référentiel est **à fournir par le client**. En
+  attendant, le code et le libellé sont saisis librement ; seule la forme du
+  code est contrôlée (ex. `BA00`, `1A00.0`, `CA40.Z`).
+- **Ordonnance** : « Signer et émettre » lui donne un numéro `OR-AAAA-NNNNNN`
+  sans trou, une empreinte et un code de vérification ; elle ne se modifie
+  plus (une erreur se corrige par une nouvelle). Le patient reçoit un SMS
+  sans contenu médical et la retrouve dans « Mes ordonnances » (PDF avec QR
+  code). Le pharmacien scanne le QR code : la page publique
+  `/verification-ordonnance/{code}` dit si l'ordonnance est authentique ou
+  altérée, et ne montre le patient que par ses initiales.
+- **Alertes à la prescription (PRE-02)** : une allergie active déclarée au
+  dossier du patient, retrouvée dans le nom du médicament (sans accents ni
+  casse), bloque l'émission tant que le médecin ne coche pas « je maintiens
+  cette prescription » ; ce maintien est tracé (table `alertes_prescription`).
+  Les interactions majeures suivent le même mécanisme, à partir de la table
+  `interactions_medicamenteuses` (DCI A, DCI B, message), **livrée vide** :
+  son contenu est médical et doit être fourni et validé par le pharmacien du
+  client. L'application n'invente aucune donnée médicale (ni familles
+  d'allergènes, ni correspondance entre nom commercial et DCI).
+  La comparaison se fait par mots (« Allergie à la pénicilline »,
+  « pénicillines » alertent face à « Pénicilline V ») : un faux positif, que
+  le médecin maintient, vaut mieux qu'une allergie ignorée.
+- **Identités figées** : le nom et la date de naissance du patient, le nom et
+  le numéro d'Ordre du médecin sont recopiés dans l'ordonnance à la signature
+  et couverts par le sceau ; le PDF et la vérification les lisent là.
+
+**Question ouverte (décision du client)** : une ordonnance émise ne peut
+aujourd'hui ni être révoquée, ni être marquée « délivrée » par le pharmacien.
+La même ordonnance peut donc être présentée dans plusieurs pharmacies, et une
+ordonnance émise par erreur reste « authentique » à la vérification (seule une
+nouvelle ordonnance la corrige). Faut-il une révocation par le médecin
+(motif, date) et une marque de délivrance (par qui, quand), visibles sur la
+page de vérification ?
+
 ## Lancer les tests
 
 ```bash

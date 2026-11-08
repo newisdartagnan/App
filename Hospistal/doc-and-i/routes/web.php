@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\ConnexionController;
 use App\Http\Controllers\ConsentementController;
+use App\Http\Controllers\Dossier\VerificationOrdonnanceController;
 use App\Http\Controllers\EspacePatientController;
 use App\Http\Controllers\ProfilController;
 use Illuminate\Support\Facades\Route;
@@ -43,9 +44,20 @@ Route::middleware(['auth', 'role:patient'])->group(function () {
 
             // Consultation : messagerie et fin, côté patient (lot téléconsultation).
             require __DIR__.'/consultation-messagerie.php';
+
+            // Dossier médical du patient (lot dossier, DOS-01, DOS-03, DOS-04).
+            require __DIR__.'/dossier.php';
+
+            // Mes ordonnances, côté patient (lot dossier et ordonnance).
+            require __DIR__.'/ordonnances.php';
         });
     });
 });
+
+// PRE-03 : vérification publique d'une ordonnance (QR code du pharmacien),
+// hors connexion, débit limité par adresse IP.
+Route::get('/verification-ordonnance/{code}', VerificationOrdonnanceController::class)
+    ->where('code', '[A-Za-z0-9]{1,64}')->middleware('throttle:30,1,verification-ordonnance')->name('ordonnance.verification');
 
 // Rappel serveur de l'agrégateur de paiement : hors connexion, signé.
 require __DIR__.'/paiement-rappel.php';

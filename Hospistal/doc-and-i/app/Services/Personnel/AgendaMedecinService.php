@@ -5,6 +5,7 @@ namespace App\Services\Personnel;
 use App\Enums\StatutRendezVous;
 use App\Models\Consultation;
 use App\Models\Medecin;
+use App\Models\NoteConsultation;
 use App\Models\RendezVous;
 use App\Services\Teleconsultation\AccesConsultation;
 
@@ -16,6 +17,8 @@ final class AgendaMedecinService
 {
     /** Au-delà, l'écran deviendrait trop lourd en 3G ; la pagination viendra avec le volume réel. */
     private const LIMITE = 200;
+
+    private const JOURS_RECENTS = 30;
 
     public function aVenir(Medecin $medecin): array
     {
@@ -60,6 +63,36 @@ final class AgendaMedecinService
                         && ($salle === null || $salle->statut->estOuverte()),
                 ];
             })->all();
+    }
+
+    /**
+     * DOS-02 : consultations terminées des 30 derniers jours, avec l'état de
+     * leur note (à rédiger, brouillon, signée) : une note non signée se signe
+     * après coup, depuis la page « Note ».
+     */
+    public function terminesRecents(Medecin $medecin): array
+    {
+        $rendezVous = $medecin->rendezVous()
+            ->with('patient:id,nom,prenom')
+            ->where('statut', StatutRendezVous::Termine->value)
+            ->where('debut', '>=', now()->subDays(self::JOURS_RECENTS))
+            ->orderByDesc('debut')
+            ->limit(self::LIMITE)
+            ->get();
+        $notes = NoteConsultation::whereIn('rendez_vous_id', $rendezVous->pluck('id'))->get(['rendez_vous_id', 'signee_le'])->keyBy('rendez_vous_id');
+
+        return $rendezVous->map(function (RendezVous $rdv) use ($notes) {
+            $debut = $rdv->debut->setTimezone(DisponibilitesMedecinService::FUSEAU);
+            $note = $notes->get($rdv->id);
+
+            return [
+                'id' => $rdv->id,
+                'date' => $debut->locale('fr')->translatedFormat('l j F Y'),
+                'heure' => $debut->format('H:i'),
+                'patient' => trim($rdv->patient->prenom.' '.mb_strtoupper((string) $rdv->patient->nom)),
+                'note' => $note === null ? 'a_rediger' : ($note->signee_le ? 'signee' : 'brouillon'),
+            ];
+        })->all();
     }
 
     public function nombreAVenir(Medecin $medecin): int
