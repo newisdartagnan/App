@@ -7,7 +7,10 @@ use App\Models\Ordonnance;
 use App\Services\Dossier\AccesDossier;
 use App\Services\Dossier\AlertesAMaintenir;
 use App\Services\Dossier\DocumentOrdonnance;
+use App\Services\Dossier\JournalAccesDossier;
 use App\Services\Dossier\OrdonnanceService;
+use App\Services\Dossier\RedactionConsultation;
+use App\Services\Teleconsultation\AccesRefuse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -38,11 +41,24 @@ class OrdonnanceMedecinController extends ConsultationJsonController
         }, 201);
     }
 
-    /** Le PDF d'une de SES ordonnances (celle d'un confrère répond 404). */
-    public function pdf(Request $request, string $ordonnance, AccesDossier $acces, DocumentOrdonnance $document): Response
+    /**
+     * Le PDF d'une de SES ordonnances, tant que la relation de soin dure
+     * (revue de sécurité) : rendez-vous de l'ordonnance encore confirmé ou
+     * terminé. Celle d'un confrère, ou d'un rendez-vous passé depuis à
+     * l'absence ou à l'annulation, répond 404. Chaque lecture est notée au
+     * journal des accès du patient.
+     */
+    public function pdf(Request $request, string $ordonnance, AccesDossier $acces, RedactionConsultation $redaction, JournalAccesDossier $journal, DocumentOrdonnance $document): Response
     {
         $medecin = $acces->medecinDe($request->user()) ?? abort(404);
-        $trouvee = Ordonnance::where('medecin_id', $medecin->id)->findOrFail($ordonnance);
+        $trouvee = Ordonnance::with('rendezVous')->where('medecin_id', $medecin->id)->findOrFail($ordonnance);
+        try {
+            $redaction->exigerLecteur($request->user(), $trouvee->rendezVous);
+        } catch (AccesRefuse) {
+            abort(404);
+        }
+
+        $journal->noter($request->user(), $trouvee->patient_id, 'ordonnance_pdf', $trouvee->id);
 
         return $document->pdf($trouvee);
     }

@@ -43,6 +43,7 @@ final class OrdonnanceService
         private readonly RedactionConsultation $redaction,
         private readonly AlertesPrescription $alertes,
         private readonly FacturationService $facturation,
+        private readonly JournalAccesDossier $journal,
     ) {}
 
     /** @throws AccesRefuse|AlertesAMaintenir|ValidationException */
@@ -59,7 +60,7 @@ final class OrdonnanceService
                     return [$this->memeOrdonnance($existante, $rdv), false];
                 }
 
-                $alertes = $this->alertes->pour($rdv->patient_id, $donnees['lignes']);
+                $alertes = $this->alertes->pour($rdv, $donnees['lignes']);
                 $maintenues = array_map(fn ($a) => $a + ['maintenue' => in_array($a['cle'], $donnees['maintiens'], true)], $alertes);
                 if (collect($maintenues)->contains('maintenue', false)) {
                     throw new AlertesAMaintenir($maintenues);
@@ -72,6 +73,10 @@ final class OrdonnanceService
             $existante = Ordonnance::where('cle_idempotence', $donnees['cle'])->first() ?? throw $e;
 
             return $this->memeOrdonnance($existante, $rdv);
+        } catch (AlertesAMaintenir $alertes) {
+            // Elles disent les allergies et traitements du patient : une lecture du dossier.
+            $this->journal->noter($medecin, $rdv->patient_id, 'alertes_prescription', $rdv->id);
+            throw $alertes;
         }
 
         if ($nouvelle) {
@@ -85,6 +90,7 @@ final class OrdonnanceService
     public function duRendezVous(User $medecin, RendezVous $rdv): array
     {
         $this->redaction->exigerLecteur($medecin, $rdv);
+        $this->journal->noter($medecin, $rdv->patient_id, 'ordonnances', $rdv->id);
 
         return [
             'ordonnances' => Ordonnance::with('lignes')->where('rendez_vous_id', $rdv->id)
@@ -94,7 +100,7 @@ final class OrdonnanceService
         ];
     }
 
-    /** Ce qui est signé : numéro, rendez-vous, auteurs, date, consignes et chaque ligne. */
+    /** Ce qui est signé : numéro, rendez-vous, auteurs et leurs identités figées, date, version de la clé, consignes et chaque ligne. */
     public static function contenuSigne(Ordonnance $ordonnance): array
     {
         return [
@@ -103,6 +109,11 @@ final class OrdonnanceService
             'medecin_id' => $ordonnance->medecin_id,
             'patient_id' => $ordonnance->patient_id,
             'consignes' => $ordonnance->consignes,
+            'patient_nom' => $ordonnance->patient_nom,
+            'patient_naissance' => self::date($ordonnance->getAttributes()['patient_naissance'] ?? null),
+            'medecin_nom' => $ordonnance->medecin_nom,
+            'medecin_numero_ordre' => $ordonnance->medecin_numero_ordre,
+            'signature_version' => (int) $ordonnance->signature_version,
             'signee_le' => $ordonnance->signee_le->utc()->format('Y-m-d\TH:i:s\Z'),
             'lignes' => $ordonnance->lignes->sortBy('rang')->map(function (LigneOrdonnance $l) {
                 $ligne = ['rang' => $l->rang];
@@ -119,6 +130,18 @@ final class OrdonnanceService
     public static function estAuthentique(Ordonnance $ordonnance): bool
     {
         return Empreinte::verifier(self::contenuSigne($ordonnance->loadMissing('lignes')), $ordonnance->empreinte);
+    }
+
+    /** « Prénom NOM », tel qu'au jour de l'émission. */
+    public static function nomPatient(User $patient): string
+    {
+        return trim($patient->prenom.' '.mb_strtoupper((string) $patient->nom));
+    }
+
+    /** Date de naissance figée, toujours sous la forme AAAA-MM-JJ (quelle que soit la lecture en base). */
+    private static function date(mixed $valeur): ?string
+    {
+        return $valeur === null ? null : CarbonImmutable::parse($valeur)->format('Y-m-d');
     }
 
     public static function presenter(Ordonnance $o): array
@@ -188,7 +211,14 @@ final class OrdonnanceService
             'medecin_id' => $rdv->medecin_id,
             'patient_id' => $rdv->patient_id,
             'consignes' => $donnees['consignes'],
+            // Revue de sécurité : identités figées à la signature, couvertes par le sceau ;
+            // le PDF et la vérification les lisent ici, jamais dans users ou medecins.
+            'patient_nom' => self::nomPatient($rdv->patient),
+            'patient_naissance' => $rdv->patient->date_naissance?->format('Y-m-d'),
+            'medecin_nom' => Affichage::medecin($rdv->medecin->loadMissing('user')),
+            'medecin_numero_ordre' => (string) $rdv->medecin->numero_ordre,
             'signee_le' => $maintenant,
+            'signature_version' => Empreinte::VERSION,
             'code_verification' => Str::random(32),
             'cle_idempotence' => $donnees['cle'],
         ]);

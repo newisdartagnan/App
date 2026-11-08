@@ -100,6 +100,21 @@ class VerificationOrdonnanceTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('verification.statut', 'alteree'));
     }
 
+    public function test_une_identite_figee_modifiee_en_base_rend_l_ordonnance_alteree(): void
+    {
+        foreach ([['patient_nom' => 'Autre PERSONNE'], ['medecin_nom' => 'Dr Usurpateur FAUX'], ['medecin_numero_ordre' => 'CNOM-99999'], ['patient_naissance' => '2001-01-01']] as $valeurs) {
+            $avant = DB::table('ordonnances')->first();
+            $this->alterer('ordonnances', 'ordonnances_non_modifiables', $valeurs);
+
+            $this->verifier($this->ordonnance->code_verification)->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page->where('verification.statut', 'alteree'));
+            $this->alterer('ordonnances', 'ordonnances_non_modifiables', array_intersect_key((array) $avant, $valeurs));
+        }
+
+        $this->verifier($this->ordonnance->code_verification)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('verification.statut', 'authentique'));
+    }
+
     public function test_une_empreinte_modifiee_en_base_rend_l_ordonnance_alteree(): void
     {
         $this->alterer('ordonnances', 'ordonnances_non_modifiables', ['empreinte' => str_repeat('0', 64)]);

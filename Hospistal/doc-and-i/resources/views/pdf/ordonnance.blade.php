@@ -40,8 +40,8 @@
     </table>
 
     <table class="bloc">
-        <tr><th>Médecin</th><td>{{ $medecin }}@if ($specialite), {{ $specialite }}@endif</td></tr>
-        <tr><th>N° d'Ordre</th><td>{{ $numeroOrdre ?? 'non renseigné' }}</td></tr>
+        <tr><th>Médecin</th><td>{{ $medecin }}</td></tr>
+        <tr><th>N° d'Ordre</th><td>{{ $numeroOrdre }}</td></tr>
         <tr><th>Patient</th><td>{{ $patient }}@if ($age !== null), {{ $age }} ans @endif</td></tr>
     </table>
 

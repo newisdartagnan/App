@@ -3,9 +3,9 @@
 namespace App\Services\Dossier;
 
 use App\Models\Ordonnance;
-use App\Services\RendezVous\Affichage;
 use App\Support\CodeQr;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\CarbonImmutable;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -33,11 +33,15 @@ final class DocumentOrdonnance
             ->withHeaders(['Cache-Control' => 'private, no-store, max-age=0']);
     }
 
-    /** Ce que montre le PDF : MEDIHOME, numéro, date, médecin (nom, n° d'Ordre), patient (nom, âge), lignes, QR code. */
+    /**
+     * Ce que montre le PDF : MEDIHOME, numéro, date, médecin (nom, n° d'Ordre),
+     * patient (nom, âge), lignes, QR code. Identités lues dans les colonnes
+     * figées à la signature (et couvertes par le sceau), jamais dans le profil
+     * actuel du patient ou du médecin.
+     */
     public function donneesPdf(Ordonnance $ordonnance): array
     {
-        $ordonnance->loadMissing(['lignes', 'patient', 'medecin.user', 'medecin.specialite']);
-        $patient = $ordonnance->patient;
+        $ordonnance->loadMissing('lignes');
         $signee = $ordonnance->signee_le->setTimezone('Africa/Kinshasa');
         $url = self::adresseVerification($ordonnance);
 
@@ -45,11 +49,10 @@ final class DocumentOrdonnance
             'ordonnance' => $ordonnance,
             'date' => $signee->format('d/m/Y'),
             'heure' => $signee->format('H:i'),
-            'medecin' => Affichage::medecin($ordonnance->medecin),
-            'numeroOrdre' => $ordonnance->medecin->numero_ordre,
-            'specialite' => $ordonnance->medecin->specialite?->nom,
-            'patient' => trim($patient->prenom.' '.mb_strtoupper((string) $patient->nom)),
-            'age' => $patient->date_naissance ? (int) $patient->date_naissance->diffInYears($signee) : null,
+            'medecin' => $ordonnance->medecin_nom,
+            'numeroOrdre' => $ordonnance->medecin_numero_ordre,
+            'patient' => $ordonnance->patient_nom,
+            'age' => self::age($ordonnance),
             'qr' => CodeQr::svgEnDataUri($url, 160),
             'adresse' => $url,
         ];
@@ -61,8 +64,7 @@ final class DocumentOrdonnance
         if (preg_match(self::FORMAT_CODE, $code) !== 1) {
             return null;
         }
-        $ordonnance = Ordonnance::with(['lignes', 'patient:id,nom,prenom', 'medecin.user:id,nom,prenom'])
-            ->where('code_verification', $code)->first();
+        $ordonnance = Ordonnance::with('lignes')->where('code_verification', $code)->first();
         if ($ordonnance === null) {
             return null;
         }
@@ -71,9 +73,10 @@ final class DocumentOrdonnance
             'statut' => OrdonnanceService::estAuthentique($ordonnance) ? 'authentique' : 'alteree',
             'numero' => $ordonnance->numero,
             'date' => $ordonnance->signee_le->setTimezone('Africa/Kinshasa')->format('d/m/Y'),
-            'medecin' => Affichage::medecin($ordonnance->medecin),
-            'numeroOrdre' => $ordonnance->medecin->numero_ordre,
-            'patient' => self::initiales($ordonnance->patient->prenom, $ordonnance->patient->nom),
+            // Identités figées à la signature, jamais le profil actuel.
+            'medecin' => $ordonnance->medecin_nom,
+            'numeroOrdre' => $ordonnance->medecin_numero_ordre,
+            'patient' => self::initiales(...preg_split('/\s+/u', trim($ordonnance->patient_nom))),
             'consignes' => $ordonnance->consignes,
             'lignes' => $ordonnance->lignes->map->only(['rang', 'medicament', 'dosage', 'voie', 'posologie', 'duree', 'consignes'])->values()->all(),
         ];
@@ -82,6 +85,15 @@ final class DocumentOrdonnance
     public static function adresseVerification(Ordonnance $ordonnance): string
     {
         return route('ordonnance.verification', ['code' => $ordonnance->code_verification]);
+    }
+
+    /** Âge du patient au jour de la signature, d'après la date de naissance figée. */
+    public static function age(Ordonnance $ordonnance): ?int
+    {
+        $naissance = $ordonnance->getAttributes()['patient_naissance'] ?? null;
+
+        return $naissance === null ? null
+            : (int) CarbonImmutable::parse($naissance, 'Africa/Kinshasa')->diffInYears($ordonnance->signee_le->setTimezone('Africa/Kinshasa'));
     }
 
     /** « Marie KABILA » → « M. K. » */
