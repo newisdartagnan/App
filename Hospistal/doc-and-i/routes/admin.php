@@ -20,4 +20,7 @@ Route::middleware(['role:admin_fonctionnel', 'throttle:administration'])->prefix
 
     // Comptes du personnel, médecins, journal d'administration (développeur B).
     require __DIR__.'/admin-comptes.php';
+
+    // Catalogue des examens et jetons d'API des laboratoires (développeur B, lot laboratoire).
+    require __DIR__.'/admin-examens.php';
 });

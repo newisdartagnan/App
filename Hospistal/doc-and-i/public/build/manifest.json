@@ -1,102 +1,102 @@
 {
-  "_Alerte-TrBxrE-1.js": {
-    "file": "assets/Alerte-TrBxrE-1.js",
+  "_Alerte-ThQLJuf_.js": {
+    "file": "assets/Alerte-ThQLJuf_.js",
     "name": "Alerte",
     "imports": [
-      "_SelecteurTheme-DewOKRZy.js",
+      "_SelecteurTheme-C4xmeR_k.js",
       "resources/js/app.js"
     ]
   },
-  "_Badge-CI--pIKR.js": {
-    "file": "assets/Badge-CI--pIKR.js",
+  "_Badge--mwoz_Nn.js": {
+    "file": "assets/Badge--mwoz_Nn.js",
     "name": "Badge",
     "imports": [
       "resources/js/app.js"
     ]
   },
-  "_Carte-DqEOGHMr.js": {
-    "file": "assets/Carte-DqEOGHMr.js",
+  "_BonExamen-bwkzQ7fO.js": {
+    "file": "assets/BonExamen-bwkzQ7fO.js",
+    "name": "BonExamen",
+    "imports": [
+      "resources/js/app.js",
+      "_requete-DH6hlbn_.js"
+    ]
+  },
+  "_Carte-D-uf-Zdc.js": {
+    "file": "assets/Carte-D-uf-Zdc.js",
     "name": "Carte",
     "imports": [
-      "_SelecteurTheme-DewOKRZy.js",
+      "_SelecteurTheme-C4xmeR_k.js",
       "resources/js/app.js"
     ]
   },
-  "_EnTeteDePage-mDkg_tj-.js": {
-    "file": "assets/EnTeteDePage-mDkg_tj-.js",
+  "_EnTeteDePage-D7cBfpVT.js": {
+    "file": "assets/EnTeteDePage-D7cBfpVT.js",
     "name": "EnTeteDePage",
     "imports": [
       "resources/js/app.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
-  "_EtatVide-4ejYD_Ai.js": {
-    "file": "assets/EtatVide-4ejYD_Ai.js",
+  "_EtatVide-D0ZPec-X.js": {
+    "file": "assets/EtatVide-D0ZPec-X.js",
     "name": "EtatVide",
     "imports": [
-      "_SelecteurTheme-DewOKRZy.js",
+      "_SelecteurTheme-C4xmeR_k.js",
       "resources/js/app.js"
     ]
   },
-  "_Gabarit-B4K4RRP1.js": {
-    "file": "assets/Gabarit-B4K4RRP1.js",
+  "_Gabarit-233tpLFq.js": {
+    "file": "assets/Gabarit-233tpLFq.js",
     "name": "Gabarit",
     "imports": [
       "resources/js/app.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
-  "_GabaritPersonnel-DOvJh7rl.js": {
-    "file": "assets/GabaritPersonnel-DOvJh7rl.js",
+  "_GabaritPersonnel-DfS3u85q.js": {
+    "file": "assets/GabaritPersonnel-DfS3u85q.js",
     "name": "GabaritPersonnel",
     "imports": [
       "resources/js/app.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
-  "_HistoriqueDossier-DqTg-Fxp.js": {
-    "file": "assets/HistoriqueDossier-DqTg-Fxp.js",
+  "_HistoriqueDossier-DcR7UtV_.js": {
+    "file": "assets/HistoriqueDossier-DcR7UtV_.js",
     "name": "HistoriqueDossier",
     "imports": [
       "resources/js/app.js"
     ]
   },
-  "_ListeCreneaux-CujUH5gh.js": {
-    "file": "assets/ListeCreneaux-CujUH5gh.js",
+  "_ListeCreneaux-C_yvDuDE.js": {
+    "file": "assets/ListeCreneaux-C_yvDuDE.js",
     "name": "ListeCreneaux",
     "imports": [
       "resources/js/app.js"
     ]
   },
-  "_Messagerie-BVz7CT5r.js": {
-    "file": "assets/Messagerie-BVz7CT5r.js",
+  "_Messagerie-CZgRbR3U.js": {
+    "file": "assets/Messagerie-CZgRbR3U.js",
     "name": "Messagerie",
     "imports": [
       "resources/js/app.js",
       "_requete-DH6hlbn_.js"
     ]
   },
-  "_Ordonnance-uTLFtngX.js": {
-    "file": "assets/Ordonnance-uTLFtngX.js",
-    "name": "Ordonnance",
-    "imports": [
-      "resources/js/app.js",
-      "_requete-DH6hlbn_.js"
-    ]
-  },
-  "_SelecteurTheme-DewOKRZy.js": {
-    "file": "assets/SelecteurTheme-DewOKRZy.js",
+  "_SelecteurTheme-C4xmeR_k.js": {
+    "file": "assets/SelecteurTheme-C4xmeR_k.js",
     "name": "SelecteurTheme",
     "imports": [
       "resources/js/app.js"
     ]
   },
-  "_TuileChiffre-BtT6w2OS.js": {
-    "file": "assets/TuileChiffre-BtT6w2OS.js",
+  "_TuileChiffre-DiKCNQ2k.js": {
+    "file": "assets/TuileChiffre-DiKCNQ2k.js",
     "name": "TuileChiffre",
     "imports": [
       "resources/js/app.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "_requete-DH6hlbn_.js": {
@@ -104,7 +104,7 @@
     "name": "requete"
   },
   "resources/css/app.css": {
-    "file": "assets/app-quAm3CAr.css",
+    "file": "assets/app-CfKIiXvD.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -113,609 +113,708 @@
     ]
   },
   "resources/js/Pages/Accueil.vue": {
-    "file": "assets/Accueil-BlrWyzut.js",
+    "file": "assets/Accueil-B-rMi5i_.js",
     "name": "Accueil",
     "src": "resources/js/Pages/Accueil.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Connexion/Code.vue": {
-    "file": "assets/Code-CkHK20rp.js",
+    "file": "assets/Code-BVZR5nym.js",
     "name": "Code",
     "src": "resources/js/Pages/Connexion/Code.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_SelecteurTheme-DewOKRZy.js",
-      "_EnTeteDePage-mDkg_tj-.js"
+      "_Gabarit-233tpLFq.js",
+      "_SelecteurTheme-C4xmeR_k.js",
+      "_EnTeteDePage-D7cBfpVT.js"
     ]
   },
   "resources/js/Pages/Connexion/Telephone.vue": {
-    "file": "assets/Telephone-BTLh5_Je.js",
+    "file": "assets/Telephone-DlveA9g-.js",
     "name": "Telephone",
     "src": "resources/js/Pages/Connexion/Telephone.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_SelecteurTheme-DewOKRZy.js",
-      "_EnTeteDePage-mDkg_tj-.js"
+      "_Gabarit-233tpLFq.js",
+      "_SelecteurTheme-C4xmeR_k.js",
+      "_EnTeteDePage-D7cBfpVT.js"
     ]
   },
   "resources/js/Pages/Consentement/Accepter.vue": {
-    "file": "assets/Accepter-BeJcobnS.js",
+    "file": "assets/Accepter-Dvq9eYm5.js",
     "name": "Accepter",
     "src": "resources/js/Pages/Consentement/Accepter.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Dossier/MesOrdonnances.vue": {
-    "file": "assets/MesOrdonnances-DDVB03u7.js",
+    "file": "assets/MesOrdonnances-CLRcYq-6.js",
     "name": "MesOrdonnances",
     "src": "resources/js/Pages/Dossier/MesOrdonnances.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Dossier/MonDossier.vue": {
-    "file": "assets/MonDossier-5ObeaVDU.js",
+    "file": "assets/MonDossier-CrT2I7Q_.js",
     "name": "MonDossier",
     "src": "resources/js/Pages/Dossier/MonDossier.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_HistoriqueDossier-DqTg-Fxp.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_HistoriqueDossier-DcR7UtV_.js",
+      "_Gabarit-233tpLFq.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Dossier/VerificationOrdonnance.vue": {
-    "file": "assets/VerificationOrdonnance-CD7f9S5R.js",
+    "file": "assets/VerificationOrdonnance-B2qMLE_b.js",
     "name": "VerificationOrdonnance",
     "src": "resources/js/Pages/Dossier/VerificationOrdonnance.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Espace/Accueil.vue": {
-    "file": "assets/Accueil-BPHYYTn6.js",
+    "file": "assets/Accueil-DxRtAvDu.js",
     "name": "Accueil",
     "src": "resources/js/Pages/Espace/Accueil.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_SelecteurTheme-C4xmeR_k.js"
+    ]
+  },
+  "resources/js/Pages/Laboratoire/AlertesMedecin.vue": {
+    "file": "assets/AlertesMedecin-CS77Vj7A.js",
+    "name": "AlertesMedecin",
+    "src": "resources/js/Pages/Laboratoire/AlertesMedecin.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
+    ]
+  },
+  "resources/js/Pages/Laboratoire/BonLaboratoire.vue": {
+    "file": "assets/BonLaboratoire-CxHuSY4n.js",
+    "name": "BonLaboratoire",
+    "src": "resources/js/Pages/Laboratoire/BonLaboratoire.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
+    ]
+  },
+  "resources/js/Pages/Laboratoire/Coordination.vue": {
+    "file": "assets/Coordination-BmZ3LEiP.js",
+    "name": "Coordination",
+    "src": "resources/js/Pages/Laboratoire/Coordination.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
+    ]
+  },
+  "resources/js/Pages/Laboratoire/MesExamens.vue": {
+    "file": "assets/MesExamens-BsQZm5sh.js",
+    "name": "MesExamens",
+    "src": "resources/js/Pages/Laboratoire/MesExamens.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_Gabarit-233tpLFq.js",
+      "_SelecteurTheme-C4xmeR_k.js"
+    ]
+  },
+  "resources/js/Pages/Laboratoire/Portail.vue": {
+    "file": "assets/Portail-AnGUprRW.js",
+    "name": "Portail",
+    "src": "resources/js/Pages/Laboratoire/Portail.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
+    ]
+  },
+  "resources/js/Pages/Laboratoire/Resultats.vue": {
+    "file": "assets/Resultats-BDZeJoKw.js",
+    "name": "Resultats",
+    "src": "resources/js/Pages/Laboratoire/Resultats.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
+    ]
+  },
+  "resources/js/Pages/Laboratoire/ResultatsAValider.vue": {
+    "file": "assets/ResultatsAValider-CweLwKRC.js",
+    "name": "ResultatsAValider",
+    "src": "resources/js/Pages/Laboratoire/ResultatsAValider.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Paiement/MesPaiements.vue": {
-    "file": "assets/MesPaiements-DBeb2WL-.js",
+    "file": "assets/MesPaiements-C_-f-KVQ.js",
     "name": "MesPaiements",
     "src": "resources/js/Pages/Paiement/MesPaiements.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Paiement/Payer.vue": {
-    "file": "assets/Payer-DWQVDl1p.js",
+    "file": "assets/Payer-BZ8Di1lL.js",
     "name": "Payer",
     "src": "resources/js/Pages/Paiement/Payer.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Paiement/Suivi.vue": {
-    "file": "assets/Suivi-BbmeTvGq.js",
+    "file": "assets/Suivi-0MQFX7Qo.js",
     "name": "Suivi",
     "src": "resources/js/Pages/Paiement/Suivi.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Accueil.vue": {
-    "file": "assets/Accueil-LlXCZN_u.js",
+    "file": "assets/Accueil-C14i518J.js",
     "name": "Accueil",
     "src": "resources/js/Pages/Personnel/Accueil.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Activation/CodesRecuperation.vue": {
-    "file": "assets/CodesRecuperation-CXl7evw0.js",
+    "file": "assets/CodesRecuperation-DGhM4m7Q.js",
     "name": "CodesRecuperation",
     "src": "resources/js/Pages/Personnel/Activation/CodesRecuperation.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Activation/DoubleFacteur.vue": {
-    "file": "assets/DoubleFacteur-DlloZnL-.js",
+    "file": "assets/DoubleFacteur-CX7etyyP.js",
     "name": "DoubleFacteur",
     "src": "resources/js/Pages/Personnel/Activation/DoubleFacteur.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Activation/LienInvalide.vue": {
-    "file": "assets/LienInvalide-BkXQfKSp.js",
+    "file": "assets/LienInvalide-DEHsLe_j.js",
     "name": "LienInvalide",
     "src": "resources/js/Pages/Personnel/Activation/LienInvalide.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Activation/MotDePasse.vue": {
-    "file": "assets/MotDePasse-DxIemQ2Q.js",
+    "file": "assets/MotDePasse-BgNRVfxg.js",
     "name": "MotDePasse",
     "src": "resources/js/Pages/Personnel/Activation/MotDePasse.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Admin/Accueil.vue": {
-    "file": "assets/Accueil-2eQJIx9w.js",
+    "file": "assets/Accueil-B5xhdxYr.js",
     "name": "Accueil",
     "src": "resources/js/Pages/Personnel/Admin/Accueil.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_Badge-CI--pIKR.js",
-      "_Carte-DqEOGHMr.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_EtatVide-4ejYD_Ai.js",
-      "_TuileChiffre-BtT6w2OS.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_Badge--mwoz_Nn.js",
+      "_Carte-D-uf-Zdc.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_EtatVide-D0ZPec-X.js",
+      "_TuileChiffre-DiKCNQ2k.js",
+      "_SelecteurTheme-C4xmeR_k.js"
+    ]
+  },
+  "resources/js/Pages/Personnel/Admin/Examens.vue": {
+    "file": "assets/Examens-89nPufVI.js",
+    "name": "Examens",
+    "src": "resources/js/Pages/Personnel/Admin/Examens.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
+    ]
+  },
+  "resources/js/Pages/Personnel/Admin/JetonsLaboratoire.vue": {
+    "file": "assets/JetonsLaboratoire-Befmb6Rs.js",
+    "name": "JetonsLaboratoire",
+    "src": "resources/js/Pages/Personnel/Admin/JetonsLaboratoire.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Admin/Journal.vue": {
-    "file": "assets/Journal-Do_B-uwP.js",
+    "file": "assets/Journal-B44aeTSo.js",
     "name": "Journal",
     "src": "resources/js/Pages/Personnel/Admin/Journal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Admin/Partenaires.vue": {
-    "file": "assets/Partenaires-BldXv6le.js",
+    "file": "assets/Partenaires-DzwXAftr.js",
     "name": "Partenaires",
     "src": "resources/js/Pages/Personnel/Admin/Partenaires.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Admin/Personnel/Fiche.vue": {
-    "file": "assets/Fiche-BmBRAyNL.js",
+    "file": "assets/Fiche-Bakgo60g.js",
     "name": "Fiche",
     "src": "resources/js/Pages/Personnel/Admin/Personnel/Fiche.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Admin/Personnel/Liste.vue": {
-    "file": "assets/Liste-Bl5XpWIh.js",
+    "file": "assets/Liste-CC3kNetu.js",
     "name": "Liste",
     "src": "resources/js/Pages/Personnel/Admin/Personnel/Liste.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Admin/Personnel/Nouveau.vue": {
-    "file": "assets/Nouveau-DKVK17_U.js",
+    "file": "assets/Nouveau-FtDPPhKm.js",
     "name": "Nouveau",
     "src": "resources/js/Pages/Personnel/Admin/Personnel/Nouveau.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Admin/Tarifs.vue": {
-    "file": "assets/Tarifs-CQ45rjYi.js",
+    "file": "assets/Tarifs-pCI4NYTJ.js",
     "name": "Tarifs",
     "src": "resources/js/Pages/Personnel/Admin/Tarifs.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Caisse/Accueil.vue": {
-    "file": "assets/Accueil-EvNXDfUO.js",
+    "file": "assets/Accueil-Dtlly-q9.js",
     "name": "Accueil",
     "src": "resources/js/Pages/Personnel/Caisse/Accueil.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_Alerte-TrBxrE-1.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_TuileChiffre-BtT6w2OS.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_Alerte-ThQLJuf_.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_TuileChiffre-DiKCNQ2k.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Caisse/Factures.vue": {
-    "file": "assets/Factures-BW0Gb3im.js",
+    "file": "assets/Factures-Ca5vmvE-.js",
     "name": "Factures",
     "src": "resources/js/Pages/Personnel/Caisse/Factures.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Caisse/Journal.vue": {
-    "file": "assets/Journal-CYXpSuVQ.js",
+    "file": "assets/Journal-C3I7qE7a.js",
     "name": "Journal",
     "src": "resources/js/Pages/Personnel/Caisse/Journal.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Caisse/Rapprochement.vue": {
-    "file": "assets/Rapprochement-DbH61fei.js",
+    "file": "assets/Rapprochement-CElxn6en.js",
     "name": "Rapprochement",
     "src": "resources/js/Pages/Personnel/Caisse/Rapprochement.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Caisse/Remboursements.vue": {
-    "file": "assets/Remboursements-BSE3CZhd.js",
+    "file": "assets/Remboursements-CYPX9QFO.js",
     "name": "Remboursements",
     "src": "resources/js/Pages/Personnel/Caisse/Remboursements.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Caisse/Reversements.vue": {
-    "file": "assets/Reversements-DwlQlEln.js",
+    "file": "assets/Reversements-Dp6H5KdL.js",
     "name": "Reversements",
     "src": "resources/js/Pages/Personnel/Caisse/Reversements.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Caisse/Taux.vue": {
-    "file": "assets/Taux-BnXmMjV7.js",
+    "file": "assets/Taux-C1iRzSkV.js",
     "name": "Taux",
     "src": "resources/js/Pages/Personnel/Caisse/Taux.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Connexion/Code.vue": {
-    "file": "assets/Code-6Sx9XaxF.js",
+    "file": "assets/Code-Cg301lgj.js",
     "name": "Code",
     "src": "resources/js/Pages/Personnel/Connexion/Code.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_SelecteurTheme-DewOKRZy.js",
-      "_EnTeteDePage-mDkg_tj-.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js",
+      "_EnTeteDePage-D7cBfpVT.js"
     ]
   },
   "resources/js/Pages/Personnel/Connexion/Identifiants.vue": {
-    "file": "assets/Identifiants-QV1SdEn4.js",
+    "file": "assets/Identifiants-CWSr_6kL.js",
     "name": "Identifiants",
     "src": "resources/js/Pages/Personnel/Connexion/Identifiants.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_SelecteurTheme-DewOKRZy.js",
-      "_EnTeteDePage-mDkg_tj-.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js",
+      "_EnTeteDePage-D7cBfpVT.js"
     ]
   },
   "resources/js/Pages/Personnel/Medecin/Absences.vue": {
-    "file": "assets/Absences-CJ1LZEPH.js",
+    "file": "assets/Absences-DjUXxXjo.js",
     "name": "Absences",
     "src": "resources/js/Pages/Personnel/Medecin/Absences.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Medecin/Accueil.vue": {
-    "file": "assets/Accueil-BvHNlOkI.js",
+    "file": "assets/Accueil-B7AxQWw_.js",
     "name": "Accueil",
     "src": "resources/js/Pages/Personnel/Medecin/Accueil.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_Alerte-TrBxrE-1.js",
-      "_Badge-CI--pIKR.js",
-      "_Carte-DqEOGHMr.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js",
-      "_TuileChiffre-BtT6w2OS.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_Alerte-ThQLJuf_.js",
+      "_Badge--mwoz_Nn.js",
+      "_Carte-D-uf-Zdc.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js",
+      "_TuileChiffre-DiKCNQ2k.js"
     ]
   },
   "resources/js/Pages/Personnel/Medecin/Agenda.vue": {
-    "file": "assets/Agenda-CjRv0Ls6.js",
+    "file": "assets/Agenda-BykOMlY7.js",
     "name": "Agenda",
     "src": "resources/js/Pages/Personnel/Medecin/Agenda.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_Badge-CI--pIKR.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_EtatVide-4ejYD_Ai.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_Badge--mwoz_Nn.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_EtatVide-D0ZPec-X.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Medecin/Consultation.vue": {
-    "file": "assets/Consultation-BYAqid0V.js",
+    "file": "assets/Consultation-DwykuyqR.js",
     "name": "Consultation",
     "src": "resources/js/Pages/Personnel/Medecin/Consultation.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Messagerie-BVz7CT5r.js",
+      "_Messagerie-CZgRbR3U.js",
       "_requete-DH6hlbn_.js",
-      "_Ordonnance-uTLFtngX.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_Carte-DqEOGHMr.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_BonExamen-bwkzQ7fO.js",
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_Carte-D-uf-Zdc.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Medecin/Dossier.vue": {
-    "file": "assets/Dossier-CsOQiVdk.js",
+    "file": "assets/Dossier-D0sQXPFq.js",
     "name": "Dossier",
     "src": "resources/js/Pages/Personnel/Medecin/Dossier.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_HistoriqueDossier-DqTg-Fxp.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_HistoriqueDossier-DcR7UtV_.js",
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Medecin/Note.vue": {
-    "file": "assets/Note-BtuhFwea.js",
+    "file": "assets/Note-BHoYld3O.js",
     "name": "Note",
     "src": "resources/js/Pages/Personnel/Medecin/Note.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Ordonnance-uTLFtngX.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
+      "_BonExamen-bwkzQ7fO.js",
+      "_GabaritPersonnel-DfS3u85q.js",
       "_requete-DH6hlbn_.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Medecin/Plages.vue": {
-    "file": "assets/Plages-CbqcSIaD.js",
+    "file": "assets/Plages-Cwen295a.js",
     "name": "Plages",
     "src": "resources/js/Pages/Personnel/Medecin/Plages.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Personnel/Medecin/Reversements.vue": {
-    "file": "assets/Reversements-DlBTe8FT.js",
+    "file": "assets/Reversements-DPUlF4Pr.js",
     "name": "Reversements",
     "src": "resources/js/Pages/Personnel/Medecin/Reversements.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_GabaritPersonnel-DOvJh7rl.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_GabaritPersonnel-DfS3u85q.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Profil/Modifier.vue": {
-    "file": "assets/Modifier-0e0ch4M1.js",
+    "file": "assets/Modifier-CEFDXZTP.js",
     "name": "Modifier",
     "src": "resources/js/Pages/Profil/Modifier.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/RendezVous/Choix.vue": {
-    "file": "assets/Choix-DLprrg4x.js",
+    "file": "assets/Choix-DnaEOGzV.js",
     "name": "Choix",
     "src": "resources/js/Pages/RendezVous/Choix.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/RendezVous/Creneaux.vue": {
-    "file": "assets/Creneaux-C06pLOm-.js",
+    "file": "assets/Creneaux-CJmUmbWh.js",
     "name": "Creneaux",
     "src": "resources/js/Pages/RendezVous/Creneaux.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_ListeCreneaux-CujUH5gh.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_ListeCreneaux-C_yvDuDE.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/RendezVous/Demande.vue": {
-    "file": "assets/Demande-G-q0EHAg.js",
+    "file": "assets/Demande-DSqIzARS.js",
     "name": "Demande",
     "src": "resources/js/Pages/RendezVous/Demande.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/RendezVous/Detail.vue": {
-    "file": "assets/Detail-C4rI4DtT.js",
+    "file": "assets/Detail-DyKfPYnA.js",
     "name": "Detail",
     "src": "resources/js/Pages/RendezVous/Detail.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/RendezVous/MesRendezVous.vue": {
-    "file": "assets/MesRendezVous-Mjzhs-Gl.js",
+    "file": "assets/MesRendezVous-B06xRQ8T.js",
     "name": "MesRendezVous",
     "src": "resources/js/Pages/RendezVous/MesRendezVous.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/RendezVous/Report.vue": {
-    "file": "assets/Report-COjkn9yk.js",
+    "file": "assets/Report-stQfIiZk.js",
     "name": "Report",
     "src": "resources/js/Pages/RendezVous/Report.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_ListeCreneaux-CujUH5gh.js",
-      "_EnTeteDePage-mDkg_tj-.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_ListeCreneaux-C_yvDuDE.js",
+      "_EnTeteDePage-D7cBfpVT.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/RendezVous/Urgence.vue": {
-    "file": "assets/Urgence-r35LAGMH.js",
+    "file": "assets/Urgence-CwA7m0JS.js",
     "name": "Urgence",
     "src": "resources/js/Pages/RendezVous/Urgence.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_Gabarit-233tpLFq.js",
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/Pages/Teleconsultation/Salle.vue": {
-    "file": "assets/Salle-S7jpqbgf.js",
+    "file": "assets/Salle-C0LpbJXG.js",
     "name": "Salle",
     "src": "resources/js/Pages/Teleconsultation/Salle.vue",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.js",
-      "_Messagerie-BVz7CT5r.js",
-      "_Gabarit-B4K4RRP1.js",
-      "_Carte-DqEOGHMr.js",
-      "_EnTeteDePage-mDkg_tj-.js",
+      "_Messagerie-CZgRbR3U.js",
+      "_Gabarit-233tpLFq.js",
+      "_Carte-D-uf-Zdc.js",
+      "_EnTeteDePage-D7cBfpVT.js",
       "_requete-DH6hlbn_.js",
-      "_SelecteurTheme-DewOKRZy.js"
+      "_SelecteurTheme-C4xmeR_k.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BkgovKal.js",
+    "file": "assets/app-DMK5GswJ.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -728,6 +827,13 @@
       "resources/js/Pages/Dossier/MonDossier.vue",
       "resources/js/Pages/Dossier/VerificationOrdonnance.vue",
       "resources/js/Pages/Espace/Accueil.vue",
+      "resources/js/Pages/Laboratoire/AlertesMedecin.vue",
+      "resources/js/Pages/Laboratoire/BonLaboratoire.vue",
+      "resources/js/Pages/Laboratoire/Coordination.vue",
+      "resources/js/Pages/Laboratoire/MesExamens.vue",
+      "resources/js/Pages/Laboratoire/Portail.vue",
+      "resources/js/Pages/Laboratoire/Resultats.vue",
+      "resources/js/Pages/Laboratoire/ResultatsAValider.vue",
       "resources/js/Pages/Paiement/MesPaiements.vue",
       "resources/js/Pages/Paiement/Payer.vue",
       "resources/js/Pages/Paiement/Suivi.vue",
@@ -737,6 +843,8 @@
       "resources/js/Pages/Personnel/Activation/LienInvalide.vue",
       "resources/js/Pages/Personnel/Activation/MotDePasse.vue",
       "resources/js/Pages/Personnel/Admin/Accueil.vue",
+      "resources/js/Pages/Personnel/Admin/Examens.vue",
+      "resources/js/Pages/Personnel/Admin/JetonsLaboratoire.vue",
       "resources/js/Pages/Personnel/Admin/Journal.vue",
       "resources/js/Pages/Personnel/Admin/Partenaires.vue",
       "resources/js/Pages/Personnel/Admin/Personnel/Fiche.vue",

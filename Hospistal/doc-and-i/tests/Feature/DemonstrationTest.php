@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Console\Commands\PreparerDemonstration;
+use App\Enums\StatutBonExamen;
 use App\Models\AuthentificationPersonnel;
+use App\Models\BonExamen;
 use App\Models\Ordonnance;
 use App\Models\Remboursement;
 use App\Models\User;
@@ -44,5 +46,14 @@ class DemonstrationTest extends TestCase
         $this->assertTrue(app(OrdonnanceService::class)->estAuthentique(Ordonnance::with('lignes')->first()));
         $this->assertSame(1, Remboursement::where('statut', 'a_valider')->count());
         $this->assertSame(3, User::role('patient')->count());
+
+        // Laboratoire : un bon payé avec résultats à valider, un bon à payer ; comptes du portail activés.
+        $this->assertEqualsCanonicalizing(
+            [StatutBonExamen::ResultatsDeposes, StatutBonExamen::Prescrit],
+            BonExamen::pluck('statut')->all(),
+        );
+        foreach (['labo.demo@doc-and-i.local', 'coordination.demo@doc-and-i.local'] as $email) {
+            $this->assertTrue(AuthentificationPersonnel::pour(User::where('email', $email)->sole())->estActive());
+        }
     }
 }

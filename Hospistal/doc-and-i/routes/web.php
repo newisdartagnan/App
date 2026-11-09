@@ -50,6 +50,9 @@ Route::middleware(['auth', 'role:patient'])->group(function () {
 
             // Mes ordonnances, côté patient (lot dossier et ordonnance).
             require __DIR__.'/ordonnances.php';
+
+            // Mes examens : bons, paiement, code de retrait, résultats validés (lot laboratoire).
+            require __DIR__.'/examens-patient.php';
         });
     });
 });

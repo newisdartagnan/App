@@ -28,7 +28,7 @@ const liens = [
 ];
 const chemin = computed(() => page.url.split('?')[0]);
 const actif = (href) => chemin.value === href || chemin.value.startsWith(`${href}/`)
-    || (href === '/mon-dossier' && chemin.value.startsWith('/mes-ordonnances'));
+    || (href === '/mon-dossier' && (chemin.value.startsWith('/mes-ordonnances') || chemin.value.startsWith('/mes-examens')));
 
 const deconnecter = () => router.post('/deconnexion', {}, {
     onStart: () => { deconnexionEnCours.value = true; },

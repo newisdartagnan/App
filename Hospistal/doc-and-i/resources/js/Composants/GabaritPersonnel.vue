@@ -25,6 +25,8 @@ const menus = {
         { groupe: 'Consultations', liens: [
             { href: '/personnel/medecin', libelle: 'Accueil', picto: 'accueil' },
             { href: '/personnel/medecin/agenda', libelle: 'Agenda', picto: 'calendrier' },
+            { href: '/personnel/medecin/resultats', libelle: 'Résultats à valider', picto: 'coche' },
+            { href: '/personnel/medecin/alertes', libelle: 'Alertes', picto: 'alerte' },
         ] },
         { groupe: 'Organisation', liens: [
             { href: '/personnel/medecin/disponibilites', libelle: 'Disponibilités', picto: 'horloge' },
@@ -58,6 +60,8 @@ const menus = {
             { href: '/personnel/admin/personnel', libelle: 'Personnel', picto: 'utilisateurs' },
             { href: '/personnel/admin/tarifs', libelle: 'Spécialités et tarifs', picto: 'etiquette' },
             { href: '/personnel/admin/partenaires', libelle: 'Partenaires', picto: 'batiment' },
+            { href: '/personnel/admin/examens', libelle: 'Examens', picto: 'etiquette' },
+            { href: '/personnel/admin/jetons-laboratoire', libelle: 'Jetons des laboratoires', picto: 'cle' },
         ] },
     ],
 };

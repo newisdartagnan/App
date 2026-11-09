@@ -7,6 +7,7 @@ import FinConsultation from '../../../Composants/Consultation/FinConsultation.vu
 import Messagerie from '../../../Composants/Consultation/Messagerie.vue';
 import NoteConsultation from '../../../Composants/Consultation/NoteConsultation.vue';
 import Ordonnance from '../../../Composants/Consultation/Ordonnance.vue';
+import BonExamen from '../../../Composants/Consultation/BonExamen.vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
 import Carte from '../../../Composants/Ui/Carte.vue';
 import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
@@ -40,6 +41,9 @@ const salleClose = () => appelVideo.value?.fermer();
             </Carte>
             <Carte>
                 <Ordonnance :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
+            </Carte>
+            <Carte>
+                <BonExamen :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
             </Carte>
             <Carte titre="Messagerie" pictogramme="message">
                 <Messagerie :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />

@@ -33,9 +33,13 @@ final class FacturationService
             }
 
             $rdv = $paiement->rendezVous()->with('typeConsultation')->first();
-            $libelle = $rdv
-                ? 'Téléconsultation du '.Affichage::dateHeure($rdv->debut).' — '.$rdv->typeConsultation->nom
-                : 'Téléconsultation';
+            $bon = $paiement->bon_examen_id ? DB::table('bons_examen')->where('id', $paiement->bon_examen_id)->value('numero') : null;
+            $libelle = match (true) {
+                // Examens : le numéro du bon, jamais la liste des examens (donnée de santé).
+                $bon !== null => 'Examens de laboratoire — bon '.$bon,
+                $rdv !== null => 'Téléconsultation du '.Affichage::dateHeure($rdv->debut).' — '.$rdv->typeConsultation->nom,
+                default => 'Téléconsultation',
+            };
 
             $facture = new Facture;
             $facture->forceFill([

@@ -12,6 +12,7 @@ const tuiles = [
     { href: '/mes-paiements', titre: 'Paiements', texte: 'Reçus et factures', picto: 'carte', teinte: 'bg-vert-50 text-vert-700' },
     { href: '/mon-dossier', titre: 'Mon dossier', texte: 'Allergies, traitements, historique', picto: 'dossier', teinte: 'bg-marque-50 text-marque-700' },
     { href: '/mes-ordonnances', titre: 'Mes ordonnances', texte: 'À montrer en pharmacie', picto: 'ordonnance', teinte: 'bg-amber-50 text-amber-800' },
+    { href: '/mes-examens', titre: 'Mes examens', texte: 'Bons de laboratoire et résultats', picto: 'coeur', teinte: 'bg-vert-50 text-vert-800' },
 ];
 </script>
 

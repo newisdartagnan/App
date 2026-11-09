@@ -28,6 +28,8 @@ class EntreeAccesDossier extends Model
         'ordonnances' => 'Ordonnances',
         'ordonnance_pdf' => 'Ordonnance (PDF)',
         'alertes_prescription' => 'Allergies et traitements (alerte de prescription)',
+        'resultats_examen' => 'Résultats d\'examens',
+        'resultat_pdf' => 'Compte rendu d\'examen (PDF)',
     ];
 
     protected $table = 'acces_dossier';
