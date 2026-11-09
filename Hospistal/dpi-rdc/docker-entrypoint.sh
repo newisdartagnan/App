@@ -11,6 +11,15 @@ mkdir -p \
 
 chmod -R 777 /var/www/storage /var/www/bootstrap/cache 2>/dev/null || true
 
+# Sans clé, Laravel refuse toutes les pages (« No application encryption
+# key has been specified ») et ne lit plus les données chiffrées des
+# patients. Le dire dans les journaux du conteneur, là où l'on regarde.
+if [ -z "${APP_KEY:-}" ]; then
+    echo "DPI-RDC : APP_KEY est vide dans le .env. Remettez l'ancienne clé si vous l'avez ;" >&2
+    echo "          sinon : docker compose exec app php artisan key:generate --show," >&2
+    echo "          copiez la valeur dans APP_KEY du .env, puis docker compose up -d." >&2
+fi
+
 # ══════════════════════════════════════════════════════════════════
 # Les assets compilés.
 #

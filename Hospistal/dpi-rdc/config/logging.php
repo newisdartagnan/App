@@ -62,6 +62,11 @@ return [
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
+            // Le journal est écrit par php-fpm (www-data) comme par les
+            // commandes artisan lancées en root par `docker compose exec`.
+            // Créé par l'un sans ce droit, l'autre ne peut plus y écrire, et
+            // la moindre erreur devient une page « Permission denied ».
+            'permission' => 0666,
             'replace_placeholders' => true,
         ],
 
@@ -69,6 +74,11 @@ return [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
+            // Le journal est écrit par php-fpm (www-data) comme par les
+            // commandes artisan lancées en root par `docker compose exec`.
+            // Créé par l'un sans ce droit, l'autre ne peut plus y écrire, et
+            // la moindre erreur devient une page « Permission denied ».
+            'permission' => 0666,
             'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
         ],
