@@ -123,7 +123,7 @@ class DemonstrationLocaleSeeder extends Seeder
         );
 
         foreach ([
-            ['labo.demo@doc-and-i.local', '+243810000031', 'NSIMBA', 'Grâce', 'laboratoire'],
+            ['labo.demo@doc-and-i.local', '+243810000031', 'LUKUSA', 'Henriette', 'laboratoire'],
             ['coordination.demo@doc-and-i.local', '+243810000041', 'TSHIBANDA', 'Joseph', 'coordinateur'],
         ] as [$email, $telephone, $nom, $prenom, $role]) {
             $user = User::where('email', $email)->first() ?? tap(new User)->forceFill([

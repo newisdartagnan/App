@@ -60,6 +60,7 @@ const demanderCode = (b, nouveau = false) => {
             <form v-if="b.aChoisirLaboratoire" class="mt-3 space-y-2" @submit.prevent="choisir(b)">
                 <label :for="`labo-${b.id}`" class="etiquette">Choisissez votre laboratoire</label>
                 <select :id="`labo-${b.id}`" v-model="choix[b.id]" class="champ" required>
+                    <option :value="undefined" disabled>Touchez pour choisir</option>
                     <option v-for="l in laboratoires" :key="l.id" :value="l.id">{{ l.nom }}<template v-if="l.commune"> ({{ l.commune }})</template></option>
                 </select>
                 <button type="submit" class="bouton" :disabled="choixForm.processing">Choisir ce laboratoire</button>
