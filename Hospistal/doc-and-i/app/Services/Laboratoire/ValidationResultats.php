@@ -101,12 +101,13 @@ final class ValidationResultats
 
         [$resultat, $nouveau] = DB::transaction(function () use ($user, $bonId, $resultatId, $commentaire) {
             $bon = BonExamen::whereKey($bonId)->lockForUpdate()->firstOrFail();
-            if (! $this->peutValider($user, $bon)) {
-                throw new LaboratoireRefuse('Vous ne pouvez pas valider ces résultats.');
-            }
             $resultat = ResultatExamen::whereKey($resultatId)->lockForUpdate()->firstOrFail();
-            if ($resultat->estValide()) {
+            // Déjà validé (double clic, y compris sur le dernier résultat du bon) : sans effet.
+            if ($resultat->estValide() && ($this->estPrescripteur($user, $bon) || $this->estCoordinateurEscalade($user, $bon))) {
                 return [$resultat, false];
+            }
+            if (! $this->peutValider($user, $bon) || $resultat->estValide()) {
+                throw new LaboratoireRefuse('Vous ne pouvez pas valider ces résultats.');
             }
 
             $maintenant = CarbonImmutable::now();

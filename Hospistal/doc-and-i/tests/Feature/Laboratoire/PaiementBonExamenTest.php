@@ -156,6 +156,19 @@ class PaiementBonExamenTest extends TestCase
         $this->assertNotSame(BonsPatient::empreinteCode($bon, $code), $bon->fresh()->code_retrait_empreinte);
     }
 
+    public function test_le_service_de_paiement_refuse_le_bon_d_un_autre_patient(): void
+    {
+        $bon = $this->bonPrescrit([$this->examen()], $this->laboratoire());
+
+        try {
+            app(PaiementService::class)->initierBon($bon, $this->patient(), MoyenPaiement::MPesa, '0810000001', (string) Str::uuid());
+            $this->fail('Paiement du bon d\'un autre patient accepté.');
+        } catch (PaiementRefuse $refus) {
+            $this->assertSame('Ce bon d\'examen n\'est pas le vôtre.', $refus->getMessage());
+        }
+        $this->assertSame(0, Paiement::count());
+    }
+
     public function test_un_bon_paye_ne_change_plus_de_laboratoire(): void
     {
         $bon = $this->bonPrescrit([$this->examen()], $this->laboratoire('Premier'));

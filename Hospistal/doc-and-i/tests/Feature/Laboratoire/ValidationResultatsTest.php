@@ -99,7 +99,7 @@ class ValidationResultatsTest extends TestCase
     public function test_une_double_validation_ne_change_rien_et_n_envoie_qu_un_sms(): void
     {
         $this->valider('Premier.');
-        $this->valider('Second.');
+        $this->valider('Second.')->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertSame('Premier.', $this->resultat->fresh()->commentaire_medecin);
         $this->assertCount(1, $this->sms->envoyes);
