@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import Gabarit from '../../Composants/Gabarit.vue';
+import EnTeteDePage from '../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({
     questions: Array,
@@ -66,8 +67,7 @@ const envoyer = () => form.post('/consultation/demande', {
         <p class="text-sm text-slate-500">Étape {{ etape }} sur 2</p>
 
         <section v-if="etape === 1">
-            <h1 class="text-2xl font-bold">Votre besoin</h1>
-            <p class="mt-2 text-slate-700">Le médecin lira ce que vous écrivez avant la consultation.</p>
+            <EnTeteDePage titre="Votre besoin" sous-titre="Le médecin lira ce que vous écrivez avant la consultation." pictogramme="message" />
 
             <form class="mt-6 space-y-4" @submit.prevent="continuer">
                 <div>
@@ -110,7 +110,7 @@ const envoyer = () => form.post('/consultation/demande', {
             <p class="mt-2 text-slate-700">Répondez à chaque question par oui ou par non. Elles servent à repérer une urgence.</p>
 
             <form class="mt-6 space-y-4" @submit.prevent="envoyer">
-                <fieldset v-for="q in questions" :key="q.cle" class="rounded-lg bg-white p-4 shadow-sm">
+                <fieldset v-for="q in questions" :key="q.cle" class="carte p-4">
                     <legend class="sr-only">{{ q.question }}</legend>
                     <p class="font-medium" aria-hidden="true">{{ q.question }}</p>
                     <div class="mt-3 flex gap-3">

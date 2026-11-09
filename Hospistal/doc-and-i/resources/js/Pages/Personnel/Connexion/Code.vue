@@ -2,6 +2,8 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import Pictogramme from '../../../Composants/Ui/Pictogramme.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 const form = useForm({ code: '' });
 const recuperation = ref(false);
@@ -11,7 +13,11 @@ const verifier = () => form.post('/personnel/connexion/code', { onFinish: () => 
 <template>
     <Head title="Code de vérification" />
     <GabaritPersonnel>
-        <h1 class="text-2xl font-bold">Code de vérification</h1>
+        <div class="carte mx-auto max-w-md p-6 sm:mt-6 sm:p-8">
+        <span class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-marque-700 text-white shadow-sm">
+            <Pictogramme nom="cle" :taille="28" />
+        </span>
+        <EnTeteDePage titre="Code de vérification" />
         <p v-if="!recuperation" class="mt-2 text-slate-700">Ouvrez votre application d'authentification et saisissez le code à 6 chiffres affiché pour MediHome.</p>
         <p v-else class="mt-2 text-slate-700">Saisissez l'un de vos codes de récupération (format XXXXX-XXXXX). Chaque code ne sert qu'une fois.</p>
 
@@ -32,6 +38,7 @@ const verifier = () => form.post('/personnel/connexion/code', { onFinish: () => 
                 {{ recuperation ? 'Utiliser l\'application d\'authentification' : 'Téléphone perdu ? Utiliser un code de récupération' }}
             </button>
             <Link href="/personnel/connexion" class="block text-slate-600 underline">Recommencer</Link>
+        </div>
         </div>
     </GabaritPersonnel>
 </template>

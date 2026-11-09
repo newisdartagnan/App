@@ -56,7 +56,7 @@ const couleur = (statut) => ({
         </p>
         <p class="mt-1 text-xs text-slate-500">Consulté le {{ consulteLe }}. Le patient voit qui a consulté son dossier.</p>
 
-        <p v-if="!modifiable" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="note">
+        <p v-if="!modifiable" class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="note">
             Lecture seule : vous pourrez modifier ce dossier après avoir vu le patient (consultation ouverte ou terminée).
         </p>
 
@@ -65,7 +65,7 @@ const couleur = (statut) => ({
                      :elements="elements" :constantes="constantes"
                      :categories="categories" :mesures="mesures" :groupes="groupes" />
 
-        <section class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+        <section class="mt-4 carte p-4">
             <h2 class="text-lg font-semibold">Demandes de rectification</h2>
             <p class="mt-1 text-sm text-slate-600">
                 Une note se corrige par un avenant, rédigé AVANT d'accepter ; seul l'auteur de la note répond à une demande qui la vise.

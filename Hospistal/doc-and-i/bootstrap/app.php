@@ -10,6 +10,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Inertia\EncryptHistoryMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -41,10 +42,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // ligne obligatoire ; elle est relayée telle quelle, sans être rognée.
         $middleware->trimStrings(except: ['charge.sdp']);
 
+        // Préférence d'affichage (thème) posée par le navigateur, sans donnée
+        // personnelle : non chiffrée pour être lue avant l'affichage.
+        $middleware->encryptCookies(except: ['medihome_theme']);
+
         $middleware->alias([
             'profil.complet' => ProfilComplet::class,
             'consentement' => ConsentementAJour::class,
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'role' => RoleMiddleware::class,
             'personnel' => PersonnelAuthentifie::class,
         ]);
 

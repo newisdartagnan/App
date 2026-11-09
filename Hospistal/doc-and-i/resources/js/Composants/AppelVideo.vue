@@ -513,6 +513,10 @@ const bandeau = computed(() => ({
 <template>
     <div class="appel" :data-etat="etat" :data-etat-ice="etatIce" :data-audio-seul="audioSeul ? 'oui' : 'non'"
          :data-statut-salle="statutSalle" :data-secondes-ensemble="secondesEnsemble">
+        <!-- Grand écran : l'appel à gauche (il reste visible au défilement),
+             dossier, note, ordonnance et messagerie à droite. -->
+        <div :class="$slots.default ? 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-6' : ''">
+        <div :class="$slots.default ? 'lg:sticky lg:top-4' : ''">
         <p v-if="bandeau" class="rounded-lg px-4 py-3 text-sm font-medium" role="status" aria-live="polite"
            :class="etat === 'reconnexion' ? 'bg-amber-50 text-amber-900' : 'bg-marque-50 text-marque-900'">
             {{ bandeau }}
@@ -525,12 +529,12 @@ const bandeau = computed(() => ({
             Appel en audio seul{{ raisonAudioSeul === 'debit' ? ' : la connexion est trop faible pour la vidéo' : '' }}.
         </p>
 
-        <div class="relative mt-3 aspect-[4/3] overflow-hidden rounded-lg bg-slate-900">
+        <div class="ecran-video relative mt-3 aspect-[4/3] overflow-hidden rounded-xl shadow-sm">
             <video ref="videoDistante" class="h-full w-full object-cover" autoplay playsinline aria-label="Image de votre correspondant" />
-            <p v-if="etat !== 'connecte' || audioSeul" class="absolute inset-0 flex items-center justify-center p-4 text-center text-white">
+            <p v-if="etat !== 'connecte' || audioSeul" class="absolute inset-0 flex items-center justify-center p-4 text-center">
                 {{ audioSeul && etat === 'connecte' ? 'Audio seul' : (etat === 'connecte' ? '' : 'En attente de l\'image') }}
             </p>
-            <video v-show="camera && !audioSeul" ref="videoLocale" class="absolute bottom-2 right-2 w-1/3 rounded border-2 border-white object-cover"
+            <video v-show="camera && !audioSeul" ref="videoLocale" class="absolute right-2 bottom-2 w-1/3 rounded-lg border-2 border-[#ffffff] object-cover shadow"
                    autoplay playsinline muted aria-label="Votre image" />
         </div>
 
@@ -559,9 +563,12 @@ const bandeau = computed(() => ({
             Cet appel n'est jamais enregistré, ni le son ni l'image. Il passe directement entre vous et votre correspondant, chiffré.
         </p>
 
-        <!-- Emplacement réservé au lot suivant (développeur B) : dossier du
-             patient, pièces jointes, messagerie (TLC-03) et boutons de fin de
-             consultation. Laissé vide dans ce lot. -->
-        <slot />
+        </div>
+        <!-- Dossier du patient, pièces jointes, messagerie (TLC-03), note,
+             ordonnance et fin de consultation, fournis par la page. -->
+        <div v-if="$slots.default" class="mt-4 flex min-w-0 flex-col gap-4 lg:mt-0">
+            <slot />
+        </div>
+        </div>
     </div>
 </template>

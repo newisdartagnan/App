@@ -2,6 +2,7 @@
 import { Head, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ numero: String, pieces: Array });
 
@@ -17,7 +18,7 @@ const chercher = () => router.get('/personnel/caisse/factures', { numero: recher
 <template>
     <Head title="Factures et avoirs" />
     <GabaritPersonnel navigation espace="caisse">
-        <h1 class="text-2xl font-bold">Factures et avoirs</h1>
+        <EnTeteDePage titre="Factures et avoirs" pictogramme="facture" />
 
         <form class="mt-4 flex gap-2" @submit.prevent="chercher">
             <label for="numero" class="sr-only">Numéro</label>
@@ -26,7 +27,7 @@ const chercher = () => router.get('/personnel/caisse/factures', { numero: recher
         </form>
 
         <p v-if="numero && pieces.length === 0" class="mt-4 text-slate-600">Aucune pièce ne porte ce numéro.</p>
-        <ul v-else class="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+        <ul v-else class="mt-4 divide-y divide-slate-200 carte text-sm">
             <li v-for="p in pieces" :key="p.id" class="px-4 py-3">
                 <div class="flex justify-between gap-2"><strong>{{ p.type }} {{ p.numero }}</strong><span>{{ p.montant }}</span></div>
                 <p>{{ p.patient }} · {{ p.moyen }} · {{ p.emiseLe }}</p>

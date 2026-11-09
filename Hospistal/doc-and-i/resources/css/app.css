@@ -15,30 +15,209 @@
     --color-marque-50: #eef5fd;
     --color-marque-100: #d7e7fa;
     --color-marque-200: #b0cff4;
+    --color-marque-300: #7fb0ec;
+    --color-marque-500: #1f7ad8;
     --color-marque-600: #0060c8;
     --color-marque-700: #0050b0;
     --color-marque-800: #003f8c;
     --color-marque-900: #002f69;
     --color-vert-50: #eafaf2;
+    --color-vert-100: #cff2e1;
     --color-vert-200: #a9e5c8;
+    --color-vert-300: #6fd1a6;
+    --color-vert-500: #12ad70;
     --color-vert-600: #009860;
     --color-vert-700: #008052;
+    --color-vert-800: #006a45;
     --color-vert-900: #00553a;
     --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
 }
 
-.champ {
-    @apply mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base focus:border-marque-600 focus:outline-none focus:ring-2 focus:ring-marque-600/30;
+/* ═══════════════════════════════════════════════════════════════════
+   Thèmes : clair (défaut), repos (tons chauds, moins d'éblouissement) et
+   sombre. Rien n'est réécrit écran par écran : on redéfinit les variables
+   des couleurs que les écrans utilisent déjà (slate, white, marque, vert,
+   et les couleurs d'état ambre et rouge). Le choix vient d'un cookie lu par
+   le serveur (attribut data-theme posé avant tout affichage : pas de flash).
+   Contrastes vérifiés AA pour le texte courant dans chaque thème.
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+    color-scheme: light;
+    /* Texte discret un peu plus foncé que le slate-500 d'origine : AA sur le fond de page bleuté. */
+    --color-slate-500: #5b6b80;
+    /* Bandeau d'en-tête : aplat bleu de la marque, liseré vert. */
+    --bandeau-debut: #0050b0;
+    --bandeau-fin: #003f8c;
+    --bandeau-texte: #ffffff;
+    --bandeau-doux: #d7e7fa;
+    --bandeau-accent: #12ad70;
+    --bandeau-survol: rgb(255 255 255 / 0.14);
+    --fond-page: #f4f7fb;
+    --ombre-carte: 0 1px 2px rgb(15 23 42 / 0.06), 0 4px 14px rgb(15 23 42 / 0.05);
 }
+
+:root[data-theme='repos'] {
+    --color-white: #fffcf6;
+    --color-slate-50: #f8f3ea;
+    --color-slate-100: #f1eadf;
+    --color-slate-200: #e5dccd;
+    --color-slate-300: #d3c7b4;
+    --color-slate-400: #a39885;
+    --color-slate-500: #6e6456;
+    --color-slate-600: #5a5145;
+    --color-slate-700: #463e34;
+    --color-slate-800: #342d25;
+    --color-slate-900: #241f19;
+    --color-marque-50: #eef3f9;
+    --bandeau-debut: #1f4f8a;
+    --bandeau-fin: #183f6e;
+    --bandeau-doux: #e6ddcc;
+    --fond-page: #f6efe3;
+    --ombre-carte: 0 1px 2px rgb(60 40 20 / 0.07), 0 4px 14px rgb(60 40 20 / 0.06);
+}
+
+:root[data-theme='sombre'] {
+    color-scheme: dark;
+    --color-white: #172131;
+    --color-black: #000000;
+    --color-slate-50: #0e1522;
+    --color-slate-100: #1e2a3c;
+    --color-slate-200: #2a3850;
+    --color-slate-300: #3c4c65;
+    --color-slate-400: #7d8ca4;
+    --color-slate-500: #a2b0c5;
+    --color-slate-600: #b7c3d5;
+    --color-slate-700: #ccd6e4;
+    --color-slate-800: #e0e7f0;
+    --color-slate-900: #f1f5f9;
+    --color-marque-50: #10233f;
+    --color-marque-100: #153058;
+    --color-marque-200: #22497f;
+    --color-marque-300: #3d6aa8;
+    --color-marque-500: #5e9fe8;
+    --color-marque-600: #6faaf0;
+    --color-marque-700: #8dbcf5;
+    --color-marque-800: #b0d1f8;
+    --color-marque-900: #d3e5fb;
+    --color-vert-50: #0b2a1f;
+    --color-vert-100: #0f3828;
+    --color-vert-200: #1a5a40;
+    --color-vert-300: #23805a;
+    --color-vert-500: #3fc58f;
+    --color-vert-600: #4fcf9b;
+    --color-vert-700: #6edbae;
+    --color-vert-800: #9ae6c6;
+    --color-vert-900: #c2f0dc;
+    --color-red-50: #3a1518;
+    --color-red-100: #4a1b1f;
+    --color-red-200: #6e2830;
+    --color-red-300: #8f3640;
+    --color-red-600: #f38a8a;
+    --color-red-700: #f6a3a3;
+    --color-red-800: #f9c2c2;
+    --color-red-900: #fcdede;
+    --color-amber-50: #33260b;
+    --color-amber-100: #45330e;
+    --color-amber-200: #6a4f15;
+    --color-amber-300: #8c6a1c;
+    --color-amber-600: #f5bf45;
+    --color-amber-700: #f8cd66;
+    --color-amber-800: #fbdc8f;
+    --color-amber-900: #fdeebf;
+    --bandeau-debut: #10284a;
+    --bandeau-fin: #0b1d36;
+    --bandeau-doux: #b0c8e8;
+    --bandeau-accent: #3fc58f;
+    --fond-page: #0b111b;
+    --ombre-carte: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 18px rgb(0 0 0 / 0.25);
+}
+
+body {
+    background-color: var(--fond-page);
+    color: var(--color-slate-900);
+}
+
+/* Focus toujours visible, au clavier, dans les trois thèmes. */
+:focus-visible {
+    outline: 3px solid var(--color-marque-600);
+    outline-offset: 2px;
+}
+
+/* Classes communes dans la couche « components » : une utilitaire posée
+   sur l'élément (w-auto, bg-red-700…) les surcharge, comme attendu. */
+@layer components {
+/* ─── Bandeau d'en-tête ──────────────────────────────────────────── */
+.bandeau {
+    background: linear-gradient(120deg, var(--bandeau-debut), var(--bandeau-fin));
+    color: var(--bandeau-texte);
+    border-bottom: 3px solid var(--bandeau-accent);
+}
+.bandeau-doux { color: var(--bandeau-doux); }
+.bandeau-bouton {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium;
+    color: var(--bandeau-texte);
+}
+.bandeau-bouton:hover { background-color: var(--bandeau-survol); }
+.bandeau-bouton:focus-visible { outline-color: var(--bandeau-texte); outline-offset: -2px; }
+.bandeau .marque-medi { color: var(--bandeau-texte); }
+/* Sur le bandeau bleu, le vert #009860 manque de contraste : un vert clair de la même teinte. */
+.bandeau .marque-home { color: #7fe0b4; }
+
+/* ─── Panneau de marque (accueils, appels à l'action) : même dégradé que
+   le bandeau, texte clair dans les trois thèmes. ─────────────────── */
+.panneau-marque {
+    background: linear-gradient(135deg, var(--bandeau-debut), var(--bandeau-fin));
+    color: var(--bandeau-texte);
+}
+.panneau-bouton {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 font-semibold shadow-sm;
+    background-color: #ffffff;
+    color: #003f8c;
+}
+.panneau-bouton:hover { background-color: #eef5fd; }
+.panneau-bouton:focus-visible { outline-color: #ffffff; }
+
+/* ─── Écran vidéo : toujours sombre, quel que soit le thème. ─────── */
+.ecran-video {
+    background-color: #0b1220;
+    color: #ffffff;
+}
+
+/* ─── Éléments communs ───────────────────────────────────────────── */
+.carte {
+    @apply rounded-xl border border-slate-200 bg-white;
+    box-shadow: var(--ombre-carte);
+}
+.titre-section {
+    @apply text-base font-semibold text-slate-900;
+}
+.champ {
+    @apply mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base text-slate-900 focus:border-marque-600 focus:outline-none focus:ring-2 focus:ring-marque-600/30;
+}
+.champ::placeholder { color: var(--color-slate-500); }
 .etiquette {
     @apply block text-sm font-medium text-slate-700;
 }
 .bouton {
-    @apply inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-marque-700 px-4 py-3 text-base font-semibold text-white hover:bg-marque-800 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-marque-700 px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-marque-800 disabled:cursor-not-allowed disabled:opacity-60;
 }
 .bouton-secondaire {
-    @apply inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-60;
+    @apply inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-800 transition-colors hover:bg-slate-100 disabled:opacity-60;
+}
+.bouton-vert {
+    @apply inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-vert-700 px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-vert-800 disabled:cursor-not-allowed disabled:opacity-60;
 }
 .erreur {
     @apply mt-1 text-sm text-red-700;
+}
+
+/* Tableaux de données : lisibles dans les trois thèmes. */
+.tableau {
+    @apply w-full text-sm;
+}
+.tableau thead th {
+    @apply bg-slate-50 px-3 py-2 text-left text-xs font-semibold tracking-wide text-slate-600 uppercase;
+}
+.tableau tbody td { @apply px-3 py-2; }
+.tableau tbody tr + tr td { @apply border-t border-slate-200; }
 }

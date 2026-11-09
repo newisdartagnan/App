@@ -8,7 +8,7 @@ defineProps({ etablissement: String, telephone: String, consigne: String });
 <template>
     <Head title="Urgence" />
     <Gabarit>
-        <div class="rounded-lg border-2 border-red-700 bg-red-50 p-5" role="alert">
+        <div class="rounded-xl border-2 border-red-700 bg-red-50 p-5" role="alert">
             <h1 class="text-2xl font-bold text-red-800">Allez aux urgences maintenant</h1>
             <p class="mt-3 text-lg text-red-900">
                 Vos réponses montrent un signe de danger. Une consultation à distance ne suffit pas.

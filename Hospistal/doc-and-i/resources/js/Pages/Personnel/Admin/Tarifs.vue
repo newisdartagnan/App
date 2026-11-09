@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ specialites: Array, durees: Object });
 
@@ -43,14 +44,14 @@ const enregistrer = (type) => modif.put(`/personnel/admin/tarifs/types/${type.id
 <template>
     <Head title="Spécialités et tarifs" />
     <GabaritPersonnel navigation espace="admin">
-        <h1 class="text-2xl font-bold">Spécialités et tarifs</h1>
+        <EnTeteDePage titre="Spécialités et tarifs" pictogramme="etiquette" />
         <p class="mt-2 text-sm text-slate-700">
             Un type sans prix n'est pas proposé aux patients. Un nouveau prix vaut pour les prochaines réservations :
             les rendez-vous déjà réservés gardent le leur. Durée de {{ durees.min }} à {{ durees.max }} minutes, par pas de {{ durees.pas }}.
         </p>
         <p v-if="etat.errors.active" class="erreur">{{ etat.errors.active }}</p>
 
-        <section v-for="s in specialites" :key="s.id" class="mt-6 rounded-lg border bg-white p-4"
+        <section v-for="s in specialites" :key="s.id" class="mt-6 carte p-4"
                  :class="s.active ? 'border-slate-200' : 'border-dashed border-slate-300 opacity-90'">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <h2 class="text-lg font-semibold">

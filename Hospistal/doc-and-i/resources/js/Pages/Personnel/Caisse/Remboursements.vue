@@ -2,6 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ aValider: Array, aSuivre: Array, recents: Array, numero: String, paiementTrouve: Object });
 
@@ -42,12 +43,11 @@ const demanderGeste = () => geste.post('/personnel/caisse/remboursements/geste',
 <template>
     <Head title="Remboursements" />
     <GabaritPersonnel navigation espace="caisse">
-        <h1 class="text-2xl font-bold">Remboursements à valider</h1>
-        <p class="mt-2 text-slate-700">Toujours sur le moyen de paiement d'origine. Vous ne validez jamais une demande que vous avez faite.</p>
+        <EnTeteDePage titre="Remboursements à valider" sous-titre="Toujours sur le moyen de paiement d'origine. Vous ne validez jamais une demande que vous avez faite." pictogramme="remboursement" />
 
         <p v-if="validation.errors.remboursement" class="erreur">{{ validation.errors.remboursement }}</p>
         <p v-if="simulation.errors.remboursement" class="erreur">{{ simulation.errors.remboursement }}</p>
-        <ul v-if="aValider.length" class="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+        <ul v-if="aValider.length" class="mt-4 divide-y divide-slate-200 carte">
             <li v-for="r in aValider" :key="r.id" class="px-4 py-3 text-sm">
                 <div class="flex items-center justify-between gap-2">
                     <strong class="text-base">{{ r.montant }}</strong>
@@ -81,7 +81,7 @@ const demanderGeste = () => geste.post('/personnel/caisse/remboursements/geste',
         <template v-if="aSuivre.length">
             <h2 class="mt-8 text-lg font-semibold">À suivre</h2>
             <p class="mt-1 text-sm text-slate-700">Sans réponse de l'opérateur, refusés par lui, ou à rembourser à la main. Vérifiez auprès de l'opérateur avant toute nouvelle demande : l'argent est peut-être déjà parti.</p>
-            <ul class="mt-3 divide-y divide-amber-200 rounded-lg border border-amber-300 bg-amber-50 text-sm">
+            <ul class="mt-3 divide-y divide-amber-200 rounded-xl border border-amber-300 bg-amber-50 text-sm">
                 <li v-for="r in aSuivre" :key="r.id" class="px-4 py-3">
                     <div class="flex justify-between gap-2"><strong>{{ r.montant }}</strong><span>{{ r.statut }}</span></div>
                     <p>{{ r.motif }}<span v-if="r.automatique"> (règle automatique)</span> · facture {{ r.facture ?? '—' }} · {{ r.patient }}</p>
@@ -97,7 +97,7 @@ const demanderGeste = () => geste.post('/personnel/caisse/remboursements/geste',
             <button type="submit" class="bouton-secondaire w-auto">Chercher</button>
         </form>
         <p v-if="numero && !paiementTrouve" class="erreur">Aucune facture ne porte ce numéro.</p>
-        <div v-if="paiementTrouve" class="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm">
+        <div v-if="paiementTrouve" class="mt-3 carte px-4 py-3 text-sm">
             <p><strong>{{ paiementTrouve.facture }}</strong> · {{ paiementTrouve.patient }}</p>
             <p>Payé {{ paiementTrouve.paye }} ({{ paiementTrouve.moyen }}) · reste remboursable {{ paiementTrouve.resteRemboursable }}</p>
             <form class="mt-3 space-y-3" @submit.prevent="demanderGeste">
@@ -117,7 +117,7 @@ const demanderGeste = () => geste.post('/personnel/caisse/remboursements/geste',
         </div>
 
         <h2 class="mt-8 text-lg font-semibold">Derniers traités</h2>
-        <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+        <ul class="mt-2 divide-y divide-slate-200 carte text-sm">
             <li v-for="r in recents" :key="r.id" class="px-4 py-2">
                 <div class="flex justify-between gap-2">
                     <span>{{ r.montant }} · {{ r.motif }}<span v-if="r.motifRefus" class="text-slate-500"> ({{ r.motifRefus }})</span></span>

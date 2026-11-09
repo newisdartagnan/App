@@ -1,6 +1,7 @@
 <script setup>
 import { Head } from '@inertiajs/vue3';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 defineProps({ reversements: Array });
 </script>
@@ -8,10 +9,9 @@ defineProps({ reversements: Array });
 <template>
     <Head title="Mes reversements" />
     <GabaritPersonnel navigation>
-        <h1 class="text-2xl font-bold">Mes reversements</h1>
-        <p class="mt-2 text-slate-700">Vos honoraires par période et par devise : encaissements moins remboursements, moins la commission de la plateforme.</p>
+        <EnTeteDePage titre="Mes reversements" sous-titre="Vos honoraires par période et par devise : encaissements moins remboursements, moins la commission de la plateforme." pictogramme="portefeuille" />
 
-        <ul class="mt-6 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+        <ul class="mt-6 divide-y divide-slate-200 carte text-sm">
             <li v-for="r in reversements" :key="r.id" class="px-4 py-3">
                 <div class="flex justify-between gap-2"><strong>{{ r.periode }}</strong><span :class="r.paye ? 'text-vert-700' : 'text-amber-800'">{{ r.statut }}</span></div>
                 <p>Solde de la période {{ r.solde }}<span v-if="r.detteReprise"> − remboursements déjà reversés {{ r.detteReprise }}</span></p>

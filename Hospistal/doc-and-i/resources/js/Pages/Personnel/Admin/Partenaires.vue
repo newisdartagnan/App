@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ filtre: String, types: Array, partenaires: Array });
 
@@ -35,8 +36,7 @@ const changerEtat = (p) => {
 <template>
     <Head title="Partenaires" />
     <GabaritPersonnel navigation espace="admin">
-        <h1 class="text-2xl font-bold">Laboratoires et pharmacies</h1>
-        <p class="mt-2 text-sm text-slate-700">Un partenaire ne se supprime pas : désactivé, il n'est plus proposé et son historique reste.</p>
+        <EnTeteDePage titre="Laboratoires et pharmacies" sous-titre="Un partenaire ne se supprime pas : désactivé, il n'est plus proposé et son historique reste." pictogramme="batiment" />
 
         <nav class="mt-4 flex gap-2" aria-label="Filtrer par type">
             <Link href="/personnel/admin/partenaires" class="rounded-full border px-3 py-1 text-sm"
@@ -90,7 +90,7 @@ const changerEtat = (p) => {
         <p v-if="etat.errors.actif" class="erreur mt-2">{{ etat.errors.actif }}</p>
         <p v-if="partenaires.length === 0" class="mt-6 text-slate-600">Aucun partenaire.</p>
         <ul class="mt-6 space-y-3">
-            <li v-for="p in partenaires" :key="p.id" class="rounded-lg border bg-white p-4" :class="p.actif ? 'border-slate-200' : 'border-dashed border-slate-300'">
+            <li v-for="p in partenaires" :key="p.id" class="carte p-4" :class="p.actif ? 'border-slate-200' : 'border-dashed border-slate-300'">
                 <div v-if="edition !== p.id">
                     <div class="flex flex-wrap items-start justify-between gap-2">
                         <span>

@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { reactive, ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ filtres: Object, actions: Array, auteurs: Array, entrees: Object });
 
@@ -15,8 +16,7 @@ const filtrer = () => router.get('/personnel/admin/journal',
 <template>
     <Head title="Journal d'administration" />
     <GabaritPersonnel navigation espace="admin">
-        <h1 class="text-2xl font-bold">Journal d'administration</h1>
-        <p class="mt-2 text-slate-700">Qui a fait quoi, sur quel compte, quand. Lecture seule : rien ne s'y modifie ni ne s'y efface.</p>
+        <EnTeteDePage titre="Journal d'administration" sous-titre="Qui a fait quoi, sur quel compte, quand. Lecture seule : rien ne s'y modifie ni ne s'y efface." pictogramme="journal" />
 
         <form class="mt-4 grid grid-cols-2 gap-3" @submit.prevent="filtrer">
             <div>
@@ -38,7 +38,7 @@ const filtrer = () => router.get('/personnel/admin/journal',
             <button type="submit" class="bouton-secondaire col-span-2" :disabled="enCours">Filtrer</button>
         </form>
 
-        <ul class="mt-6 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+        <ul class="mt-6 divide-y divide-slate-200 carte text-sm">
             <li v-for="e in entrees.data" :key="e.id" class="px-4 py-3">
                 <div class="flex justify-between gap-2"><strong>{{ e.action }}</strong><span class="text-slate-500">{{ e.quand }}</span></div>
                 <p class="text-slate-700">Par {{ e.auteur }}<span v-if="e.cible"> — {{ e.cible }}</span></p>
