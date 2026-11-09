@@ -61,7 +61,9 @@ final class ValidationResultats
         $bon = $this->bonLisible($user, $bonId);
         $this->journal->noter($user, $bon->patient_id, 'resultats_examen', $bon->id);
         $bon->load(['lignes', 'laboratoire:id,nom', 'patient:id,prenom,nom,date_naissance,sexe', 'medecin.user:id,prenom,nom']);
-        $peutValider = $this->peutValider($user, $bon);
+        $resultats = ResultatExamen::where('bon_id', $bon->id)->orderBy('depose_le')->orderBy('id')->get();
+        $validables = $resultats->filter(fn (ResultatExamen $r) => ! $r->estValide() && $this->peutValider($user, $bon, $r))->pluck('id')->all();
+        $peutValider = $validables !== [];
 
         return [
             'bon' => [
@@ -74,9 +76,10 @@ final class ValidationResultats
                 'examens' => $bon->lignes->pluck('libelle')->all(),
                 'renseignements' => $bon->renseignements,
             ],
-            'resultats' => ResultatExamen::where('bon_id', $bon->id)->orderBy('depose_le')->orderBy('id')->get()
+            'resultats' => $resultats
                 ->map(fn (ResultatExamen $r) => BonsPatient::presenterResultat($r) + [
                     'valide' => $r->estValide(),
+                    'peutValider' => in_array($r->id, $validables, true),
                     'enRemplacement' => $r->valide_en_remplacement,
                 ])->all(),
             'peutValider' => $peutValider,
@@ -103,10 +106,10 @@ final class ValidationResultats
             $bon = BonExamen::whereKey($bonId)->lockForUpdate()->firstOrFail();
             $resultat = ResultatExamen::whereKey($resultatId)->lockForUpdate()->firstOrFail();
             // Déjà validé (double clic, y compris sur le dernier résultat du bon) : sans effet.
-            if ($resultat->estValide() && ($this->estPrescripteur($user, $bon) || $this->estCoordinateurEscalade($user, $bon))) {
+            if ($resultat->estValide() && ($this->estPrescripteur($user, $bon) || $resultat->valide_par === $user->id)) {
                 return [$resultat, false];
             }
-            if (! $this->peutValider($user, $bon) || $resultat->estValide()) {
+            if ($resultat->estValide() || ! $this->peutValider($user, $bon, $resultat)) {
                 throw new LaboratoireRefuse('Vous ne pouvez pas valider ces résultats.');
             }
 
@@ -171,21 +174,32 @@ final class ValidationResultats
         return $medecin !== null && $medecin->id === $bon->medecin_id;
     }
 
-    /** Le coordinateur n'agit que sur un bon escaladé (critique non traité, ou validation en retard). */
+    /**
+     * Le coordinateur n'agit que sur un bon escaladé (critique non traité, ou
+     * validation en retard), TANT QUE l'escalade est ouverte et le bon pas
+     * encore validé : une escalade traitée ne laisse pas d'accès durable.
+     */
     public function estCoordinateurEscalade(User $user, BonExamen $bon, ?string $type = null): bool
     {
         return $user->hasRole('coordinateur') && ! $user->estDesactive()
-            && DB::table('alertes_coordination')->where('bon_id', $bon->id)->when($type, fn ($q) => $q->where('type', $type))->exists();
+            && $bon->statut !== StatutBonExamen::Valide
+            && DB::table('alertes_coordination')->where('bon_id', $bon->id)->whereNull('traitee_le')
+                ->when($type, fn ($q) => $q->where('type', $type))->exists();
     }
 
-    private function peutValider(User $user, BonExamen $bon): bool
+    private function peutValider(User $user, BonExamen $bon, ResultatExamen $resultat): bool
     {
         if ($bon->statut !== StatutBonExamen::ResultatsDeposes) {
             return false;
         }
+        if ($this->estPrescripteur($user, $bon)) {
+            return true;
+        }
 
-        // RG-10 : le coordinateur valide à la place du médecin, après 48 h seulement.
-        return $this->estPrescripteur($user, $bon) || $this->estCoordinateurEscalade($user, $bon, 'validation_en_retard');
+        // RG-10 : le coordinateur valide à la place du médecin un résultat déposé depuis 48 h au moins.
+        $limite = CarbonImmutable::now()->subHours((int) config('doc-and-i.laboratoire.escalade_validation_heures'));
+
+        return $this->estCoordinateurEscalade($user, $bon, 'validation_en_retard') && $resultat->depose_le->lte($limite);
     }
 
     /** @throws LaboratoireRefuse */

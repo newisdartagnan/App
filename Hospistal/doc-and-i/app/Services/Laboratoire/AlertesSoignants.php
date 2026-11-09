@@ -131,7 +131,7 @@ final class AlertesSoignants
         foreach ($enRetard as $bonId) {
             $compte['validations'] += DB::transaction(function () use ($bonId) {
                 $bon = BonExamen::whereKey($bonId)->lockForUpdate()->first();
-                if (! $bon || DB::table('alertes_coordination')->where('type', 'validation_en_retard')->where('bon_id', $bon->id)->exists()) {
+                if (! $bon || DB::table('alertes_coordination')->where('type', 'validation_en_retard')->where('bon_id', $bon->id)->whereNull('traitee_le')->exists()) {
                     return 0;
                 }
                 $aValider = AlerteMedecin::where('objet_type', 'bon_examen')->where('objet_id', $bon->id)->where('type', 'resultat_a_valider')

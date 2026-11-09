@@ -67,6 +67,10 @@ final class BonsPatient
             if ($b->statut !== StatutBonExamen::Prescrit) {
                 throw new LaboratoireRefuse('Ce bon est déjà payé : le laboratoire ne change plus.');
             }
+            // Laboratoire désigné par le médecin, ou déjà choisi : il ne change plus (contrôle serveur, pas seulement l'écran).
+            if ($b->laboratoire_id !== null) {
+                throw new LaboratoireRefuse('Le laboratoire de ce bon est déjà choisi.');
+            }
             if (Paiement::where('bon_examen_id', $b->id)->whereIn('statut', StatutPaiement::enCours())->exists()) {
                 throw new LaboratoireRefuse('Un paiement est en cours pour ce bon : attendez sa confirmation.');
             }

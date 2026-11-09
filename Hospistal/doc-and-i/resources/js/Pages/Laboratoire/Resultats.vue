@@ -52,7 +52,7 @@ const valider = (r) => {
                 Validé {{ r.valideLe }}<template v-if="r.enRemplacement"> par le coordinateur</template>.
                 <span v-if="r.commentaire" class="block text-slate-700">Commentaire : {{ r.commentaire }}</span>
             </p>
-            <form v-else-if="peutValider" class="mt-3 space-y-2" @submit.prevent="valider(r)">
+            <form v-else-if="r.peutValider" class="mt-3 space-y-2" @submit.prevent="valider(r)">
                 <label :for="`com-${r.id}`" class="etiquette">Commentaire pour le patient (facultatif)</label>
                 <textarea :id="`com-${r.id}`" v-model="commentaires[r.id]" class="champ" rows="2" maxlength="2000" />
                 <p v-if="validation.errors.commentaire" class="erreur">{{ validation.errors.commentaire }}</p>
