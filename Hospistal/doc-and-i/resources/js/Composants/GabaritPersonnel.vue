@@ -84,7 +84,7 @@ const deconnecter = () => {
         </a>
         <header class="bandeau">
             <div class="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-2">
-                <span class="flex min-h-11 min-w-0 items-center gap-2">
+                <span class="flex min-h-11 shrink-0 items-center gap-2">
                     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/95 p-0.5 shadow-sm">
                         <img src="/images/embleme-64.png" width="32" height="32" alt="" class="h-8 w-8">
                     </span>
@@ -92,10 +92,10 @@ const deconnecter = () => {
                     <span v-if="navigation" class="bandeau-doux hidden truncate border-l border-white/30 pl-2 text-sm font-medium md:inline">{{ nomEspace }}</span>
                     <span v-else class="bandeau-doux hidden text-sm font-medium sm:inline">· personnel</span>
                 </span>
-                <div class="flex items-center gap-1">
+                <div class="flex min-w-0 items-center gap-1">
                     <SelecteurTheme />
                     <template v-if="utilisateur">
-                        <span class="max-w-[9rem] px-2 text-right leading-tight sm:max-w-none">
+                        <span class="max-w-[7.5rem] min-w-0 px-1 text-right leading-tight sm:max-w-none sm:px-2">
                             <span class="block truncate text-sm font-semibold">{{ utilisateur.prenom }} {{ utilisateur.nom }}</span>
                             <span v-if="utilisateur.role" class="bandeau-doux block truncate text-xs">{{ utilisateur.role }}</span>
                         </span>
