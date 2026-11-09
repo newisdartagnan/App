@@ -4,6 +4,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import NoteConsultation from '../../../Composants/Consultation/NoteConsultation.vue';
 import Ordonnance from '../../../Composants/Consultation/Ordonnance.vue';
+import BonExamen from '../../../Composants/Consultation/BonExamen.vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
 
 defineProps({ rendezVous: Object });
@@ -17,6 +18,7 @@ defineProps({ rendezVous: Object });
 
         <NoteConsultation class="mt-4" :rendez-vous-id="rendezVous.id" />
         <Ordonnance class="mt-4" :rendez-vous-id="rendezVous.id" />
+        <BonExamen class="mt-4" :rendez-vous-id="rendezVous.id" />
 
         <Link href="/personnel/medecin/agenda" class="bouton-secondaire mt-6">Retour à l'agenda</Link>
     </GabaritPersonnel>

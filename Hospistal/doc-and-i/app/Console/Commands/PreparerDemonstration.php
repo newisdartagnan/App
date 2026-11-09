@@ -9,22 +9,33 @@ use App\Enums\StatutPaiement;
 use App\Enums\StatutRendezVous;
 use App\Models\Antecedent;
 use App\Models\AuthentificationPersonnel;
+use App\Models\BonExamen;
 use App\Models\Consultation;
 use App\Models\DemandeConsultation;
+use App\Models\Examen;
 use App\Models\LigneOrdonnance;
 use App\Models\Medecin;
 use App\Models\NoteConsultation;
 use App\Models\Ordonnance;
 use App\Models\Paiement;
+use App\Models\Partenaire;
 use App\Models\RendezVous;
 use App\Models\TauxChange;
 use App\Models\TypeConsultation;
 use App\Models\User;
 use App\Services\Dossier\NoteService;
 use App\Services\Dossier\OrdonnanceService;
+use App\Services\Laboratoire\ActeurLaboratoire;
+use App\Services\Laboratoire\BonsPatient;
+use App\Services\Laboratoire\DepotResultats;
+use App\Services\Laboratoire\PrescriptionExamens;
 use App\Services\Paiement\FacturationService;
+use App\Services\Paiement\Fournisseur\FournisseurPaiement;
 use App\Services\Paiement\Fournisseur\FournisseurSimulation;
+use App\Services\Paiement\Fournisseur\RappelFournisseur;
+use App\Services\Paiement\Fournisseur\SignatureRappel;
 use App\Services\Paiement\JournalCaisse;
+use App\Services\Paiement\PaiementService;
 use App\Services\Paiement\RemboursementService;
 use App\Support\Empreinte;
 use App\Support\Montant;
@@ -34,6 +45,7 @@ use Database\Seeders\DemonstrationLocaleSeeder;
 use Database\Seeders\ReferentielMedicalSeeder;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Console\Command;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -89,6 +101,7 @@ class PreparerDemonstration extends Command
         $direct = $this->consultationEnDirect($grace, $generaliste);
         $this->rendezVousAVenir($esther, $pediatre);
         $this->remboursementAValider($jeanPaul, $generaliste);
+        $this->examensDeLaboratoire($grace, $generaliste, $personnel['labo.demo@doc-and-i.local']);
 
         $this->resume($direct);
 
@@ -108,7 +121,7 @@ class PreparerDemonstration extends Command
 
         $comptes = [];
         foreach (['admin.demo@doc-and-i.local', 'admin2.demo@doc-and-i.local', 'medecin.demo@doc-and-i.local', 'pediatre.demo@doc-and-i.local',
-            'caisse1.demo@doc-and-i.local', 'caisse2.demo@doc-and-i.local'] as $email) {
+            'caisse1.demo@doc-and-i.local', 'caisse2.demo@doc-and-i.local', 'labo.demo@doc-and-i.local', 'coordination.demo@doc-and-i.local'] as $email) {
             $user = User::where('email', $email)->firstOrFail();
             $user->forceFill(['password' => Hash::make(self::MOT_DE_PASSE), 'desactive_le' => null])->save();
 
@@ -312,6 +325,59 @@ class PreparerDemonstration extends Command
         return $paiement;
     }
 
+    /**
+     * PRE-04 à PRE-07 : sur la consultation d'hier, un bon payé dont le
+     * laboratoire a déposé les résultats (à valider par le médecin) et un
+     * bon prescrit, à payer par la patiente. Paiement par le vrai circuit :
+     * tentative, puis rappel signé du fournisseur de simulation.
+     */
+    private function examensDeLaboratoire(User $patient, Medecin $medecin, User $compteLabo): void
+    {
+        $fournisseur = app(FournisseurPaiement::class);
+        if (! $fournisseur instanceof FournisseurSimulation || BonExamen::where('patient_id', $patient->id)->exists()) {
+            return;
+        }
+
+        $rdv = RendezVous::where('patient_id', $patient->id)->where('statut', StatutRendezVous::Termine->value)->firstOrFail();
+        $labo = Partenaire::where('type', 'laboratoire')->where('nom', 'Laboratoire de démonstration')->firstOrFail();
+        $examens = fn (array $codes) => Examen::whereIn('code', $codes)->pluck('id')->all();
+        $prescription = app(PrescriptionExamens::class);
+
+        $bon = $prescription->prescrire($medecin->user, $rdv, [
+            'cle' => (string) Str::uuid(), 'examens' => $examens(['DEMO-GLY', 'DEMO-NFS']),
+            'renseignements' => 'Diabète de type 2 suivi, fièvre récente.', 'laboratoire_id' => $labo->id,
+        ]);
+
+        $tentative = app(PaiementService::class)->initierBon($bon, $patient, MoyenPaiement::MPesa, $patient->telephone, (string) Str::uuid());
+        $paiement = $tentative->paiement->fresh();
+        $rappel = $fournisseur->rappelSigne(
+            RappelFournisseur::PAIEMENT, $paiement->cle_idempotence, (string) $paiement->reference_fournisseur, true, (string) $paiement->montant, $paiement->devise,
+        );
+        $requete = Request::create('/paiement/rappel/'.FournisseurSimulation::NOM, 'POST', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_'.strtoupper(str_replace('-', '_', SignatureRappel::ENTETE)) => $rappel['entete'],
+        ], $rappel['corps']);
+        app(PaiementService::class)->recevoirRappel($requete);
+
+        $acteur = ActeurLaboratoire::compte($compteLabo, $labo);
+        $depot = app(DepotResultats::class);
+        $code = app(BonsPatient::class)->remettreCode($patient, $bon->fresh(), true);
+        $depot->recevoir($acteur, $bon->fresh(), $code);
+        $depot->deposer($acteur, $bon->fresh(), [
+            'valeurs' => [
+                ['analyte' => 'Glycémie à jeun', 'valeur' => '1,32', 'unite' => 'g/L', 'normes' => '0,70 - 1,10', 'anormal' => true],
+                ['analyte' => 'Hémoglobine', 'valeur' => '12,8', 'unite' => 'g/dL', 'normes' => '12 - 16', 'anormal' => false],
+                ['analyte' => 'Globules blancs', 'valeur' => '9 800', 'unite' => '/mm³', 'normes' => '4 000 - 10 000', 'anormal' => false],
+            ],
+            'critique' => false,
+        ]);
+
+        $prescription->prescrire($medecin->user, $rdv, [
+            'cle' => (string) Str::uuid(), 'examens' => $examens(['DEMO-GE']),
+            'renseignements' => 'Fièvre, éliminer un paludisme.', 'laboratoire_id' => null,
+        ]);
+    }
+
     private function antecedent(User $patient, string $categorie, string $libelle, ?string $precision): void
     {
         if (Antecedent::where('patient_id', $patient->id)->where('libelle', $libelle)->exists()) {
@@ -338,10 +404,12 @@ class PreparerDemonstration extends Command
             ['Pédiatre', 'pediatre.demo@doc-and-i.local'],
             ['Caisse 1', 'caisse1.demo@doc-and-i.local'],
             ['Caisse 2', 'caisse2.demo@doc-and-i.local'],
+            ['Laboratoire (portail)', 'labo.demo@doc-and-i.local'],
+            ['Coordination (alertes)', 'coordination.demo@doc-and-i.local'],
         ]);
         $this->line('PATIENTS : http://localhost:8097/connexion (code SMS dans storage/logs/laravel.log)');
         $this->table(['Patient', 'Téléphone', 'Ce qu\'il y a à voir'], [
-            ['Grâce KAPINGA', '0810000101', 'Consultation terminée hier (note, ordonnance), consultation à '.$direct->debut->setTimezone('Africa/Kinshasa')->format('H:i').' avec le Dr MUKENDI'],
+            ['Grâce KAPINGA', '0810000101', 'Consultation terminée hier (note, ordonnance, résultats de laboratoire à valider par le médecin, goutte épaisse à payer), consultation à '.$direct->debut->setTimezone('Africa/Kinshasa')->format('H:i').' avec le Dr MUKENDI'],
             ['Jean-Paul MBALA', '0810000102', 'Rendez-vous annulé : remboursement à valider par la caisse'],
             ['Esther NSIMBA', '0810000103', 'Pédiatrie demain à 10:00, payée en francs congolais'],
         ]);
