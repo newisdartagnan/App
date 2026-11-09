@@ -15,6 +15,7 @@ use App\Models\Ordonnance;
 use App\Models\Paiement;
 use App\Models\RendezVous;
 use App\Models\User;
+use App\Services\Laboratoire\HistoriqueLaboratoire;
 use App\Services\RendezVous\Affichage;
 use App\Support\Montant;
 use Carbon\CarbonImmutable;
@@ -137,6 +138,11 @@ final class LectureDossier
                 'details' => $o->lignes->map(fn ($l) => "{$l->medicament} {$l->dosage}, {$l->voie} : {$l->posologie}, {$l->duree}".($l->consignes ? " ({$l->consignes})" : ''))
                     ->push($o->consignes ? 'Consignes : '.$o->consignes : null)->filter()->values()->all(),
             ]));
+
+        // Lot laboratoire (développeur B) : bons d'examen et résultats VALIDÉS seulement.
+        foreach (HistoriqueLaboratoire::evenements($patient, $nomMedecin) as $evenement) {
+            $evenements->push($evenement);
+        }
 
         $auteurs = User::whereIn('id', Antecedent::where('patient_id', $patient->id)->select('saisi_par')
             ->union(Antecedent::where('patient_id', $patient->id)->whereNotNull('retire_par')->select('retire_par')))

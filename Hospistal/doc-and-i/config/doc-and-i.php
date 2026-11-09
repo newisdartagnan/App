@@ -177,6 +177,26 @@ return [
         'commission_pourcent' => env('DOC_AND_I_COMMISSION_POURCENT'),
     ],
 
+    // Laboratoire (PRE-04 à PRE-08, RG-01, RG-10).
+    'laboratoire' => [
+        // Examens par bon, et un bon dans une seule monnaie.
+        'examens_par_bon' => 15,
+        // Code de retrait remis au patient : chiffres seulement (dicté au guichet).
+        'code_retrait_chiffres' => 8,
+        // Essais de code faux par laboratoire et par bon avant blocage (par heure).
+        'essais_code_par_heure' => 5,
+        // Compte rendu PDF déposé par le laboratoire : taille et quota par bon.
+        'pdf_octets_max' => 10 * 1024 * 1024,
+        'pdf_octets_par_bon' => 40 * 1024 * 1024,
+        'resultats_par_bon' => 30,
+        'valeurs_par_resultat' => 100,
+        // Escalades vers le coordinateur (PRE-08, RG-10).
+        'escalade_critique_heures' => 2,
+        'escalade_validation_heures' => 48,
+        // API des laboratoires : requêtes par minute et par jeton.
+        'api_requetes_par_minute' => 60,
+    ],
+
     'roles' => [
         'patient', 'medecin', 'coordinateur', 'laboratoire', 'caisse',
         'support', 'admin_fonctionnel', 'admin_technique', 'auditeur',

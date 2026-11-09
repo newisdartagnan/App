@@ -32,3 +32,6 @@ Schedule::command('teleconsultation:purger-signaux')->everyTenMinutes()->without
 
 // RG-06, RG-07 : salles fermées sans conclusion (consultation terminée ou absence constatée).
 Schedule::command('teleconsultation:constater-salles-fermees')->everyFiveMinutes()->withoutOverlapping();
+
+// PRE-08, RG-10 : résultats critiques non traités (2 h) et validations en retard (48 h) escaladés au coordinateur.
+Schedule::command('laboratoire:escalader-alertes')->everyFiveMinutes()->withoutOverlapping();

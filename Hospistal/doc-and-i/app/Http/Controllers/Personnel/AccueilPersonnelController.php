@@ -25,6 +25,16 @@ class AccueilPersonnelController extends Controller
             return redirect()->route('personnel.caisse.accueil');
         }
 
+        // PRE-05, PRE-06 : le compte d'un laboratoire arrive directement sur ses bons.
+        if ($request->user()->hasRole('laboratoire')) {
+            return redirect()->route('personnel.laboratoire.accueil');
+        }
+
+        // PRE-08, RG-10 : le coordinateur arrive sur les escalades.
+        if ($request->user()->hasRole('coordinateur')) {
+            return redirect()->route('personnel.coordination.accueil');
+        }
+
         return Inertia::render('Personnel/Accueil', [
             'roles' => $request->user()->getRoleNames()->values(),
         ]);
