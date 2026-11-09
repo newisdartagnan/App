@@ -72,7 +72,7 @@ final class CatalogueExamens
             }
             $e->actif = $actif;
             $e->save();
-            $this->journal->consigner($admin, $actif ? 'examen.activer' : 'examen.desactiver', $e, ['code' => $e->code]);
+            $this->journal->consigner($admin, $actif ? 'examen.activer' : 'examen.desactiver', $e, ['examen' => $e->code]);
 
             return true;
         });
@@ -114,6 +114,6 @@ final class CatalogueExamens
 
     private static function details(Examen $e): array
     {
-        return ['code' => $e->code, 'libelle' => $e->libelle, 'prix' => $e->prix === null ? null : (string) $e->prix, 'devise' => $e->devise];
+        return ['examen' => $e->code, 'libelle' => $e->libelle, 'prix' => $e->prix === null ? null : (string) $e->prix, 'devise' => $e->devise];
     }
 }
