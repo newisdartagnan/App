@@ -8,6 +8,8 @@ import Messagerie from '../../../Composants/Consultation/Messagerie.vue';
 import NoteConsultation from '../../../Composants/Consultation/NoteConsultation.vue';
 import Ordonnance from '../../../Composants/Consultation/Ordonnance.vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import Carte from '../../../Composants/Ui/Carte.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 defineProps({ rendezVous: Object, appel: Object });
 
@@ -17,11 +19,11 @@ const salleClose = () => appelVideo.value?.fermer();
 
 <template>
     <Head title="Consultation" />
-    <GabaritPersonnel navigation>
-        <h1 class="text-xl font-bold">Consultation : {{ rendezVous.patient }}</h1>
-        <p class="text-sm text-slate-600">{{ rendezVous.heure }}, heure de Kinshasa.</p>
+    <GabaritPersonnel navigation large>
+        <EnTeteDePage :titre="`Consultation : ${rendezVous.patient}`" :sous-titre="`${rendezVous.heure}, heure de Kinshasa.`"
+                      pictogramme="video" retour="/personnel/medecin/agenda" retour-libelle="Agenda" />
 
-        <AppelVideo ref="appelVideo" class="mt-4" :role="appel.role" :signaux="appel.signaux" :ice-servers="appel.iceServers"
+        <AppelVideo ref="appelVideo" :role="appel.role" :signaux="appel.signaux" :ice-servers="appel.iceServers"
                     :dernier-signal="appel.dernierSignal" :intervalle-ms="appel.intervalleMs"
                     :seuil-video-kbps="appel.seuilVideoKbps" :presence="appel.presence"
                     :presence-intervalle-ms="appel.presenceIntervalleMs" :ice-transport-policy="appel.iceTransportPolicy"
@@ -29,11 +31,19 @@ const salleClose = () => appelVideo.value?.fermer();
                     :intervalle-offre-ms="appel.intervalleOffreMs" :attente-offre-ms="appel.attenteOffreMs" :correspondant="rendezVous.patient">
             <!-- TLC-05 : dossier du patient ; TLC-03 : messagerie ; RG-06, RG-07 : fin et absences ;
                  DOS-02 : note de consultation ; PRE-01 : ordonnances. -->
-            <FinConsultation class="mt-4" @close="salleClose" :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
-            <DossierPatient class="mt-4" :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
-            <Messagerie class="mt-4" :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
-            <NoteConsultation class="mt-4" :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
-            <Ordonnance class="mt-4" :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
+            <FinConsultation @close="salleClose" :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
+            <Carte titre="Dossier du patient" pictogramme="dossier">
+                <DossierPatient :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
+            </Carte>
+            <Carte>
+                <NoteConsultation :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
+            </Carte>
+            <Carte>
+                <Ordonnance :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
+            </Carte>
+            <Carte titre="Messagerie" pictogramme="message">
+                <Messagerie :rendez-vous-id="rendezVous.id" prefixe="/personnel/medecin/consultation" />
+            </Carte>
         </AppelVideo>
 
         <Link href="/personnel/medecin/agenda" class="bouton-secondaire mt-6">Retour à l'agenda</Link>

@@ -1,6 +1,9 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import Alerte from '../../../Composants/Ui/Alerte.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
+import TuileChiffre from '../../../Composants/Ui/TuileChiffre.vue';
 
 defineProps({ tauxDuJour: String, aFaire: Object });
 </script>
@@ -8,29 +11,23 @@ defineProps({ tauxDuJour: String, aFaire: Object });
 <template>
     <Head title="Caisse" />
     <GabaritPersonnel navigation espace="caisse">
-        <h1 class="text-2xl font-bold">Caisse</h1>
+        <EnTeteDePage titre="Caisse" sous-titre="Ce qui attend votre validation aujourd'hui." pictogramme="portefeuille" />
 
-        <p v-if="!tauxDuJour" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+        <Alerte v-if="!tauxDuJour" ton="attention" class="mb-5">
             Pas de taux du jour : les patients ne peuvent payer qu'en dollars.
             <Link href="/personnel/caisse/taux" class="font-semibold underline">Saisir le taux</Link>
-        </p>
-        <p v-else class="mt-4 rounded-lg border border-vert-200 bg-vert-50 px-4 py-3 text-sm text-vert-900" role="status">
+        </Alerte>
+        <Alerte v-else ton="succes" class="mb-5">
             Taux du jour : 1 USD = {{ tauxDuJour }} CDF.
-        </p>
+        </Alerte>
 
-        <div class="mt-6 grid gap-3 sm:grid-cols-3">
-            <Link href="/personnel/caisse/remboursements" class="rounded-lg border border-slate-200 bg-white p-4">
-                <span class="block text-3xl font-bold text-marque-700">{{ aFaire.remboursements }}</span>
-                <span class="text-sm text-slate-700">remboursements à valider</span>
-            </Link>
-            <Link href="/personnel/caisse/rapprochement" class="rounded-lg border border-slate-200 bg-white p-4">
-                <span class="block text-3xl font-bold text-marque-700">{{ aFaire.ecarts }}</span>
-                <span class="text-sm text-slate-700">écarts de rapprochement</span>
-            </Link>
-            <Link href="/personnel/caisse/reversements" class="rounded-lg border border-slate-200 bg-white p-4">
-                <span class="block text-3xl font-bold text-marque-700">{{ aFaire.reversements }}</span>
-                <span class="text-sm text-slate-700">reversements à payer</span>
-            </Link>
+        <div class="grid gap-4 sm:grid-cols-3">
+            <TuileChiffre :valeur="aFaire.remboursements" libelle="remboursements à valider" pictogramme="remboursement"
+                          :couleur="aFaire.remboursements > 0 ? 'ambre' : 'vert'" href="/personnel/caisse/remboursements" />
+            <TuileChiffre :valeur="aFaire.ecarts" libelle="écarts de rapprochement" pictogramme="balance"
+                          :couleur="aFaire.ecarts > 0 ? 'rouge' : 'vert'" href="/personnel/caisse/rapprochement" />
+            <TuileChiffre :valeur="aFaire.reversements" libelle="reversements à payer" pictogramme="portefeuille"
+                          couleur="marque" href="/personnel/caisse/reversements" />
         </div>
     </GabaritPersonnel>
 </template>

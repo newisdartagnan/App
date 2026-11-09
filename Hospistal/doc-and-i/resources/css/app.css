@@ -141,6 +141,9 @@ body {
     outline-offset: 2px;
 }
 
+/* Classes communes dans la couche « components » : une utilitaire posée
+   sur l'élément (w-auto, bg-red-700…) les surcharge, comme attendu. */
+@layer components {
 /* ─── Bandeau d'en-tête ──────────────────────────────────────────── */
 .bandeau {
     background: linear-gradient(120deg, var(--bandeau-debut), var(--bandeau-fin));
@@ -157,6 +160,20 @@ body {
 .bandeau .marque-medi { color: var(--bandeau-texte); }
 /* Sur le bandeau bleu, le vert #009860 manque de contraste : un vert clair de la même teinte. */
 .bandeau .marque-home { color: #7fe0b4; }
+
+/* ─── Panneau de marque (accueils, appels à l'action) : même dégradé que
+   le bandeau, texte clair dans les trois thèmes. ─────────────────── */
+.panneau-marque {
+    background: linear-gradient(135deg, var(--bandeau-debut), var(--bandeau-fin));
+    color: var(--bandeau-texte);
+}
+.panneau-bouton {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 font-semibold shadow-sm;
+    background-color: #ffffff;
+    color: #003f8c;
+}
+.panneau-bouton:hover { background-color: #eef5fd; }
+.panneau-bouton:focus-visible { outline-color: #ffffff; }
 
 /* ─── Écran vidéo : toujours sombre, quel que soit le thème. ─────── */
 .ecran-video {
@@ -201,3 +218,4 @@ body {
 }
 .tableau tbody td { @apply px-3 py-2; }
 .tableau tbody tr + tr td { @apply border-t border-slate-200; }
+}

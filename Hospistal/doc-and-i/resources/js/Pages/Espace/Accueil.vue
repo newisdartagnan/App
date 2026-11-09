@@ -18,13 +18,13 @@ const tuiles = [
 <template>
     <Head title="Mon espace" />
     <Gabarit>
-        <section class="relative overflow-hidden rounded-2xl bg-marque-700 p-5 text-white shadow-sm sm:p-6">
+        <section class="panneau-marque relative overflow-hidden rounded-2xl p-5 shadow-sm sm:p-6">
             <span class="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-vert-500/30" aria-hidden="true" />
-            <span class="absolute -right-4 -bottom-16 h-32 w-32 rounded-full bg-white/10" aria-hidden="true" />
+            <span class="absolute -right-4 -bottom-16 h-32 w-32 rounded-full bg-[#ffffff1a]" aria-hidden="true" />
             <h1 class="relative text-2xl font-bold">Bonjour {{ prenom }}</h1>
             <p class="relative mt-1 max-w-md opacity-90">Un médecin, depuis votre téléphone. Décrivez votre besoin, choisissez un médecin et une heure.</p>
             <Link href="/consultation/demande"
-                  class="relative mt-4 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 font-semibold text-marque-800 shadow-sm hover:bg-marque-50">
+                  class="panneau-bouton relative mt-4">
                 <Pictogramme nom="plus" /> Demander une consultation
             </Link>
         </section>
