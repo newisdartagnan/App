@@ -1,6 +1,7 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import Gabarit from '../../Composants/Gabarit.vue';
+import EnTeteDePage from '../../Composants/Ui/EnTeteDePage.vue';
 
 defineProps({ version: String, dejaAccepte: Boolean });
 
@@ -17,7 +18,7 @@ const retirer = () => {
 <template>
     <Head title="Vos accords" />
     <Gabarit>
-        <h1 class="text-2xl font-bold">Avant votre première consultation</h1>
+        <EnTeteDePage titre="Avant votre première consultation" pictogramme="bouclier" />
         <p class="mt-2 text-sm text-slate-500">Conditions version {{ version }}</p>
 
         <div class="mt-4 space-y-3 rounded-lg bg-white p-4 text-sm text-slate-700 shadow-sm">

@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import Gabarit from '../../Composants/Gabarit.vue';
 import Pictogramme from '../../Composants/Ui/Pictogramme.vue';
+import EnTeteDePage from '../../Composants/Ui/EnTeteDePage.vue';
 
 defineProps({ telephone: String, validiteMinutes: Number });
 
@@ -18,7 +19,7 @@ const renvoyer = () => renvoi.post('/connexion/code/renvoi', { preserveScroll: t
         <span class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-marque-700 text-white shadow-sm">
             <Pictogramme nom="cle" :taille="28" />
         </span>
-        <h1 class="text-2xl font-bold">Entrez le code reçu</h1>
+        <EnTeteDePage titre="Entrez le code reçu" />
         <p class="mt-2 text-slate-700">Envoyé au {{ telephone }}. Il est valable {{ validiteMinutes }} minutes.</p>
 
         <form class="mt-6 space-y-4" @submit.prevent="verifier">

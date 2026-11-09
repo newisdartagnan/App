@@ -2,6 +2,7 @@
 import { Head, router } from '@inertiajs/vue3';
 import { reactive, ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ filtres: Object, moyens: Array, medecins: Array, journal: Object });
 
@@ -15,8 +16,7 @@ const filtrer = () => router.get('/personnel/caisse/journal',
 <template>
     <Head title="Journal de caisse" />
     <GabaritPersonnel navigation espace="caisse">
-        <h1 class="text-2xl font-bold">Journal de caisse</h1>
-        <p class="mt-2 text-slate-700">Totaux par devise : les dollars et les francs congolais ne s'additionnent jamais.</p>
+        <EnTeteDePage titre="Journal de caisse" sous-titre="Totaux par devise : les dollars et les francs congolais ne s'additionnent jamais." pictogramme="journal" />
 
         <form class="mt-4 grid grid-cols-2 gap-3" @submit.prevent="filtrer">
             <div>
@@ -45,7 +45,7 @@ const filtrer = () => router.get('/personnel/caisse/journal',
         </form>
 
         <h2 class="mt-6 text-lg font-semibold">Totaux</h2>
-        <table class="mt-2 w-full rounded-lg border border-slate-200 bg-white text-sm">
+        <table class="mt-2 w-full carte text-sm">
             <thead><tr class="text-left text-slate-600"><th class="px-3 py-2">Devise</th><th class="px-3 py-2">Encaissé</th><th class="px-3 py-2">Remboursé</th><th class="px-3 py-2">Net</th></tr></thead>
             <tbody>
                 <tr v-for="t in journal.totaux" :key="t.devise" class="border-t border-slate-200">
@@ -56,18 +56,18 @@ const filtrer = () => router.get('/personnel/caisse/journal',
         </table>
 
         <h2 class="mt-6 text-lg font-semibold">Par moyen</h2>
-        <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+        <ul class="mt-2 divide-y divide-slate-200 carte text-sm">
             <li v-for="t in journal.parMoyen" :key="t.moyen + t.devise" class="flex justify-between px-3 py-2"><span>{{ t.libelle }}</span><span>net {{ t.net }}</span></li>
         </ul>
 
         <h2 class="mt-6 text-lg font-semibold">Par médecin</h2>
-        <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+        <ul class="mt-2 divide-y divide-slate-200 carte text-sm">
             <li v-for="t in journal.parMedecin" :key="(t.medecin_id ?? '-') + t.devise" class="flex justify-between px-3 py-2"><span>{{ t.libelle }}</span><span>net {{ t.net }}</span></li>
         </ul>
 
         <h2 class="mt-6 text-lg font-semibold">Mouvements</h2>
         <p v-if="journal.tronque" class="text-sm text-amber-800">Liste tronquée : réduisez la période.</p>
-        <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+        <ul class="mt-2 divide-y divide-slate-200 carte text-sm">
             <li v-for="l in journal.lignes" :key="l.id" class="px-3 py-2">
                 <div class="flex justify-between"><span>{{ l.jour }} · {{ l.type }}</span><strong :class="l.type === 'Remboursement' ? 'text-red-700' : 'text-vert-700'">{{ l.montant }}</strong></div>
                 <div class="text-slate-600">{{ l.moyen }}<span v-if="l.medecin"> · {{ l.medecin }}</span><span v-if="l.facture"> · {{ l.facture }}</span></div>

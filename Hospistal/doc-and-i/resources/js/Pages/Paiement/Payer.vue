@@ -2,6 +2,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import Gabarit from '../../Composants/Gabarit.vue';
+import EnTeteDePage from '../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({
     rendezVous: Object,
@@ -44,16 +45,16 @@ const payer = () => form
 <template>
     <Head title="Payer la consultation" />
     <Gabarit>
-        <h1 class="text-2xl font-bold">Payer la consultation</h1>
+        <EnTeteDePage titre="Payer la consultation" pictogramme="carte" />
         <p class="mt-2 text-slate-700 first-letter:uppercase">{{ rendezVous.quand }}</p>
         <p class="text-slate-700">{{ rendezVous.medecin }} · {{ rendezVous.type }}</p>
 
-        <p class="mt-4 rounded-lg border border-marque-200 bg-marque-50 p-3 text-marque-900" role="status">
+        <p class="mt-4 rounded-xl border border-marque-200 bg-marque-50 p-3 text-marque-900" role="status">
             <template v-if="restantes > 0">Créneau gardé pour vous encore {{ minutesSecondes }}.</template>
             <template v-else>Le délai est dépassé : le créneau peut être pris par quelqu'un d'autre.</template>
         </p>
 
-        <p v-if="form.errors.paiement" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ form.errors.paiement }}</p>
+        <p v-if="form.errors.paiement" class="erreur mt-4 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">{{ form.errors.paiement }}</p>
 
         <form class="mt-6 space-y-5" @submit.prevent="payer">
             <fieldset>

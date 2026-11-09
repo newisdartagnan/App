@@ -43,7 +43,7 @@ const copier = async () => {
         <p v-if="compte.laboratoire" class="text-sm text-slate-600">Laboratoire : {{ compte.laboratoire }}</p>
         <p class="text-sm text-slate-500">Dernière connexion : {{ compte.derniereConnexion ?? 'jamais' }}</p>
 
-        <section v-if="lienActivation" class="mt-4 rounded-lg border border-vert-200 bg-vert-50 p-4 text-sm text-vert-900" role="status">
+        <section v-if="lienActivation" class="mt-4 rounded-xl border border-vert-200 bg-vert-50 p-4 text-sm text-vert-900" role="status">
             <p class="font-semibold">Lien d'activation, affiché une seule fois</p>
             <p class="mt-1">Transmettez-le à la personne seule (valable 72 heures, un seul usage). Il ne sera plus affiché : en cas de perte, émettez-en un nouveau.</p>
             <p class="mt-2 break-all rounded bg-white px-3 py-2 font-mono text-xs">{{ lienActivation }}</p>
@@ -59,7 +59,7 @@ const copier = async () => {
         </section>
 
         <template v-if="medecin">
-            <section class="mt-6 rounded-lg border border-slate-200 bg-white p-4">
+            <section class="mt-6 carte p-4">
                 <h2 class="text-lg font-semibold">Médecin</h2>
                 <p class="text-sm">Ordre n° {{ medecin.numeroOrdre }} —
                     <span v-if="medecin.ordreVerifieLe" class="text-vert-700">vérifié le {{ medecin.ordreVerifieLe }}</span>
@@ -88,17 +88,17 @@ const copier = async () => {
 
             <section class="mt-6">
                 <h2 class="text-lg font-semibold">Planning</h2>
-                <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+                <ul class="mt-2 divide-y divide-slate-200 carte text-sm">
                     <li v-for="p in medecin.plages" :key="p.id" class="flex justify-between px-4 py-2"><span>{{ p.jour }}</span><span>{{ p.heures }}</span></li>
                     <li v-if="medecin.plages.length === 0" class="px-4 py-2 text-slate-500">Aucune plage hebdomadaire.</li>
                 </ul>
                 <h3 class="mt-4 font-semibold">Absences à venir</h3>
-                <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+                <ul class="mt-2 divide-y divide-slate-200 carte text-sm">
                     <li v-for="a in medecin.absences" :key="a.id" class="px-4 py-2">{{ a.periode }}</li>
                     <li v-if="medecin.absences.length === 0" class="px-4 py-2 text-slate-500">Aucune.</li>
                 </ul>
                 <h3 class="mt-4 font-semibold">Rendez-vous à venir</h3>
-                <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+                <ul class="mt-2 divide-y divide-slate-200 carte text-sm">
                     <li v-for="r in medecin.rendezVous" :key="r.statut" class="flex justify-between px-4 py-2"><span>{{ r.libelle }}</span><strong>{{ r.nombre }}</strong></li>
                     <li v-if="medecin.rendezVous.length === 0" class="px-4 py-2 text-slate-500">Aucun.</li>
                 </ul>

@@ -43,6 +43,8 @@
    ═══════════════════════════════════════════════════════════════════ */
 :root {
     color-scheme: light;
+    /* Texte discret un peu plus foncé que le slate-500 d'origine : AA sur le fond de page bleuté. */
+    --color-slate-500: #5b6b80;
     /* Bandeau d'en-tête : aplat bleu de la marque, liseré vert. */
     --bandeau-debut: #0050b0;
     --bandeau-fin: #003f8c;

@@ -2,6 +2,7 @@
 // PRE-01 : les ordonnances du patient, en PDF (les siennes seulement).
 import { Head, Link } from '@inertiajs/vue3';
 import Gabarit from '../../Composants/Gabarit.vue';
+import EnTeteDePage from '../../Composants/Ui/EnTeteDePage.vue';
 
 defineProps({ ordonnances: Array });
 </script>
@@ -9,12 +10,11 @@ defineProps({ ordonnances: Array });
 <template>
     <Head title="Mes ordonnances" />
     <Gabarit>
-        <h1 class="text-2xl font-bold">Mes ordonnances</h1>
-        <p class="mt-2 text-sm text-slate-600">Montrez le PDF au pharmacien : il vérifie l'ordonnance avec son QR code.</p>
+        <EnTeteDePage titre="Mes ordonnances" sous-titre="Montrez le PDF au pharmacien : il vérifie l'ordonnance avec son QR code." pictogramme="ordonnance" />
 
         <p v-if="ordonnances.length === 0" class="mt-4 text-slate-600">Aucune ordonnance pour l'instant.</p>
         <a v-for="o in ordonnances" :key="o.id" :href="`/mes-ordonnances/${o.id}/pdf`"
-           class="mt-3 flex items-center justify-between gap-2 rounded-lg bg-white p-4 shadow-sm">
+           class="mt-3 flex items-center justify-between gap-2 carte p-4">
             <span>
                 <span class="block font-semibold text-marque-800 underline">Ordonnance {{ o.numero }}</span>
                 <span class="block text-sm text-slate-600"><span class="first-letter:uppercase">{{ o.emise }}</span> · {{ o.medecin }}</span>

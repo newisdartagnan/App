@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 defineProps({ absences: Array });
 
@@ -22,11 +23,10 @@ const supprimer = (absence) => {
 <template>
     <Head title="Absences" />
     <GabaritPersonnel navigation>
-        <h1 class="text-2xl font-bold">Absences</h1>
-        <p class="mt-2 text-slate-700">Congés, formations, empêchements : aucun créneau n'est proposé sur ces périodes (heure de Kinshasa).</p>
+        <EnTeteDePage titre="Absences" sous-titre="Congés, formations, empêchements : aucun créneau n'est proposé sur ces périodes (heure de Kinshasa)." pictogramme="absence" />
 
         <p v-if="suppression.errors.absence" class="erreur">{{ suppression.errors.absence }}</p>
-        <ul v-if="absences.length" class="mt-6 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+        <ul v-if="absences.length" class="mt-6 divide-y divide-slate-200 carte">
             <li v-for="absence in absences" :key="absence.id" class="flex items-start justify-between gap-3 px-4 py-3">
                 <div class="text-sm">
                     <p>Du <strong>{{ absence.debut }}</strong></p>

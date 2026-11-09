@@ -22,7 +22,7 @@ const nature = (type) => ({
 </script>
 
 <template>
-    <section class="rounded-lg border border-slate-200 bg-white p-4">
+    <section class="carte p-4">
         <h2 class="text-lg font-semibold">Historique</h2>
         <ol v-if="evenements.length" class="mt-2 space-y-3">
             <li v-for="(e, i) in evenements" :id="e.type === 'note' ? `note-${e.id}` : undefined" :key="`${e.type}-${e.id}-${i}`"

@@ -3,6 +3,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import Gabarit from '../../Composants/Gabarit.vue';
 import ListeCreneaux from '../../Composants/ListeCreneaux.vue';
+import EnTeteDePage from '../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({
     demande: Object,
@@ -28,7 +29,7 @@ const reserver = () => form.post(`/consultation/demandes/${props.demande.id}/res
 <template>
     <Head title="Choisir un créneau" />
     <Gabarit>
-        <h1 class="text-2xl font-bold">Choisissez l'heure</h1>
+        <EnTeteDePage titre="Choisissez l'heure" pictogramme="horloge" />
         <p class="mt-2 text-slate-700">
             {{ type.nom }} ({{ type.duree_minutes }} min) · {{ type.prix }}<br>
             {{ medecin ? medecin.nom : 'Premier médecin disponible' }}
@@ -39,7 +40,7 @@ const reserver = () => form.post(`/consultation/demandes/${props.demande.id}/res
             Vous avez déjà un créneau en attente de paiement.
             <Link :href="`/mes-rendez-vous/${attenteEnCours}`" class="underline">Le voir</Link>
         </p>
-        <p v-if="form.errors.creneau" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ form.errors.creneau }}</p>
+        <p v-if="form.errors.creneau" class="erreur mt-4 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">{{ form.errors.creneau }}</p>
 
         <ListeCreneaux :jours="jours" :choisi="choisi" :afficher-medecin="premierDisponible" @choisir="choisir" />
 

@@ -79,7 +79,7 @@ const erreurRetrait = computed(() => retrait.errors.retrait);
 
         <p v-if="erreurRetrait" class="erreur rounded-lg bg-red-50 p-3" role="alert">{{ erreurRetrait }}</p>
 
-        <section class="rounded-lg border border-slate-200 bg-white p-4">
+        <section class="carte p-4">
             <h2 class="text-lg font-semibold">Groupe sanguin</h2>
             <p class="mt-1">
                 <strong v-if="groupeSanguin">{{ groupeSanguin }}</strong>
@@ -106,7 +106,7 @@ const erreurRetrait = computed(() => retrait.errors.retrait);
             </form>
         </section>
 
-        <section v-for="c in autres" :key="c.categorie" class="rounded-lg border border-slate-200 bg-white p-4">
+        <section v-for="c in autres" :key="c.categorie" class="carte p-4">
             <h2 class="text-lg font-semibold">{{ c.libelle }}</h2>
             <ul v-if="c.elements.length" class="mt-1 divide-y divide-slate-100">
                 <li v-for="e in c.elements" :key="e.id" class="flex items-start justify-between gap-2 py-2">
@@ -124,7 +124,7 @@ const erreurRetrait = computed(() => retrait.errors.retrait);
             <p v-else class="mt-1 text-slate-600">Rien de déclaré.</p>
         </section>
 
-        <section v-if="modifiable" class="rounded-lg border border-slate-200 bg-white p-4">
+        <section v-if="modifiable" class="carte p-4">
             <h2 class="text-lg font-semibold">Ajouter au dossier</h2>
             <form class="mt-3 space-y-3" @submit.prevent="ajouterElement">
                 <div>
@@ -152,7 +152,7 @@ const erreurRetrait = computed(() => retrait.errors.retrait);
             </form>
         </section>
 
-        <section class="rounded-lg border border-slate-200 bg-white p-4">
+        <section class="carte p-4">
             <h2 class="text-lg font-semibold">Dernières mesures</h2>
             <ul v-if="constantes.length" class="mt-1 divide-y divide-slate-100">
                 <li v-for="c in constantes" :key="c.type" class="flex justify-between gap-2 py-2">
