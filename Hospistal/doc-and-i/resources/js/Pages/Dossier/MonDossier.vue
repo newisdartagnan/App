@@ -47,7 +47,7 @@ const couleur = (statut) => ({
                      :elements="elements" :constantes="constantes"
                      :categories="categories" :mesures="mesures" :groupes="groupes" />
 
-        <section class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+        <section class="mt-4 carte p-4">
             <h2 class="text-lg font-semibold">Demander une correction</h2>
             <p class="mt-1 text-sm text-slate-600">
                 Une information saisie par un médecin est fausse ? Expliquez-le ici. Un médecin qui vous suit vous répondra.
@@ -83,7 +83,7 @@ const couleur = (statut) => ({
 
         <HistoriqueDossier class="mt-4" :evenements="historique" />
 
-        <section class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+        <section class="mt-4 carte p-4">
             <h2 class="text-lg font-semibold">Qui a consulté mon dossier</h2>
             <ul v-if="acces.length" class="mt-1 divide-y divide-slate-100 text-sm">
                 <li v-for="(a, i) in acces" :key="i" class="py-2">

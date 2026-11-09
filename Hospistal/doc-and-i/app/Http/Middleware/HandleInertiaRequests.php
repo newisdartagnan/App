@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -33,6 +34,32 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
+    /** Libellé du rôle pour le bandeau, et l'espace correspondant (patient, medecin, caisse, admin). */
+    private const ROLES = [
+        'medecin' => ['Médecin', 'medecin'],
+        'caisse' => ['Caisse', 'caisse'],
+        'admin_fonctionnel' => ['Administration', 'admin'],
+        'admin_technique' => ['Administration technique', 'personnel'],
+        'coordinateur' => ['Coordination', 'personnel'],
+        'laboratoire' => ['Laboratoire', 'personnel'],
+        'support' => ['Support', 'personnel'],
+        'auditeur' => ['Audit', 'personnel'],
+        'patient' => ['Patient', 'patient'],
+    ];
+
+    /** @return array{role: ?string, espace: ?string} */
+    private static function roleAffiche(User $user): array
+    {
+        $roles = $user->getRoleNames();
+        foreach (self::ROLES as $role => [$libelle, $espace]) {
+            if ($roles->contains($role)) {
+                return ['role' => $libelle, 'espace' => $espace];
+            }
+        }
+
+        return ['role' => null, 'espace' => null];
+    }
+
     public function share(Request $request): array
     {
         return [
@@ -42,6 +69,8 @@ class HandleInertiaRequests extends Middleware
             'utilisateur' => fn () => $request->user() ? [
                 'prenom' => $request->user()->prenom,
                 'nom' => $request->user()->nom,
+                // Bandeau : rôle affiché et espace dont le menu s'affiche.
+                ...self::roleAffiche($request->user()),
             ] : null,
             'flash' => [
                 'succes' => fn () => $request->session()->get('succes'),

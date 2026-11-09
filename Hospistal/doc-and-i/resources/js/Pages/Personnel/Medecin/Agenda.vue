@@ -2,6 +2,10 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import Badge from '../../../Composants/Ui/Badge.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
+import EtatVide from '../../../Composants/Ui/EtatVide.vue';
+import Pictogramme from '../../../Composants/Ui/Pictogramme.vue';
 
 const props = defineProps({ rendezVous: Array, recentes: { type: Array, default: () => [] } });
 
@@ -44,45 +48,51 @@ const annuler = (rdv) => {
 // (rendez-vous confirmé, dans la fenêtre, salle pas close) ; il revérifie à l'entrée.
 const rejoignable = (rdv) => rdv.rejoignable === true;
 
-const couleur = (code) => ({
-    confirme: 'bg-vert-50 text-vert-900',
-    en_attente_paiement: 'bg-amber-50 text-amber-900',
-}[code] ?? 'bg-slate-100 text-slate-700');
+const ton = (code) => ({
+    confirme: 'succes',
+    en_attente_paiement: 'attention',
+    termine: 'info',
+}[code] ?? 'neutre');
 </script>
 
 <template>
     <Head title="Agenda" />
     <GabaritPersonnel navigation>
-        <h1 class="text-2xl font-bold">Agenda</h1>
-        <p class="mt-2 text-slate-700">Vos rendez-vous à venir, heure de Kinshasa.</p>
+        <EnTeteDePage titre="Agenda" sous-titre="Vos rendez-vous à venir, heure de Kinshasa." pictogramme="calendrier" />
 
         <p v-if="$page.props.errors.consultation" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ $page.props.errors.consultation }}</p>
-        <p v-if="rendezVous.length === 0" class="mt-6 text-slate-600">Aucun rendez-vous à venir.</p>
+        <EtatVide v-if="rendezVous.length === 0" class="mt-6" titre="Aucun rendez-vous à venir." pictogramme="calendrier"
+                  texte="Vos disponibilités décident des créneaux proposés aux patients." />
 
         <section v-for="jour in parJour" :key="jour.date" class="mt-6">
-            <h2 class="text-base font-semibold first-letter:uppercase">{{ jour.date }}</h2>
-            <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-                <li v-for="rdv in jour.rendezVous" :key="rdv.id" class="px-4 py-3">
+            <h2 class="mb-2 flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase">
+                <Pictogramme nom="calendrier" :taille="16" /> <span class="first-letter:uppercase">{{ jour.date }}</span>
+            </h2>
+            <ul class="carte divide-y divide-slate-200">
+                <li v-for="rdv in jour.rendezVous" :key="rdv.id" class="border-l-4 px-4 py-3"
+                    :class="rdv.statutCode === 'confirme' ? 'border-l-vert-600' : 'border-l-slate-200'">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="font-semibold">{{ rdv.heure }} – {{ rdv.heureFin }}</span>
-                        <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="couleur(rdv.statutCode)">{{ rdv.statut }}</span>
+                        <span class="flex items-center gap-2 text-lg font-bold tabular-nums">
+                            <Pictogramme nom="horloge" :taille="18" class="text-slate-500" /> {{ rdv.heure }} – {{ rdv.heureFin }}
+                        </span>
+                        <Badge :ton="ton(rdv.statutCode)">{{ rdv.statut }}</Badge>
                     </div>
                     <p v-if="rdv.consultationLibelle" class="mt-1 text-xs font-medium"
                        :class="rdv.consultation === 'en_cours' ? 'text-vert-700' : 'text-slate-600'">
                         Consultation : {{ rdv.consultationLibelle }}
                     </p>
-                    <p v-if="rdv.patient" class="mt-1">{{ rdv.patient }}</p>
+                    <p v-if="rdv.patient" class="mt-1 font-semibold text-slate-900">{{ rdv.patient }}</p>
                     <p v-else class="mt-1 text-sm text-slate-500">Patient et motif affichés seulement pour un rendez-vous confirmé ou une consultation terminée.</p>
                     <p v-if="rdv.motif" class="text-sm text-slate-600">{{ rdv.motif }}</p>
 
-                    <Link v-if="rejoignable(rdv)" :href="`/personnel/medecin/consultation/${rdv.id}`" class="bouton mt-2 w-auto">
-                        Rejoindre la consultation
+                    <Link v-if="rejoignable(rdv)" :href="`/personnel/medecin/consultation/${rdv.id}`" class="bouton-vert mt-3 sm:w-auto">
+                        <Pictogramme nom="video" /> Rejoindre la consultation
                     </Link>
 
                     <!-- DOS-03 : dossier du patient, pour un rendez-vous qui ouvre la relation de soin (le serveur revérifie). -->
                     <Link v-if="['confirme', 'termine'].includes(rdv.statutCode)" :href="`/personnel/medecin/rendez-vous/${rdv.id}/dossier`"
-                          class="mt-2 mr-4 inline-block text-sm text-marque-700 underline">
-                        Dossier du patient
+                          class="mt-2 mr-4 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-marque-700 hover:underline">
+                        <Pictogramme nom="dossier" :taille="16" /> Dossier du patient
                     </Link>
 
                     <button v-if="rdv.annulable && enAnnulation !== rdv.id" type="button"

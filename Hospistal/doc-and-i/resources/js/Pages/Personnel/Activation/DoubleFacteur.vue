@@ -1,6 +1,7 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 // Le QR code est une image SVG produite par le serveur (data:) : aucun script, rien d'un autre domaine.
 defineProps({ qrCode: String, secret: String, email: String });
@@ -13,7 +14,7 @@ const confirmer = () => form.post('/personnel/activation/double-facteur', { onFi
     <Head title="Double authentification" />
     <GabaritPersonnel>
         <p class="text-sm font-medium text-marque-700">Étape 2 sur 2</p>
-        <h1 class="text-2xl font-bold">Reliez votre application d'authentification</h1>
+        <EnTeteDePage titre="Reliez votre application d'authentification" />
         <ol class="mt-3 list-decimal space-y-1 pl-5 text-slate-700">
             <li>Installez une application d'authentification (Google Authenticator, FreeOTP, Aegis…).</li>
             <li>Ajoutez un compte en scannant ce code.</li>
@@ -22,7 +23,7 @@ const confirmer = () => form.post('/personnel/activation/double-facteur', { onFi
 
         <div class="mt-6 flex justify-center">
             <img :src="qrCode" width="220" height="220" alt="QR code à scanner avec l'application d'authentification"
-                 class="rounded-lg border border-slate-200 bg-white p-2">
+                 class="carte p-2">
         </div>
 
         <details class="mt-4 text-sm text-slate-700">

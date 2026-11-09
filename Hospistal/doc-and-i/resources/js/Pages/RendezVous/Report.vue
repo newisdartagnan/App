@@ -3,6 +3,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import Gabarit from '../../Composants/Gabarit.vue';
 import ListeCreneaux from '../../Composants/ListeCreneaux.vue';
+import EnTeteDePage from '../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ rendezVous: Object, jours: Array, tardif: Boolean });
 
@@ -18,7 +19,7 @@ const reporter = () => form.post(`/mes-rendez-vous/${props.rendezVous.id}/report
 <template>
     <Head title="Changer l'heure" />
     <Gabarit>
-        <h1 class="text-2xl font-bold">Changer l'heure</h1>
+        <EnTeteDePage titre="Changer l'heure" pictogramme="calendrier" />
         <p class="mt-2 text-slate-700">
             Aujourd'hui prévu : <span class="first-letter:uppercase">{{ rendezVous.quand }}</span>, avec {{ rendezVous.medecin }}.
             Même médecin, même prix.
@@ -26,7 +27,7 @@ const reporter = () => form.post(`/mes-rendez-vous/${props.rendezVous.id}/report
         <p v-if="tardif" class="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
             Votre rendez-vous est dans moins de 2 heures : vous ne pourrez le déplacer qu'une fois.
         </p>
-        <p v-if="form.errors.creneau" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ form.errors.creneau }}</p>
+        <p v-if="form.errors.creneau" class="erreur mt-4 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">{{ form.errors.creneau }}</p>
 
         <ListeCreneaux :jours="jours" :choisi="choisi" @choisir="choisir" />
 

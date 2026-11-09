@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 defineProps({ commissionPourcent: Number, medecins: Array, reversements: Array });
 
@@ -20,8 +21,8 @@ const payer = (r) => paiement.post(`/personnel/caisse/reversements/${r.id}/paiem
 <template>
     <Head title="Reversements" />
     <GabaritPersonnel navigation espace="caisse">
-        <h1 class="text-2xl font-bold">Reversements aux médecins</h1>
-        <p v-if="commissionPourcent === null" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+        <EnTeteDePage titre="Reversements aux médecins" pictogramme="portefeuille" />
+        <p v-if="commissionPourcent === null" class="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
             La commission de la plateforme n'est pas configurée : aucun reversement possible.
         </p>
         <p v-else class="mt-2 text-slate-700">Encaissements moins remboursements des rendez-vous du médecin, par devise, moins {{ commissionPourcent }} % de commission. Payé par un autre agent que celui qui l'a préparé.</p>
@@ -43,7 +44,7 @@ const payer = (r) => paiement.post(`/personnel/caisse/reversements/${r.id}/paiem
             <button type="submit" class="bouton" :disabled="preparation.processing || commissionPourcent === null">Préparer</button>
         </form>
 
-        <ul class="mt-8 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+        <ul class="mt-8 divide-y divide-slate-200 carte text-sm">
             <li v-for="r in reversements" :key="r.id" class="px-4 py-3">
                 <div class="flex justify-between gap-2"><strong>{{ r.medecin }}</strong><span :class="r.paye ? 'text-vert-700' : 'text-amber-800'">{{ r.statut }}</span></div>
                 <p>{{ r.periode }} · {{ r.devise }}</p>

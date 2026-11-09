@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import Gabarit from '../../Composants/Gabarit.vue';
+import EnTeteDePage from '../../Composants/Ui/EnTeteDePage.vue';
 
 defineProps({ paiements: Array, documents: Array });
 </script>
@@ -8,10 +9,10 @@ defineProps({ paiements: Array, documents: Array });
 <template>
     <Head title="Mes paiements" />
     <Gabarit>
-        <h1 class="text-2xl font-bold">Mes paiements</h1>
+        <EnTeteDePage titre="Mes paiements" pictogramme="carte" />
 
         <p v-if="paiements.length === 0" class="mt-4 text-slate-600">Aucun paiement pour l'instant.</p>
-        <Link v-for="p in paiements" :key="p.id" :href="`/paiements/${p.id}`" class="mt-3 block rounded-lg bg-white p-4 shadow-sm">
+        <Link v-for="p in paiements" :key="p.id" :href="`/paiements/${p.id}`" class="mt-3 block carte p-4">
             <span class="flex justify-between gap-2">
                 <span class="font-semibold">{{ p.montant }}</span>
                 <span :class="p.statut === 'reussi' ? 'text-vert-700' : 'text-slate-600'">{{ p.statut_libelle }}</span>
@@ -22,7 +23,7 @@ defineProps({ paiements: Array, documents: Array });
 
         <template v-if="documents.length">
             <h2 class="mt-8 font-semibold">Factures et avoirs</h2>
-            <a v-for="d in documents" :key="d.id" :href="`/factures/${d.id}`" class="mt-2 flex justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3">
+            <a v-for="d in documents" :key="d.id" :href="`/factures/${d.id}`" class="mt-2 flex justify-between gap-2 carte p-3">
                 <span>
                     <span class="block font-medium text-marque-800 underline">{{ d.type }} {{ d.numero }}</span>
                     <span class="block text-sm text-slate-600 first-letter:uppercase">{{ d.emise }}</span>

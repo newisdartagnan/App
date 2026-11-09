@@ -48,7 +48,7 @@ const texteRemboursement = computed(() => {
         <p class="mt-1 text-slate-700">Prix : {{ rendezVous.prix }}</p>
         <p class="mt-1 text-sm text-slate-500">Heure de Kinshasa.</p>
 
-        <div v-if="rendezVous.en_attente" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900" role="status">
+        <div v-if="rendezVous.en_attente" class="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900" role="status">
             <p class="font-semibold">En attente de paiement</p>
             <p v-if="restantes > 0" class="mt-1">Créneau gardé encore {{ minutesSecondes }}. Payez pour confirmer le rendez-vous.</p>
             <p v-else class="mt-1">Le délai est dépassé : le créneau va être libéré.</p>
@@ -58,15 +58,15 @@ const texteRemboursement = computed(() => {
             </Link>
         </div>
         <p v-else class="mt-4 rounded-lg bg-white p-3 font-medium shadow-sm">{{ rendezVous.statut_libelle }}</p>
-        <p v-if="$page.props.errors.paiement" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ $page.props.errors.paiement }}</p>
+        <p v-if="$page.props.errors.paiement" class="erreur mt-4 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">{{ $page.props.errors.paiement }}</p>
 
-        <div v-if="actions.rejoindre" class="mt-4 rounded-lg border border-vert-200 bg-vert-50 p-4">
+        <div v-if="actions.rejoindre" class="mt-4 rounded-xl border border-vert-200 bg-vert-50 p-4">
             <p class="font-semibold text-vert-900">La salle de consultation est ouverte.</p>
             <Link :href="`/consultation/${rendezVous.id}`" class="bouton mt-3">Rejoindre la consultation</Link>
         </div>
-        <p v-if="$page.props.errors.consultation" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ $page.props.errors.consultation }}</p>
+        <p v-if="$page.props.errors.consultation" class="erreur mt-4 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">{{ $page.props.errors.consultation }}</p>
 
-        <section v-if="paiements.some((p) => p.statut === 'reussi')" class="mt-4 rounded-lg bg-white p-4 shadow-sm">
+        <section v-if="paiements.some((p) => p.statut === 'reussi')" class="mt-4 carte p-4">
             <h2 class="font-semibold">Paiement</h2>
             <template v-for="p in paiements" :key="p.id">
                 <div v-if="p.statut === 'reussi'" class="mt-2">
@@ -84,8 +84,8 @@ const texteRemboursement = computed(() => {
         </p>
         <p v-if="rendezVous.motif_annulation" class="mt-1 text-slate-700">Motif : {{ rendezVous.motif_annulation }}</p>
 
-        <p v-if="form.errors.annulation" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ form.errors.annulation }}</p>
-        <p v-if="$page.props.errors.creneau" class="erreur mt-4 rounded-lg bg-red-50 p-3" role="alert">{{ $page.props.errors.creneau }}</p>
+        <p v-if="form.errors.annulation" class="erreur mt-4 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">{{ form.errors.annulation }}</p>
+        <p v-if="$page.props.errors.creneau" class="erreur mt-4 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">{{ $page.props.errors.creneau }}</p>
 
         <div class="mt-6 space-y-3">
             <Link v-if="actions.reporter" :href="`/mes-rendez-vous/${rendezVous.id}/report`" class="bouton-secondaire">
@@ -102,7 +102,7 @@ const texteRemboursement = computed(() => {
                 <button v-if="!confirmation" type="button" class="bouton-secondaire" @click="confirmation = true">
                     Annuler ce rendez-vous
                 </button>
-                <form v-else class="rounded-lg bg-white p-4 shadow-sm" @submit.prevent="annuler">
+                <form v-else class="carte p-4" @submit.prevent="annuler">
                     <p class="font-medium">{{ texteRemboursement }}</p>
                     <label for="motif" class="etiquette mt-3">Pourquoi annulez-vous ? (facultatif)</label>
                     <input id="motif" v-model="form.motif" class="champ" maxlength="255">
@@ -121,7 +121,7 @@ const texteRemboursement = computed(() => {
             </Link>
         </div>
 
-        <section class="mt-8 rounded-lg bg-white p-4 shadow-sm">
+        <section class="mt-8 carte p-4">
             <h2 class="font-semibold">Votre demande</h2>
             <p class="mt-2">{{ demande.motif }}</p>
             <p v-if="demande.depuis" class="mt-1 text-sm text-slate-600">{{ demande.depuis }}</p>

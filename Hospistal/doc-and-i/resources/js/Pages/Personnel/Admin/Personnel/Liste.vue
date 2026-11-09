@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { reactive, ref } from 'vue';
 import GabaritPersonnel from '../../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ filtres: Object, roles: Object, etats: Object, personnel: Object });
 
@@ -16,7 +17,7 @@ const filtrer = () => router.get('/personnel/admin/personnel',
     <Head title="Personnel" />
     <GabaritPersonnel navigation espace="admin">
         <div class="flex items-center justify-between gap-3">
-            <h1 class="text-2xl font-bold">Personnel</h1>
+            <EnTeteDePage titre="Personnel" pictogramme="utilisateurs" />
             <Link href="/personnel/admin/personnel/nouveau" class="bouton w-auto">Créer un compte</Link>
         </div>
 
@@ -38,7 +39,7 @@ const filtrer = () => router.get('/personnel/admin/personnel',
             <button type="submit" class="bouton-secondaire col-span-2" :disabled="enCours">Filtrer</button>
         </form>
 
-        <ul class="mt-6 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+        <ul class="mt-6 divide-y divide-slate-200 carte text-sm">
             <li v-for="p in personnel.data" :key="p.id">
                 <Link :href="`/personnel/admin/personnel/${p.id}`" class="block px-4 py-3 hover:bg-marque-50">
                     <div class="flex justify-between gap-2">

@@ -1,6 +1,7 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ aujourdhui: Object, enAttente: Object, bornes: Object, historique: Array });
 
@@ -13,18 +14,18 @@ const confirmer = () => confirmation.post(`/personnel/caisse/taux/${props.enAtte
 <template>
     <Head title="Taux du jour" />
     <GabaritPersonnel navigation espace="caisse">
-        <h1 class="text-2xl font-bold">Taux du jour</h1>
+        <EnTeteDePage titre="Taux du jour" pictogramme="taux" />
         <p class="mt-2 text-slate-700">
             Francs congolais pour un dollar, aujourd'hui (heure de Kinshasa), entre {{ bornes.minimum }} et {{ bornes.maximum }}.
             Un écart de plus de {{ bornes.ecart }} % avec le dernier taux doit être confirmé par un autre agent.
         </p>
 
-        <p v-if="aujourdhui" class="mt-4 rounded-lg border border-vert-200 bg-vert-50 px-4 py-3 text-sm text-vert-900">
+        <p v-if="aujourdhui" class="mt-4 rounded-xl border border-vert-200 bg-vert-50 px-4 py-3 text-sm text-vert-900">
             Actif : <strong>1 USD = {{ aujourdhui.taux }} CDF</strong>, saisi par {{ aujourdhui.saisiPar }}.
             <span v-if="aujourdhui.utilise">Déjà utilisé : une nouvelle saisie le remplace pour les paiements suivants, sans changer les paiements faits.</span>
         </p>
 
-        <div v-if="enAttente" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div v-if="enAttente" class="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <p>En attente de confirmation : <strong>{{ enAttente.taux }} CDF</strong>, saisi par {{ enAttente.saisiPar }}.</p>
             <button v-if="enAttente.peutConfirmer" type="button" class="bouton mt-2 w-auto" :disabled="confirmation.processing" @click="confirmer">
                 Confirmer ce taux
@@ -45,7 +46,7 @@ const confirmer = () => confirmation.post(`/personnel/caisse/taux/${props.enAtte
         </form>
 
         <h2 class="mt-8 text-lg font-semibold">Derniers taux</h2>
-        <ul class="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white text-sm">
+        <ul class="mt-2 divide-y divide-slate-200 carte text-sm">
             <li v-for="t in historique" :key="t.id" class="flex justify-between gap-2 px-4 py-2">
                 <span>{{ t.jour }} · {{ t.statut }}</span><span>{{ t.taux }} CDF · {{ t.saisiPar }}</span>
             </li>

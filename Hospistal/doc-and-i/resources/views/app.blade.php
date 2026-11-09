@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+{{-- Thème choisi (clair, repos, sombre) : cookie de préférence d'affichage, lu ici pour
+     éviter tout flash au chargement. Valeur hors liste = clair (rien d'autre n'est injecté). --}}
+@php($theme = in_array(request()->cookie('medihome_theme'), ['clair', 'repos', 'sombre'], true) ? request()->cookie('medihome_theme') : 'clair')
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="{{ $theme }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,7 +14,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @inertiaHead
 </head>
-<body class="bg-slate-50 text-slate-900 antialiased">
+<body class="min-h-screen antialiased">
     @inertia
 </body>
 </html>

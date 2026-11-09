@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ plages: Array, jours: Object });
 
@@ -28,10 +29,9 @@ const supprimer = (plage) => {
 <template>
     <Head title="Disponibilités" />
     <GabaritPersonnel navigation>
-        <h1 class="text-2xl font-bold">Disponibilités de chaque semaine</h1>
-        <p class="mt-2 text-slate-700">Heures de Kinshasa. Les patients ne voient des créneaux que dans ces plages, hors absences.</p>
+        <EnTeteDePage titre="Disponibilités de chaque semaine" sous-titre="Heures de Kinshasa. Les patients ne voient des créneaux que dans ces plages, hors absences." pictogramme="horloge" />
 
-        <ul class="mt-6 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+        <ul class="mt-6 divide-y divide-slate-200 carte">
             <li v-for="jour in parJour" :key="jour.numero" class="flex flex-wrap items-center gap-2 px-4 py-3">
                 <span class="w-24 font-medium">{{ jour.libelle }}</span>
                 <span v-if="jour.plages.length === 0" class="text-sm text-slate-500">Aucune plage</span>

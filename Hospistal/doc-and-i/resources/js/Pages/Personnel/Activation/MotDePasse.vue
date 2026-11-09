@@ -1,6 +1,7 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import GabaritPersonnel from '../../../Composants/GabaritPersonnel.vue';
+import EnTeteDePage from '../../../Composants/Ui/EnTeteDePage.vue';
 
 defineProps({ email: String, longueurMin: Number });
 
@@ -14,7 +15,7 @@ const envoyer = () => form.post('/personnel/activation/mot-de-passe', {
     <Head title="Activation du compte" />
     <GabaritPersonnel>
         <p class="text-sm font-medium text-marque-700">Étape 1 sur 2</p>
-        <h1 class="text-2xl font-bold">Choisissez votre mot de passe</h1>
+        <EnTeteDePage titre="Choisissez votre mot de passe" />
         <p class="mt-2 text-slate-700">Compte : <strong>{{ email }}</strong></p>
         <p class="mt-2 text-slate-700">Au moins {{ longueurMin }} caractères. Une phrase de plusieurs mots est plus sûre et plus facile à retenir.</p>
 

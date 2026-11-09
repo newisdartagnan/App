@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import Gabarit from '../../Composants/Gabarit.vue';
+import EnTeteDePage from '../../Composants/Ui/EnTeteDePage.vue';
 
 const props = defineProps({ demande: Object, specialites: Array, medecins: Array, erreur: String });
 
@@ -39,7 +40,7 @@ const voirCreneaux = () => {
 <template>
     <Head title="Choisir un médecin" />
     <Gabarit>
-        <h1 class="text-2xl font-bold">Avec quel médecin ?</h1>
+        <EnTeteDePage titre="Avec quel médecin ?" pictogramme="stethoscope" />
         <p v-if="erreur" class="erreur mt-3 rounded-lg bg-red-50 p-3" role="alert">{{ erreur }}</p>
 
         <div class="mt-4 flex gap-2" role="tablist">
@@ -77,7 +78,7 @@ const voirCreneaux = () => {
             </button>
         </section>
 
-        <section v-if="specialite" class="mt-6 rounded-lg bg-white p-4 shadow-sm">
+        <section v-if="specialite" class="mt-6 carte p-4">
             <h2 class="font-semibold">{{ specialite.nom }}</h2>
 
             <div v-if="mode === 'specialite'" class="mt-3">
