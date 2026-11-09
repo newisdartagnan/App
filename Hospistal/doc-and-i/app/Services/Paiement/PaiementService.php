@@ -4,8 +4,10 @@ namespace App\Services\Paiement;
 
 use App\Enums\MotifRemboursement;
 use App\Enums\MoyenPaiement;
+use App\Enums\StatutBonExamen;
 use App\Enums\StatutPaiement;
 use App\Enums\StatutRendezVous;
+use App\Models\BonExamen;
 use App\Models\EvenementPaiement;
 use App\Models\Facture;
 use App\Models\Paiement;
@@ -102,6 +104,43 @@ class PaiementService
     }
 
     /**
+     * Paiement d'un bon d'examen (RG-01, PRE-05) : même circuit que la
+     * consultation (clé d'idempotence, une tentative en cours à la fois,
+     * rappel signé seul juge). Le montant est celui figé à la prescription,
+     * dans sa monnaie ; le laboratoire doit être choisi avant.
+     *
+     * @throws PaiementRefuse
+     */
+    public function initierBon(BonExamen $bon, User $patient, MoyenPaiement $moyen, ?string $telephone, string $cle): TentativePaiement
+    {
+        if (! preg_match('/^[A-Za-z0-9-]{16,64}$/', $cle)) {
+            throw new PaiementRefuse('La page de paiement a expiré. Rechargez-la, puis réessayez.');
+        }
+
+        $numero = null;
+        if ($moyen->estMobileMoney()) {
+            $numero = Telephone::normaliser($telephone)
+                ?? throw new PaiementRefuse('Indiquez le numéro Mobile Money à débiter, par exemple 081 234 56 78.');
+        }
+
+        try {
+            $paiement = DB::transaction(fn () => $this->preparerBon($bon, $patient, $moyen, $numero, $cle));
+        } catch (UniqueConstraintViolationException $e) {
+            $paiement = Paiement::where('cle_idempotence', $cle)->first()
+                ?? Paiement::where('bon_examen_id', $bon->id)->whereIn('statut', StatutPaiement::enCours())->first()
+                ?? throw $e;
+
+            if ($paiement->patient_id !== $patient->id) {
+                throw new PaiementRefuse('La page de paiement a expiré. Rechargez-la, puis réessayez.');
+            }
+        }
+
+        return $paiement->statut === StatutPaiement::Initie
+            ? $this->demanderAuFournisseur($paiement)
+            : new TentativePaiement($paiement);
+    }
+
+    /**
      * Le patient relance une tentative restée sans réponse de l'opérateur
      * (« initiée » après une erreur technique) : même clé, pas de second
      * débit. Sans effet sur une tentative acceptée, close, ou dont le
@@ -116,6 +155,13 @@ class PaiementService
         }
 
         $paiement = $paiement->fresh();
+        if ($paiement->bon_examen_id !== null) {
+            $bon = BonExamen::find($paiement->bon_examen_id);
+
+            return $paiement->statut === StatutPaiement::Initie && $bon?->statut === StatutBonExamen::Prescrit
+                ? $this->demanderAuFournisseur($paiement)
+                : new TentativePaiement($paiement);
+        }
         $rdv = $paiement->rendezVous;
 
         if ($paiement->statut !== StatutPaiement::Initie
@@ -252,6 +298,60 @@ class PaiementService
             'montant_reference' => $tarif->montantReference,
             'devise_reference' => $tarif->deviseReference,
             'taux_change_id' => $tarif->taux?->id,
+            'statut' => StatutPaiement::Initie,
+            'cle_idempotence' => $cle,
+            'fournisseur' => $this->fournisseur->nom(),
+        ])->save();
+
+        return $paiement;
+    }
+
+    /** Dans la transaction : vérifications et création de la tentative « initiée » pour un bon d'examen. */
+    private function preparerBon(BonExamen $bon, User $patient, MoyenPaiement $moyen, ?string $numero, string $cle): Paiement
+    {
+        $bon = BonExamen::whereKey($bon->id)->lockForUpdate()->firstOrFail();
+
+        if ($bon->patient_id !== $patient->id) {
+            throw new PaiementRefuse('Ce bon d\'examen n\'est pas le vôtre.');
+        }
+
+        if ($existant = Paiement::where('cle_idempotence', $cle)->first()) {
+            if ($existant->patient_id !== $patient->id || $existant->bon_examen_id !== $bon->id) {
+                throw new PaiementRefuse('La page de paiement a expiré. Rechargez-la, puis réessayez.');
+            }
+
+            return $existant;
+        }
+
+        if ($enCours = Paiement::where('bon_examen_id', $bon->id)->whereIn('statut', StatutPaiement::enCours())->first()) {
+            return $enCours;
+        }
+
+        if ($bon->statut !== StatutBonExamen::Prescrit || Paiement::where('bon_examen_id', $bon->id)->where('statut', StatutPaiement::Reussi->value)->exists()) {
+            throw new PaiementRefuse($bon->statut === StatutBonExamen::Annule ? 'Ce bon d\'examen est annulé.' : 'Ce bon d\'examen est déjà payé.');
+        }
+
+        if ($bon->laboratoire_id === null) {
+            throw new PaiementRefuse('Choisissez d\'abord le laboratoire où faire vos examens.');
+        }
+
+        if (Paiement::where('bon_examen_id', $bon->id)->count() >= (int) config('doc-and-i.paiement.tentatives_par_rendez_vous')) {
+            throw new PaiementRefuse('Trop de tentatives de paiement pour ce bon. Réessayez plus tard, ou contactez le support.');
+        }
+
+        $paiement = new Paiement;
+        $paiement->forceFill([
+            'patient_id' => $patient->id,
+            'bon_examen_id' => $bon->id,
+            'objet' => 'examen',
+            'moyen' => $moyen,
+            'telephone_payeur' => $numero,
+            // Montant figé à la prescription, dans sa monnaie : pas de conversion.
+            'montant' => (string) $bon->montant,
+            'devise' => $bon->devise,
+            'montant_reference' => (string) $bon->montant,
+            'devise_reference' => $bon->devise,
+            'taux_change_id' => null,
             'statut' => StatutPaiement::Initie,
             'cle_idempotence' => $cle,
             'fournisseur' => $this->fournisseur->nom(),
@@ -409,7 +509,9 @@ class PaiementService
         $facture = $this->facturation->emettreFacture($paiement);
         $this->journal->encaissement($paiement);
 
-        [$issue, $texte] = $this->rattacherAuRendezVous($paiement, $facture);
+        [$issue, $texte] = $paiement->bon_examen_id !== null
+            ? $this->rattacherAuBon($paiement, $facture)
+            : $this->rattacherAuRendezVous($paiement, $facture);
         $evenement->resultat = $issue;
 
         return [$paiement->patient, $texte, $paiement->id];
@@ -460,6 +562,39 @@ class PaiementService
         return [
             'Encaissé ; créneau plus disponible : remboursement automatique (RG-03).',
             $recu.' Le créneau n\'était plus disponible : vous serez remboursé. Ouvrez l\'application pour choisir un autre créneau.',
+        ];
+    }
+
+    /**
+     * Le bon d'examen du paiement encaissé (RG-01, PRE-05) : payé et transmis
+     * au laboratoire choisi ; le code de retrait est remis au patient dans son
+     * espace (jamais par SMS). Bon déjà payé ou annulé : remboursement
+     * automatique.
+     *
+     * @return array{0: string, 1: string} résultat pour l'événement, texte du SMS (sans contenu médical)
+     */
+    private function rattacherAuBon(Paiement $paiement, Facture $facture): array
+    {
+        $recu = 'MEDIHOME : paiement de '.$this->montantSms($paiement).' reçu (reçu '.$facture->numero.').';
+        $bon = BonExamen::whereKey($paiement->bon_examen_id)->lockForUpdate()->firstOrFail();
+
+        $dejaPaye = Paiement::where('bon_examen_id', $bon->id)->where('statut', StatutPaiement::Reussi->value)->whereKeyNot($paiement->id)->exists();
+        if (! $dejaPaye && $bon->statut === StatutBonExamen::Prescrit && $bon->laboratoire_id !== null) {
+            $maintenant = CarbonImmutable::now();
+            $bon->transitionVers(StatutBonExamen::Paye);
+            $bon->paye_le = $maintenant;
+            $bon->transmis_le = $maintenant;
+            $bon->save();
+
+            return ['Encaissé ; bon d\'examen payé et transmis au laboratoire.', $recu.' Ouvrez l\'application pour obtenir votre code de retrait.'];
+        }
+
+        $motif = $dejaPaye || $bon->paye_le !== null ? MotifRemboursement::PaiementEnDouble : MotifRemboursement::PaiementTardif;
+        $this->remboursements->demander($paiement, (string) $paiement->montant, $motif);
+
+        return [
+            'Encaissé ; bon déjà payé ou annulé : remboursement automatique.',
+            $recu.' Ce document était déjà réglé ou n\'est plus valable : ce paiement vous sera remboursé.',
         ];
     }
 

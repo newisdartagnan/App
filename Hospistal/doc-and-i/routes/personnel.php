@@ -88,6 +88,9 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
             // Note de consultation et ordonnance (DOS-02, PRE-01 à PRE-03, RG-11).
             require __DIR__.'/note-ordonnance-medecin.php';
 
+            // Laboratoire : prescription d'examens, résultats à valider, alertes (PRE-04, PRE-07, PRE-08).
+            require __DIR__.'/laboratoire-medecin.php';
+
             // Consultation, côté médecin (TLC-03, TLC-05, RG-06, RG-07) : points
             // d'accès JSON des composants de la salle ; chaque requête revérifie
             // que le rendez-vous est le sien.
@@ -110,6 +113,9 @@ Route::prefix('personnel')->name('personnel.')->group(function () {
                     ->middleware('throttle:10,1,tlc-absence-medecin')->name('patient-absent');
             });
         });
+
+        // Portail du laboratoire et écran du coordinateur (PRE-05 à PRE-08, RG-10).
+        require __DIR__.'/laboratoire-personnel.php';
 
         // Espace caisse (PAY-01, PAY-05 à PAY-09). Quatre yeux et plafonds
         // vérifiés par les services, jamais par l'écran seul.

@@ -2,11 +2,15 @@
 
 namespace Database\Seeders;
 
+use App\Models\Examen;
 use App\Models\Medecin;
+use App\Models\Partenaire;
 use App\Models\Specialite;
 use App\Models\TypeConsultation;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -90,5 +94,48 @@ class DemonstrationLocaleSeeder extends Seeder
         ]);
         $admin->save();
         $admin->syncRoles([Role::findOrCreate('admin_fonctionnel', 'web')]);
+
+        $this->laboratoire();
+    }
+
+    /**
+     * Lot laboratoire (PRE-04 à PRE-08) : quelques examens courants à PRIX
+     * FICTIFS (code DEMO-…, libellé « (démo) »), un laboratoire partenaire
+     * fictif avec son compte, et un coordinateur. Les vrais prix et les
+     * vrais laboratoires (Eyano Centre Biologique ou un autre) sont saisis
+     * par l'administration.
+     */
+    private function laboratoire(): void
+    {
+        foreach ([
+            ['DEMO-GLY', 'Glycémie à jeun (démo)', 'biologie', '5.00', 'À jeun depuis 8 heures'],
+            ['DEMO-NFS', 'Numération formule sanguine (démo)', 'biologie', '8.00', null],
+            ['DEMO-GE', 'Goutte épaisse, paludisme (démo)', 'biologie', '4.00', null],
+            ['DEMO-CRP', 'Protéine C réactive (démo)', 'biologie', '7.00', null],
+            ['DEMO-ECHO', 'Échographie abdominale (démo)', 'imagerie', '25.00', 'À jeun depuis 6 heures'],
+        ] as [$code, $libelle, $categorie, $prix, $preparation]) {
+            Examen::firstOrCreate(['code' => $code], ['libelle' => $libelle, 'categorie' => $categorie, 'prix' => $prix, 'devise' => 'USD', 'preparation' => $preparation, 'actif' => true]);
+        }
+
+        $labo = Partenaire::firstOrCreate(
+            ['type' => 'laboratoire', 'nom' => 'Laboratoire de démonstration'],
+            ['commune' => 'Gombe', 'adresse' => 'Adresse fictive', 'actif' => true],
+        );
+
+        foreach ([
+            ['labo.demo@doc-and-i.local', '+243810000031', 'NSIMBA', 'Grâce', 'laboratoire'],
+            ['coordination.demo@doc-and-i.local', '+243810000041', 'TSHIBANDA', 'Joseph', 'coordinateur'],
+        ] as [$email, $telephone, $nom, $prenom, $role]) {
+            $user = User::where('email', $email)->first() ?? tap(new User)->forceFill([
+                'email' => $email, 'telephone' => $telephone, 'telephone_verifie_le' => now(), 'nom' => $nom, 'prenom' => $prenom,
+            ]);
+            $user->save();
+            $user->syncRoles([Role::findOrCreate($role, 'web')]);
+        }
+
+        $compte = User::where('email', 'labo.demo@doc-and-i.local')->value('id');
+        if (! DB::table('comptes_laboratoire')->where('user_id', $compte)->exists()) {
+            DB::table('comptes_laboratoire')->insert(['id' => (string) Str::uuid(), 'user_id' => $compte, 'partenaire_id' => $labo->id, 'created_at' => now(), 'updated_at' => now()]);
+        }
     }
 }
