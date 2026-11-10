@@ -1,0 +1,18 @@
+# Configuration locale Supabase (supabase start / supabase functions serve)
+project_id = "equinox-invite"
+
+[functions.invite-preview]
+# Page d'aperçu publique : crawlers de réseaux sociaux, pas de JWT.
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+# Meta appelle sans JWT Supabase — l'authenticité vient de la signature HMAC.
+verify_jwt = false
+
+[functions.whatsapp-send]
+# Appelée par les scripts d'administration — protégée par ADMIN_SECRET.
+verify_jwt = false
+
+[functions.assistant]
+# Appelée depuis le navigateur via supabase-js, qui joint la clé anon.
+verify_jwt = true
