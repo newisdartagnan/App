@@ -4,6 +4,8 @@ sorties/*
 !sorties/.gitkeep
 historique/*
 !historique/.gitkeep
+entrees_csv/*
+!entrees_csv/.gitkeep
 __pycache__/
 *.pyc
 ~$*.xlsx

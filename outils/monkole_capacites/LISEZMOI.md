@@ -9,6 +9,30 @@ Deux programmes dans le même dossier, qui partagent `entrees` et `sorties` :
 
 Les huit exports peuvent rester ensemble dans `entrees` : chaque programme ne lit que les siens.
 
+### Extractions en .csv (Evolucare, GPS) : conversion sans perte
+
+Ne pas ouvrir les .csv dans Excel pour les enregistrer en .xlsx : Excel supprime les zéros en tête des numéros de dossier,
+peut lire les dates au format américain, arrondit les grands nombres et transforme en formule un texte commençant par « = ».
+À la place :
+
+1. Déposer les extractions **.csv** telles quelles dans le dossier **`entrees_csv`** (en gardant les noms habituels :
+   `Visite_Evolucare_AAAAMMJJ-AAAAMMJJ.csv`, `Hospi_Evolucare_…csv`, `Diagnostic_Evolucare_…csv`…).
+2. Double-cliquer sur **`LANCER_CONVERSION_CSV.bat`** : chaque .csv devient un .xlsx du même nom dans **`entrees`**.
+3. Lancer ensuite `LANCER_MONKOLE.bat` ou `LANCER_DIAGNOSTICS.bat` comme d'habitude.
+
+La conversion reconnaît l'encodage (UTF-8 ou Windows) et le séparateur (`;`, `,`, tabulation). Elle garde chaque valeur à
+l'identique : un nombre n'est converti que s'il se relit exactement (sinon il reste en texte, ex. `000123`), une date
+seulement si elle est au format jour/mois/année (une colonne au format mois/jour reste en texte). Le classeur produit est
+ensuite **relu et comparé au CSV cellule par cellule** : `entrees_csv/conversion_rapport.txt` donne pour chaque fichier
+lignes, colonnes, encodage, séparateur et le contrôle « aucune perte ». Un CSV converti sans écart est rangé dans
+`entrees_csv/convertis` ; en cas d'écart il reste en place et le rapport l'explique.
+
+### Vos modifications du référentiel sont conservées
+
+`Referentiel_Monkole.xlsx` et `Dictionnaire_Diagnostics.xlsx` sont vos fichiers de travail : les mises à jour du programme
+(`git pull`) ne les modifient pas. Les corrections que vous y faites (noms de médecins, alias, lits…) sont gardées ; le
+programme se contente d'y ajouter les nouveaux paramètres quand une version en introduit.
+
 ## Partie 1 — Activités et capacités
 
 Ce programme reproduit, à partir des six exports GPS et Evolucare, le classeur
