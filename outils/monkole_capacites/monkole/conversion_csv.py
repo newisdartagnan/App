@@ -18,6 +18,8 @@ import openpyxl
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
+from .texte import sans_accents
+
 ENCODAGES = ("utf-8-sig", "cp1252", "latin-1")
 SEPARATEURS = ";,\t|"
 MAX_TEXTE = 32767                    # longueur maximale d'une cellule Excel
@@ -112,8 +114,8 @@ def attendu(cellule_csv, colonne_douteuse):
     return v
 
 
-def convertir(chemin_csv, chemin_xlsx):
-    """Convertit un CSV en XLSX et contrôle le résultat. Renvoie un dictionnaire de compte rendu."""
+def lire_csv(chemin_csv):
+    """Lignes du CSV (en-tête compris), encodage et séparateur reconnus."""
     texte, enc = lire_texte(chemin_csv)
     m = re.match(r"sep=(.)\r?\n", texte)            # première ligne « sep=; » ajoutée par certains logiciels pour Excel
     if m:
@@ -123,10 +125,25 @@ def convertir(chemin_csv, chemin_xlsx):
     lignes = list(csv.reader(io.StringIO(texte, newline=""), delimiter=sep, quotechar='"'))
     while lignes and not any(lignes[-1]):
         lignes.pop()
-    cr = {"fichier": os.path.basename(chemin_csv), "encodage": enc, "separateur": {";": "point-virgule", ",": "virgule",
-          "\t": "tabulation", "|": "barre verticale"}.get(sep, sep), "lignes": max(len(lignes) - 1, 0),
-          "colonnes": len(lignes[0]) if lignes else 0, "dates": 0, "nombres": 0, "textes": 0, "caracteres_retires": 0,
-          "textes_trop_longs": 0, "lignes_irregulieres": 0, "colonnes_dates_texte": [], "ecarts": 0, "avertissements": []}
+    return lignes, enc, {";": "point-virgule", ",": "virgule", "\t": "tabulation", "|": "barre verticale"}.get(sep, sep)
+
+
+def _compte_rendu(fichier, lignes, enc, sep):
+    return {"fichier": fichier, "encodage": enc, "separateur": sep, "lignes": max(len(lignes) - 1, 0),
+            "colonnes": len(lignes[0]) if lignes else 0, "dates": 0, "nombres": 0, "textes": 0, "caracteres_retires": 0,
+            "textes_trop_longs": 0, "lignes_irregulieres": 0, "colonnes_dates_texte": [], "ecarts": 0, "avertissements": []}
+
+
+def convertir(chemin_csv, chemin_xlsx):
+    """Convertit un CSV en XLSX et contrôle le résultat. Renvoie un dictionnaire de compte rendu."""
+    lignes, enc, sep = lire_csv(chemin_csv)
+    cr = _compte_rendu(os.path.basename(chemin_csv), lignes, enc, sep)
+    ecrire_controler(lignes, chemin_xlsx, os.path.splitext(os.path.basename(chemin_csv))[0], cr)
+    return cr
+
+
+def ecrire_controler(lignes, chemin_xlsx, nom_feuille, cr):
+    """Écrit les lignes (en-tête compris) dans un .xlsx, le relit et compte les cellules différentes (cr["ecarts"])."""
     if len(lignes) > MAX_LIGNES:
         cr["avertissements"].append(f"{len(lignes)} lignes : au-delà de la limite d'Excel ({MAX_LIGNES}), fichier non converti.")
         cr["ecarts"] = len(lignes) - MAX_LIGNES
@@ -134,11 +151,10 @@ def convertir(chemin_csv, chemin_xlsx):
     douteuses = _colonnes_dates(lignes)
     entete = lignes[0] if lignes else []
     cr["colonnes_dates_texte"] = [entete[i] if i < len(entete) else f"colonne {i + 1}" for i in sorted(douteuses)]
-    larg = cr["colonnes"]
+    larg = len(entete)
 
     wb = openpyxl.Workbook(write_only=True)
-    nom = re.sub(r"[\\/*?:\[\]]", "_", os.path.splitext(os.path.basename(chemin_csv))[0])[:31] or "Feuille1"
-    ws = wb.create_sheet(nom)
+    ws = wb.create_sheet(re.sub(r"[\\/*?:\[\]]", "_", nom_feuille)[:31] or "Feuille1")
     for n, ligne in enumerate(lignes):
         if n and len(ligne) != larg:
             cr["lignes_irregulieres"] += 1
@@ -194,19 +210,189 @@ def convertir(chemin_csv, chemin_xlsx):
     return cr
 
 
-def convertir_dossier(dossier_csv, dossier_xlsx, dossier_traites=None):
-    """Convertit tous les .csv d'un dossier. Les CSV convertis sans écart sont rangés dans dossier_traites."""
+# Extractions brutes -> fichier attendu par les programmes : (code, motif du nom brut, nom produit, colonne de date)
+CIBLES = [
+    ("diag_evo", r"^actes_diagnostic_(webgyn|webcons|weburg)|^diagnostic_evolucare", "Diagnostic_Evolucare", "Date"),
+    ("actes_evo", r"^acte_a_facturer|^actesnd_evolucare", "ActesND_Evolucare", "DATEHEURE"),
+    ("visites_evo", r"^visite_patient|^visite_evolucare", "Visite_Evolucare", "Date"),
+    ("hospi_evo", r"^patient_hospitalise|^hospi_evolucare", "Hospi_Evolucare", "Date_Entree"),
+]
+REGROUPES = {"diag_evo"}           # plusieurs fichiers bruts (webgyn, webcons, weburg) -> un seul classeur
+SOURCE = "Fichier_source"
+
+
+def colonnes_attendues():
+    from .diag_calculs import EXPORTS as DIAG
+    from .lecture import EXPORTS
+    return {"diag_evo": DIAG["Evolucare"][1], "actes_evo": EXPORTS["actes_evo"][1], "visites_evo": EXPORTS["visites_evo"][1],
+            "hospi_evo": EXPORTS["hospi_evo"][1]}
+
+
+def _nom_normalise(nom):
+    base = re.sub(r"^[0-9a-f]{8}-", "", os.path.splitext(nom)[0], flags=re.I)
+    return re.sub(r"\s+", "_", sans_accents(base).lower())
+
+
+def cible(nom):
+    n = _nom_normalise(nom)
+    for code, motif, prefixe, col_date in CIBLES:
+        m = re.search(motif, n)
+        if m:
+            return code, prefixe, col_date, (m.group(1) if m.lastindex else None)
+    return None
+
+
+def periode_nom(nom):
+    """Période écrite dans le nom : « 2026-10 » (mois) ou « 20261001-20261031 ». Une date seule (jour d'extraction,
+    ex. 19112026) n'est pas une période."""
+    m = re.search(r"(\d{8})-(\d{8})", nom)
+    if m:
+        try:
+            return dt.datetime.strptime(m.group(1), "%Y%m%d"), dt.datetime.strptime(m.group(2), "%Y%m%d")
+        except ValueError:
+            return None
+    m = re.search(r"(?<!\d)(\d{4})-(\d{2})(?!\d)", nom)
+    if m and 1 <= int(m.group(2)) <= 12:
+        a, mo = int(m.group(1)), int(m.group(2))
+        debut = dt.datetime(a, mo, 1)
+        return debut, dt.datetime(a + (mo == 12), mo % 12 + 1, 1) - dt.timedelta(days=1)
+    return None
+
+
+def _cle(t):
+    return re.sub(r"\s+", " ", sans_accents(str(t or "")).strip().lower())
+
+
+def _derniere_date(lignes, col):
+    if not lignes:
+        return None
+    entete = [_cle(h) for h in lignes[0]]
+    if _cle(col) not in entete:
+        return None
+    i = entete.index(_cle(col))
+    dates = [d[0] for l in lignes[1:] if i < len(l) for d in [_date(l[i].strip()[:19])] if d]
+    return max(dates) if dates else None
+
+
+def _renommer(entete, prefixe, renommages):
+    """Renomme les colonnes d'après la feuille « Colonnes CSV » du référentiel."""
+    regles = {_cle(src): dst for fichier, src, dst in renommages if _cle(fichier) in (_cle(prefixe), "") and src and dst}
+    return [regles.get(_cle(h), h) for h in entete]
+
+
+def _assembler(sources, prefixe, renommages):
+    """Lignes du classeur produit à partir d'un ou plusieurs CSV ; plusieurs fichiers : colonnes alignées par nom et
+    colonne Fichier_source ajoutée (webgyn, webcons, weburg)."""
+    if len(sources) == 1 and not sources[0][1]:
+        lignes = sources[0][2]
+        return [_renommer(lignes[0], prefixe, renommages)] + lignes[1:] if lignes else lignes, []
+    entete, avert = [], []
+    for _, _, lignes, _ in sources:
+        for h in _renommer(lignes[0] if lignes else [], prefixe, renommages):
+            if _cle(h) not in [_cle(x) for x in entete]:
+                entete.append(h)
+    sortie = [entete + [SOURCE]]
+    for nom, etiquette, lignes, _ in sources:
+        if not lignes:
+            continue
+        propre = _renommer(lignes[0], prefixe, renommages)
+        cles = [_cle(h) for h in propre]
+        if len(set(cles)) != len(cles):
+            avert.append(f"{nom} : noms de colonnes en double, alignement par position.")
+        if [_cle(h) for h in entete] != cles:
+            avert.append(f"{nom} : colonnes différentes des autres fichiers, alignées par nom.")
+        pos = [cles.index(_cle(h)) if _cle(h) in cles else None for h in entete]
+        for l in lignes[1:]:
+            if not l:
+                continue
+            sortie.append([(l[p] if p is not None and p < len(l) else "") for p in pos] + [etiquette or nom])
+    return sortie, avert
+
+
+def convertir_dossier(dossier_csv, dossier_xlsx, dossier_traites=None, renommages=()):
+    """Convertit les .csv d'un dossier. Les extractions brutes d'Evolucare sont renommées comme les attendent les
+    programmes (et les trois fichiers de diagnostics regroupés) ; les autres .csv gardent leur nom. Les CSV convertis
+    sans écart ni colonne manquante sont rangés dans dossier_traites."""
     os.makedirs(dossier_xlsx, exist_ok=True)
-    comptes = []
+    attendues = colonnes_attendues()
+    groupes, autres = {}, []
     for nom in sorted(os.listdir(dossier_csv)):
         if not nom.lower().endswith(".csv"):
             continue
+        c = cible(nom)
+        if c:
+            groupes.setdefault(c[0], (c[1], c[2], []))[2].append((nom, c[3]))
+        else:
+            autres.append(nom)
+
+    # Lecture et période commune du lot (mois du nom, arrêtée à la dernière date présente dans les données)
+    lus = {}
+    periodes = []
+    for code, (prefixe, col_date, fichiers) in groupes.items():
+        lus[code] = []
+        for nom, etiquette in fichiers:
+            lignes, enc, sep = lire_csv(os.path.join(dossier_csv, nom))
+            lus[code].append((nom, etiquette, lignes, (enc, sep)))
+            p = periode_nom(nom)
+            if p:
+                der = _derniere_date([_renommer(lignes[0], prefixe, renommages)] + lignes[1:] if lignes else lignes, col_date)
+                fin = min(p[1], dt.datetime(der.year, der.month, der.day)) if (der and p[0] <= der) else p[1]
+                periodes.append((p[0], fin))
+    debuts = {p[0] for p in periodes}
+    lot = (min(debuts), max(p[1] for p in periodes)) if len(debuts) == 1 else None
+
+    comptes = []
+    for code, (prefixe, col_date, fichiers) in sorted(groupes.items()):
+        sources = lus[code]
+        noms = [s[0] for s in sources]
+        if len(sources) > 1 and code not in REGROUPES:
+            comptes.append({"fichier": ", ".join(noms), "ecarts": 1, "avertissements": [
+                f"Plusieurs fichiers pour {prefixe} : laissez-en un seul dans entrees_csv."], "lignes": 0, "colonnes": 0,
+                "encodage": "", "separateur": "", "dates": 0, "nombres": 0, "textes": 0})
+            continue
+        lignes, avert = _assembler(sources, prefixe, renommages)
+        attendu_n = sum(sum(1 for l in s[2][1:] if l) for s in sources)
+        if len(lignes) - 1 != attendu_n and (len(sources) > 1 or sources[0][1]):
+            avert.append(f"Regroupement : {len(lignes) - 1} lignes produites pour {attendu_n} lignes lues.")
+        per = lot or periode_nom(noms[0])
+        suffixe = f"{per[0]:%Y%m%d}-{per[1]:%Y%m%d}" if per else re.sub(r"\D", "", noms[0]) or "sans_periode"
+        cible_xlsx = os.path.join(dossier_xlsx, f"{prefixe}_{suffixe}.xlsx")
+        encs = sorted({s[3][0] for s in sources})
+        seps = sorted({s[3][1] for s in sources})
+        cr = _compte_rendu(" + ".join(noms), lignes, ", ".join(encs), ", ".join(seps))
+        cr["avertissements"] += avert
+        if not per:
+            cr["avertissements"].append("Pas de période dans le nom (mois AAAA-MM) : les programmes la liront dans les dates.")
+        elif not lot and len(debuts) > 1:
+            cr["avertissements"].append("Les fichiers du lot ne portent pas le même mois : vérifiez les extractions.")
+        ecrire_controler(lignes, cible_xlsx, prefixe, cr)
+        entete = [_cle(h) for h in (lignes[0] if lignes else [])]
+        cr["manquantes"] = [c for c in attendues[code] if _cle(c) not in entete]
+        if cr["manquantes"]:
+            cr["avertissements"].append("Colonnes attendues absentes : " + ", ".join(cr["manquantes"]) + ". Colonnes du fichier : "
+                                        + ", ".join(str(h) for h in (lignes[0] if lignes else [])) + ". À renommer dans la "
+                                        "feuille « Colonnes CSV » du référentiel.")
+        anciens = [f for f in os.listdir(dossier_xlsx) if f.lower().startswith(prefixe.lower() + "_")
+                   and f.lower().endswith(".xlsx") and os.path.join(dossier_xlsx, f) != cible_xlsx]
+        if anciens:
+            cr["avertissements"].append("Autre(s) fichier(s) du même type dans entrees, à retirer : " + ", ".join(anciens) + ".")
+        cr["cible"] = cible_xlsx
+        _ranger(cr, [os.path.join(dossier_csv, n) for n in noms], dossier_traites)
+        comptes.append(cr)
+
+    for nom in autres:                   # autres CSV (GPS, déjà renommés...) : même nom en .xlsx
         source = os.path.join(dossier_csv, nom)
-        cible = os.path.join(dossier_xlsx, os.path.splitext(nom)[0] + ".xlsx")
-        cr = convertir(source, cible)
-        cr["cible"] = cible
-        if dossier_traites and cr["ecarts"] == 0:
-            os.makedirs(dossier_traites, exist_ok=True)
-            shutil.move(source, os.path.join(dossier_traites, nom))
+        cible_xlsx = os.path.join(dossier_xlsx, os.path.splitext(nom)[0] + ".xlsx")
+        cr = convertir(source, cible_xlsx)
+        cr["cible"] = cible_xlsx
+        cr["manquantes"] = []
+        _ranger(cr, [source], dossier_traites)
         comptes.append(cr)
     return comptes
+
+
+def _ranger(cr, sources, dossier_traites):
+    if dossier_traites and cr["ecarts"] == 0 and not cr.get("manquantes"):
+        os.makedirs(dossier_traites, exist_ok=True)
+        for src in sources:
+            shutil.move(src, os.path.join(dossier_traites, os.path.basename(src)))

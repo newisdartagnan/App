@@ -1,6 +1,6 @@
 @echo off
 rem Monkole - Conversion CSV -> XLSX sans perte : double-cliquer sur ce fichier.
-rem Deposer les extractions .csv (Evolucare, GPS) dans le dossier "entrees_csv".
+rem Deposer les extractions .csv brutes d Evolucare (sans les renommer) dans le dossier "entrees_csv".
 rem Les .xlsx sont ecrits dans "entrees", prets pour LANCER_MONKOLE.bat et LANCER_DIAGNOSTICS.bat.
 chcp 65001 >nul
 set PYTHONUTF8=1
