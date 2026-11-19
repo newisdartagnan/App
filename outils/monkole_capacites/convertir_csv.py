@@ -2,8 +2,8 @@
 
 Utilisation : déposer les extractions .csv brutes (sans les renommer) dans « entrees_csv », puis lancer
 LANCER_CONVERSION_CSV.bat (ou : python convertir_csv.py [dossier_csv] [dossier_xlsx]).
-Les .xlsx sont écrits dans « entrees » sous les noms attendus (Visite_Evolucare_…, ActesND_Evolucare_…, Hospi_Evolucare_…,
-Diagnostic_Evolucare_… : les trois Actes_diagnostic_web… regroupés), prêts pour LANCER_MONKOLE.bat et LANCER_DIAGNOSTICS.bat.
+Les .xlsx sont écrits dans « entrees » sous les noms attendus, sans période (Visite_Evolucare, ActesND_Evolucare, Hospi_Evolucare,
+Diagnostic_Evolucare : les trois Actes_diagnostic_web… regroupés) ; ajouter « _AAAAMMJJ-AAAAMMJJ » avant les statistiques.
 Chaque CSV converti sans écart est rangé dans « entrees_csv/convertis ». Compte rendu : entrees_csv/conversion_rapport.txt.
 """
 import datetime as dt

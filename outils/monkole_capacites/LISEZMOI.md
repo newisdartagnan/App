@@ -20,14 +20,14 @@ peut lire les dates au format américain, arrondit les grands nombres et transfo
 
    | Extraction brute (.csv) | Fichier produit dans `entrees` |
    |---|---|
-   | `Actes_diagnostic_webgyn_2026-10.csv` + `Actes_diagnostic_webcons_2026-10.csv` + `Actes_diagnostic_weburg_2026-10.csv` | `Diagnostic_Evolucare_20261001-20261031.xlsx` (les trois regroupés, colonne `Fichier_source` ajoutée) |
-   | `ACTE_A_FACTURER_2026-10.csv` | `ActesND_Evolucare_20261001-20261031.xlsx` |
-   | `Visite_Patient_2026-10.csv` | `Visite_Evolucare_20261001-20261031.xlsx` |
-   | `patient_hospitalisé_19112026.csv` | `Hospi_Evolucare_20261001-20261031.xlsx` |
+   | `Actes_diagnostic_webgyn_….csv` + `Actes_diagnostic_webcons_….csv` + `Actes_diagnostic_weburg_….csv` | `Diagnostic_Evolucare.xlsx` (les trois regroupés, colonne `Fichier_source` ajoutée) |
+   | `ACTE_A_FACTURER_….csv` | `ActesND_Evolucare.xlsx` |
+   | `Visite_Patient_….csv` | `Visite_Evolucare.xlsx` |
+   | `patient_hospitalisé_….csv` | `Hospi_Evolucare.xlsx` |
 
-   La période vient du mois écrit dans le nom (`2026-10`), arrêtée à la dernière date présente dans les données (mois en
-   cours). Le fichier des hospitalisés, qui porte la date d'extraction, prend la période des autres fichiers du lot.
-   Les autres .csv (GPS…) gardent leur nom, en .xlsx.
+   Les noms produits ne portent pas de période : **ajouter vous-même `_AAAAMMJJ-AAAAMMJJ`** à la fin
+   (ex. `Visite_Evolucare_20261001-20261031.xlsx`) avant de lancer les statistiques. Les autres .csv (GPS…) gardent leur
+   nom, en .xlsx.
 3. Lancer ensuite `LANCER_MONKOLE.bat` ou `LANCER_DIAGNOSTICS.bat` comme d'habitude (les exports GPS restent à déposer
    dans `entrees` comme avant).
 

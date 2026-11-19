@@ -210,12 +210,13 @@ def ecrire_controler(lignes, chemin_xlsx, nom_feuille, cr):
     return cr
 
 
-# Extractions brutes -> fichier attendu par les programmes : (code, motif du nom brut, nom produit, colonne de date)
+# Extractions brutes -> fichier attendu par les programmes : (code, motif du nom brut, nom produit). Le nom produit ne
+# porte pas de période : l'utilisateur ajoute lui-même « _AAAAMMJJ-AAAAMMJJ » avant de lancer les statistiques.
 CIBLES = [
-    ("diag_evo", r"^actes_diagnostic_(webgyn|webcons|weburg)|^diagnostic_evolucare", "Diagnostic_Evolucare", "Date"),
-    ("actes_evo", r"^acte_a_facturer|^actesnd_evolucare", "ActesND_Evolucare", "DATEHEURE"),
-    ("visites_evo", r"^visite_patient|^visite_evolucare", "Visite_Evolucare", "Date"),
-    ("hospi_evo", r"^patient_hospitalise|^hospi_evolucare", "Hospi_Evolucare", "Date_Entree"),
+    ("diag_evo", r"^actes_diagnostic_(webgyn|webcons|weburg)|^diagnostic_evolucare", "Diagnostic_Evolucare"),
+    ("actes_evo", r"^acte_a_facturer|^actesnd_evolucare", "ActesND_Evolucare"),
+    ("visites_evo", r"^visite_patient|^visite_evolucare", "Visite_Evolucare"),
+    ("hospi_evo", r"^patient_hospitalise|^hospi_evolucare", "Hospi_Evolucare"),
 ]
 REGROUPES = {"diag_evo"}           # plusieurs fichiers bruts (webgyn, webcons, weburg) -> un seul classeur
 SOURCE = "Fichier_source"
@@ -235,43 +236,15 @@ def _nom_normalise(nom):
 
 def cible(nom):
     n = _nom_normalise(nom)
-    for code, motif, prefixe, col_date in CIBLES:
+    for code, motif, prefixe in CIBLES:
         m = re.search(motif, n)
         if m:
-            return code, prefixe, col_date, (m.group(1) if m.lastindex else None)
-    return None
-
-
-def periode_nom(nom):
-    """Période écrite dans le nom : « 2026-10 » (mois) ou « 20261001-20261031 ». Une date seule (jour d'extraction,
-    ex. 19112026) n'est pas une période."""
-    m = re.search(r"(\d{8})-(\d{8})", nom)
-    if m:
-        try:
-            return dt.datetime.strptime(m.group(1), "%Y%m%d"), dt.datetime.strptime(m.group(2), "%Y%m%d")
-        except ValueError:
-            return None
-    m = re.search(r"(?<!\d)(\d{4})-(\d{2})(?!\d)", nom)
-    if m and 1 <= int(m.group(2)) <= 12:
-        a, mo = int(m.group(1)), int(m.group(2))
-        debut = dt.datetime(a, mo, 1)
-        return debut, dt.datetime(a + (mo == 12), mo % 12 + 1, 1) - dt.timedelta(days=1)
+            return code, prefixe, (m.group(1) if m.lastindex else None)
     return None
 
 
 def _cle(t):
     return re.sub(r"\s+", " ", sans_accents(str(t or "")).strip().lower())
-
-
-def _derniere_date(lignes, col):
-    if not lignes:
-        return None
-    entete = [_cle(h) for h in lignes[0]]
-    if _cle(col) not in entete:
-        return None
-    i = entete.index(_cle(col))
-    dates = [d[0] for l in lignes[1:] if i < len(l) for d in [_date(l[i].strip()[:19])] if d]
-    return max(dates) if dates else None
 
 
 def _renommer(entete, prefixe, renommages):
@@ -321,29 +294,16 @@ def convertir_dossier(dossier_csv, dossier_xlsx, dossier_traites=None, renommage
             continue
         c = cible(nom)
         if c:
-            groupes.setdefault(c[0], (c[1], c[2], []))[2].append((nom, c[3]))
+            groupes.setdefault(c[0], (c[1], []))[1].append((nom, c[2]))
         else:
             autres.append(nom)
 
-    # Lecture et période commune du lot (mois du nom, arrêtée à la dernière date présente dans les données)
-    lus = {}
-    periodes = []
-    for code, (prefixe, col_date, fichiers) in groupes.items():
-        lus[code] = []
+    comptes = []
+    for code, (prefixe, fichiers) in sorted(groupes.items()):
+        sources = []
         for nom, etiquette in fichiers:
             lignes, enc, sep = lire_csv(os.path.join(dossier_csv, nom))
-            lus[code].append((nom, etiquette, lignes, (enc, sep)))
-            p = periode_nom(nom)
-            if p:
-                der = _derniere_date([_renommer(lignes[0], prefixe, renommages)] + lignes[1:] if lignes else lignes, col_date)
-                fin = min(p[1], dt.datetime(der.year, der.month, der.day)) if (der and p[0] <= der) else p[1]
-                periodes.append((p[0], fin))
-    debuts = {p[0] for p in periodes}
-    lot = (min(debuts), max(p[1] for p in periodes)) if len(debuts) == 1 else None
-
-    comptes = []
-    for code, (prefixe, col_date, fichiers) in sorted(groupes.items()):
-        sources = lus[code]
+            sources.append((nom, etiquette, lignes, (enc, sep)))
         noms = [s[0] for s in sources]
         if len(sources) > 1 and code not in REGROUPES:
             comptes.append({"fichier": ", ".join(noms), "ecarts": 1, "avertissements": [
@@ -354,17 +314,11 @@ def convertir_dossier(dossier_csv, dossier_xlsx, dossier_traites=None, renommage
         attendu_n = sum(sum(1 for l in s[2][1:] if l) for s in sources)
         if len(lignes) - 1 != attendu_n and (len(sources) > 1 or sources[0][1]):
             avert.append(f"Regroupement : {len(lignes) - 1} lignes produites pour {attendu_n} lignes lues.")
-        per = lot or periode_nom(noms[0])
-        suffixe = f"{per[0]:%Y%m%d}-{per[1]:%Y%m%d}" if per else re.sub(r"\D", "", noms[0]) or "sans_periode"
-        cible_xlsx = os.path.join(dossier_xlsx, f"{prefixe}_{suffixe}.xlsx")
+        cible_xlsx = os.path.join(dossier_xlsx, f"{prefixe}.xlsx")
         encs = sorted({s[3][0] for s in sources})
         seps = sorted({s[3][1] for s in sources})
         cr = _compte_rendu(" + ".join(noms), lignes, ", ".join(encs), ", ".join(seps))
         cr["avertissements"] += avert
-        if not per:
-            cr["avertissements"].append("Pas de période dans le nom (mois AAAA-MM) : les programmes la liront dans les dates.")
-        elif not lot and len(debuts) > 1:
-            cr["avertissements"].append("Les fichiers du lot ne portent pas le même mois : vérifiez les extractions.")
         ecrire_controler(lignes, cible_xlsx, prefixe, cr)
         entete = [_cle(h) for h in (lignes[0] if lignes else [])]
         cr["manquantes"] = [c for c in attendues[code] if _cle(c) not in entete]
