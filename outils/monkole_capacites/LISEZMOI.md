@@ -15,10 +15,27 @@ Ne pas ouvrir les .csv dans Excel pour les enregistrer en .xlsx : Excel supprime
 peut lire les dates au format américain, arrondit les grands nombres et transforme en formule un texte commençant par « = ».
 À la place :
 
-1. Déposer les extractions **.csv** telles quelles dans le dossier **`entrees_csv`** (en gardant les noms habituels :
-   `Visite_Evolucare_AAAAMMJJ-AAAAMMJJ.csv`, `Hospi_Evolucare_…csv`, `Diagnostic_Evolucare_…csv`…).
-2. Double-cliquer sur **`LANCER_CONVERSION_CSV.bat`** : chaque .csv devient un .xlsx du même nom dans **`entrees`**.
-3. Lancer ensuite `LANCER_MONKOLE.bat` ou `LANCER_DIAGNOSTICS.bat` comme d'habitude.
+1. Déposer les extractions **.csv brutes d'Evolucare, sans les renommer**, dans le dossier **`entrees_csv`**.
+2. Double-cliquer sur **`LANCER_CONVERSION_CSV.bat`** : les fichiers sont convertis, renommés et rangés dans **`entrees`** :
+
+   | Extraction brute (.csv) | Fichier produit dans `entrees` |
+   |---|---|
+   | `Actes_diagnostic_webgyn_2026-10.csv` + `Actes_diagnostic_webcons_2026-10.csv` + `Actes_diagnostic_weburg_2026-10.csv` | `Diagnostic_Evolucare_20261001-20261031.xlsx` (les trois regroupés, colonne `Fichier_source` ajoutée) |
+   | `ACTE_A_FACTURER_2026-10.csv` | `ActesND_Evolucare_20261001-20261031.xlsx` |
+   | `Visite_Patient_2026-10.csv` | `Visite_Evolucare_20261001-20261031.xlsx` |
+   | `patient_hospitalisé_19112026.csv` | `Hospi_Evolucare_20261001-20261031.xlsx` |
+
+   La période vient du mois écrit dans le nom (`2026-10`), arrêtée à la dernière date présente dans les données (mois en
+   cours). Le fichier des hospitalisés, qui porte la date d'extraction, prend la période des autres fichiers du lot.
+   Les autres .csv (GPS…) gardent leur nom, en .xlsx.
+3. Lancer ensuite `LANCER_MONKOLE.bat` ou `LANCER_DIAGNOSTICS.bat` comme d'habitude (les exports GPS restent à déposer
+   dans `entrees` comme avant).
+
+Si une colonne attendue par les programmes manque, le rapport la signale avec la liste des colonnes du fichier, et le
+CSV reste dans `entrees_csv`. Pour un nom de colonne différent, ajouter une ligne dans la feuille **« Colonnes CSV »** de
+`Referentiel_Monkole.xlsx` (ex. `Visite_Evolucare` | `Date_Visite` | `Date`), puis relancer la conversion. Le rapport
+ne contient aucune donnée de patient (seulement des noms de fichiers et de colonnes) : il peut être envoyé pour
+vérification.
 
 La conversion reconnaît l'encodage (UTF-8 ou Windows) et le séparateur (`;`, `,`, tabulation). Elle garde chaque valeur à
 l'identique : un nombre n'est converti que s'il se relit exactement (sinon il reste en texte, ex. `000123`), une date

@@ -57,6 +57,10 @@ def ecrire_modele(chemin, ref):
              "Harmonise les catégories d'actes Evolucare avec les spécialités GPS.")
     _feuille(wb, "Produits Evo", ["Categorie_acte traitée comme produit"], [(x,) for x in ref["EVO_PRODUITS"]], [40],
              "Lignes séparées des actes / prestations (médicaments, consommables).")
+    _feuille(wb, "Colonnes CSV", ["Fichier produit (vide = tous)", "Colonne dans le CSV", "Colonne attendue"],
+             [tuple(l) for l in ref["COLONNES_CSV"]], [32, 35, 30],
+             "Conversion des extractions .csv (LANCER_CONVERSION_CSV.bat) : colonnes à renommer. Ex. : Visite_Evolucare | "
+             "Date_Visite | Date.")
     _feuille(wb, "Alias médecins", ["Nom nettoyé source", "Nom regroupé"], sorted(ref["ALIAS_MEDECINS"].items()), [35, 35],
              "Alias confirmés. Écrire les noms en MAJUSCULES sans accents ni titre (Dr, Pr...).")
     wb.save(chemin)
@@ -128,6 +132,12 @@ def charger(chemin):
                                  for r in _lignes(wb["Catégories Evo"]) if r[1] and r[2]}
     if "Produits Evo" in noms:
         ref["EVO_PRODUITS"] = [str(r[0]).strip() for r in _lignes(wb["Produits Evo"])]
+    if "Colonnes CSV" in noms:
+        ref["COLONNES_CSV"] = [[str(r[0] or "").strip(), str(r[1] or "").strip(), str(r[2] or "").strip()]
+                               for r in wb["Colonnes CSV"].iter_rows(min_row=3, values_only=True)
+                               if r and len(r) >= 3 and r[1] and r[2]]
+    else:
+        manquants = True
     if "Alias médecins" in noms:
         ref["ALIAS_MEDECINS"] = {str(r[0]).strip().upper(): str(r[1]).strip().upper()
                                  for r in _lignes(wb["Alias médecins"]) if r[1]}

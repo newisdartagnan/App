@@ -58,6 +58,10 @@ HORS_CABINETS_CHME = [
 # Ancienne liste (avant octobre 2026) : complétée automatiquement si elle est lue telle quelle dans le référentiel
 HORS_CABINETS_CHME_V1 = HORS_CABINETS_CHME[:8]
 
+# Conversion des extractions .csv : colonnes à renommer [fichier produit (ex. Visite_Evolucare, vide = tous), colonne du
+# CSV, colonne attendue par le programme]. Vide par défaut : les noms des extractions sont gardés tels quels.
+COLONNES_CSV = []
+
 # Intervenants comptés comme spécialistes en cabinet malgré une spécialité hors cabinet (mots du nom, en majuscules)
 SPECIALISTES_CABINET = ["MWAMOLANDA"]
 
