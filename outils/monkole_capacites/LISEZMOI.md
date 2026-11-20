@@ -23,7 +23,13 @@ peut lire les dates au format américain, arrondit les grands nombres et transfo
    | `Actes_diagnostic_webgyn_….csv` + `Actes_diagnostic_webcons_….csv` + `Actes_diagnostic_weburg_….csv` | `Diagnostic_Evolucare.xlsx` (les trois regroupés, colonne `Fichier_source` ajoutée) |
    | `ACTE_A_FACTURER_….csv` | `ActesND_Evolucare.xlsx` |
    | `Visite_Patient_….csv` | `Visite_Evolucare.xlsx` |
-   | `patient_hospitalisé_….csv` | `Hospi_Evolucare.xlsx` |
+   | `patient_hospitalisé_JJMMAAAA` (une extraction automatique par jour, .csv ou .xlsx : déposer **toutes celles de la période voulue**) | `Hospi_Evolucare.xlsx` (extractions fusionnées) |
+
+   **Hospitalisés** : l'extraction de 8 h ne donne que les patients présents ce matin-là. Toutes les extractions déposées
+   sont fusionnées : un séjour (Num_Dossier + Date_Entree) vu plusieurs jours n'est gardé qu'une fois, avec les valeurs de
+   l'extraction la plus récente (une sortie corrigée entre-temps est donc prise en compte). Trois colonnes sont ajoutées :
+   `Premiere_extraction`, `Derniere_extraction`, `Nb_extractions`. Le rapport donne le nombre d'extractions, la première
+   et la dernière date, les lignes lues et les séjours distincts, et signale un jour sans extraction.
 
    Les noms produits ne portent pas de période : **ajouter vous-même `_AAAAMMJJ-AAAAMMJJ`** à la fin
    (ex. `Visite_Evolucare_20261001-20261031.xlsx`) avant de lancer les statistiques. Les autres .csv (GPS…) gardent leur

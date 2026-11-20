@@ -218,8 +218,105 @@ CIBLES = [
     ("visites_evo", r"^visite_patient|^visite_evolucare", "Visite_Evolucare"),
     ("hospi_evo", r"^patient_hospitalise|^hospi_evolucare", "Hospi_Evolucare"),
 ]
-REGROUPES = {"diag_evo"}           # plusieurs fichiers bruts (webgyn, webcons, weburg) -> un seul classeur
+REGROUPES = {"diag_evo", "hospi_evo"}   # plusieurs fichiers bruts -> un seul classeur
 SOURCE = "Fichier_source"
+# Hospitalisés : une extraction automatique par jour (8 h), à fusionner sur la période voulue
+EXTRACTIONS = ["Premiere_extraction", "Derniere_extraction", "Nb_extractions"]
+
+
+def lire_xlsx(chemin):
+    """Extraction déjà en .xlsx : lignes en texte, relues ensuite comme un CSV (dates jj/mm/aaaa, nombres exacts)."""
+    def texte_de(v):
+        if v is None:
+            return ""
+        if isinstance(v, dt.datetime):
+            return v.strftime("%d/%m/%Y") if (v.hour, v.minute, v.second) == (0, 0, 0) else v.strftime("%d/%m/%Y %H:%M:%S")
+        if isinstance(v, dt.date):
+            return v.strftime("%d/%m/%Y")
+        if isinstance(v, float) and v.is_integer():
+            return str(int(v))
+        return str(v)
+    wb = openpyxl.load_workbook(chemin, read_only=True, data_only=True)
+    lignes = [[texte_de(v) for v in row] for row in wb.worksheets[0].iter_rows(values_only=True)]
+    wb.close()
+    while lignes and not any(lignes[-1]):
+        lignes.pop()
+    return lignes, "xlsx", "–"
+
+
+def lire_source(chemin):
+    return lire_xlsx(chemin) if chemin.lower().endswith(".xlsx") else lire_csv(chemin)
+
+
+def date_extraction(nom):
+    """Jour d'extraction écrit dans le nom (ex. patient_hospitalisé_19112026 -> 19/11/2026)."""
+    m = re.search(r"(?<!\d)(\d{2})(\d{2})(\d{4})(?!\d)", nom)
+    if m:
+        try:
+            return dt.datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        except ValueError:
+            return None
+    return None
+
+
+def _cle_sejour(dossier, entree):
+    """Même séjour malgré des écritures différentes d'un fichier à l'autre (00101 / 101, 15:00 / 15:00:00)."""
+    d = dossier.strip().lstrip("0") or "0"
+    e = entree.strip()
+    for motif, fmt, _ in DATES:
+        if motif.fullmatch(e):
+            try:
+                e = (dt.datetime.strptime(e, fmt) if fmt else dt.datetime.fromisoformat(e.replace("T", " "))).isoformat()
+            except ValueError:
+                pass
+            break
+    return d, e
+
+
+def _fusion_hospi(sources, prefixe, renommages):
+    """Fusion des extractions quotidiennes des hospitalisés : un séjour (Num_Dossier + Date_Entree) présent dans plusieurs
+    extractions n'est gardé qu'une fois, avec les valeurs de l'extraction la plus récente (sortie corrigée entre-temps) ;
+    colonnes ajoutées : première et dernière extraction où il figure, nombre d'extractions."""
+    sources = sorted(sources, key=lambda s: (date_extraction(s[0]) or dt.datetime.max, s[0]))
+    entete, avert = [], []
+    for _, _, lignes, _ in sources:
+        for h in _renommer(lignes[0] if lignes else [], prefixe, renommages):
+            if _cle(h) not in [_cle(x) for x in entete]:
+                entete.append(h)
+    cles_ent = [_cle(h) for h in entete]
+    i_dos = cles_ent.index(_cle("Num_Dossier")) if _cle("Num_Dossier") in cles_ent else None
+    i_ent = cles_ent.index(_cle("Date_Entree")) if _cle("Date_Entree") in cles_ent else None
+    if i_dos is None or i_ent is None:
+        avert.append("Colonnes Num_Dossier / Date_Entree introuvables : extractions mises bout à bout, sans dédoublonnage.")
+    sejours, ordre, lues = {}, [], 0
+    for nom, _, lignes, _ in sources:
+        if not lignes:
+            continue
+        jour = date_extraction(nom)
+        etiquette = jour.strftime("%d/%m/%Y") if jour else nom
+        cles = [_cle(h) for h in _renommer(lignes[0], prefixe, renommages)]
+        if [_cle(h) for h in entete] != cles:
+            avert.append(f"{nom} : colonnes différentes des autres extractions, alignées par nom.")
+        pos = [cles.index(c) if c in cles else None for c in cles_ent]
+        for n, l in enumerate(lignes[1:]):
+            if not l:
+                continue
+            lues += 1
+            ligne = [(l[p] if p is not None and p < len(l) else "") for p in pos]
+            k = _cle_sejour(ligne[i_dos], ligne[i_ent]) if i_dos is not None and i_ent is not None else (nom, n)
+            if k not in sejours:
+                ordre.append(k)
+                sejours[k] = [ligne, etiquette, etiquette, 0]
+            x = sejours[k]
+            x[0], x[2], x[3] = ligne, etiquette, x[3] + 1
+    sortie = [entete + EXTRACTIONS] + [x[0] + [x[1], x[2], str(x[3])] for x in (sejours[k] for k in ordre)]
+    jours = sorted(d for d in (date_extraction(s[0]) for s in sources) if d)
+    infos = {"extractions": len(sources), "lues": lues, "sejours": len(ordre),
+             "premiere": jours[0] if jours else None, "derniere": jours[-1] if jours else None,
+             "manquants": [jours[0] + dt.timedelta(days=i) for i in range((jours[-1] - jours[0]).days + 1)
+                           if jours[0] + dt.timedelta(days=i) not in set(jours)] if jours else [],
+             "doubles": len(jours) - len(set(jours))}
+    return sortie, avert, infos
 
 
 def colonnes_attendues():
@@ -290,19 +387,20 @@ def convertir_dossier(dossier_csv, dossier_xlsx, dossier_traites=None, renommage
     attendues = colonnes_attendues()
     groupes, autres = {}, []
     for nom in sorted(os.listdir(dossier_csv)):
-        if not nom.lower().endswith(".csv"):
+        ext = os.path.splitext(nom)[1].lower()
+        if ext not in (".csv", ".xlsx") or nom.startswith("~$"):
             continue
         c = cible(nom)
         if c:
             groupes.setdefault(c[0], (c[1], []))[1].append((nom, c[2]))
-        else:
+        elif ext == ".csv":
             autres.append(nom)
 
     comptes = []
     for code, (prefixe, fichiers) in sorted(groupes.items()):
         sources = []
         for nom, etiquette in fichiers:
-            lignes, enc, sep = lire_csv(os.path.join(dossier_csv, nom))
+            lignes, enc, sep = lire_source(os.path.join(dossier_csv, nom))
             sources.append((nom, etiquette, lignes, (enc, sep)))
         noms = [s[0] for s in sources]
         if len(sources) > 1 and code not in REGROUPES:
@@ -310,15 +408,26 @@ def convertir_dossier(dossier_csv, dossier_xlsx, dossier_traites=None, renommage
                 f"Plusieurs fichiers pour {prefixe} : laissez-en un seul dans entrees_csv."], "lignes": 0, "colonnes": 0,
                 "encodage": "", "separateur": "", "dates": 0, "nombres": 0, "textes": 0})
             continue
-        lignes, avert = _assembler(sources, prefixe, renommages)
+        infos = None
+        if code == "hospi_evo" and len(sources) > 1:
+            lignes, avert, infos = _fusion_hospi(sources, prefixe, renommages)
+        else:
+            lignes, avert = _assembler(sources, prefixe, renommages)
         attendu_n = sum(sum(1 for l in s[2][1:] if l) for s in sources)
-        if len(lignes) - 1 != attendu_n and (len(sources) > 1 or sources[0][1]):
+        if infos is None and len(lignes) - 1 != attendu_n and (len(sources) > 1 or sources[0][1]):
             avert.append(f"Regroupement : {len(lignes) - 1} lignes produites pour {attendu_n} lignes lues.")
         cible_xlsx = os.path.join(dossier_xlsx, f"{prefixe}.xlsx")
         encs = sorted({s[3][0] for s in sources})
         seps = sorted({s[3][1] for s in sources})
-        cr = _compte_rendu(" + ".join(noms), lignes, ", ".join(encs), ", ".join(seps))
+        libelle = " + ".join(noms) if len(noms) <= 3 else f"{len(noms)} fichiers ({noms[0]} … {noms[-1]})"
+        cr = _compte_rendu(libelle, lignes, ", ".join(encs), ", ".join(seps))
         cr["avertissements"] += avert
+        cr["fusion"] = infos
+        if infos and infos["manquants"]:
+            cr["avertissements"].append("Extraction(s) absente(s) pour : " + ", ".join(f"{d:%d/%m/%Y}" for d in infos["manquants"])
+                                        + " (les séjours de ces jours-là peuvent manquer).")
+        if infos and infos["doubles"]:
+            cr["avertissements"].append(f"{infos['doubles']} jour(s) avec deux extractions : la plus récente (ordre des noms) est retenue.")
         ecrire_controler(lignes, cible_xlsx, prefixe, cr)
         entete = [_cle(h) for h in (lignes[0] if lignes else [])]
         cr["manquantes"] = [c for c in attendues[code] if _cle(c) not in entete]
