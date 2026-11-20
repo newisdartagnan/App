@@ -49,6 +49,11 @@ def main(argv):
         lignes += [f"{cr['fichier']} -> {os.path.basename(cr.get('cible', ''))} : {etat}",
                    f"   {cr['lignes']} lignes, {cr['colonnes']} colonnes ; encodage {cr['encodage']}, séparateur {cr['separateur']} ; "
                    f"{cr['dates']} dates, {cr['nombres']} nombres, {cr['textes']} textes"]
+        f = cr.get("fusion")
+        if f:
+            per = (f" du {f['premiere']:%d/%m/%Y} au {f['derniere']:%d/%m/%Y}" if f["premiere"] else "")
+            lignes.append(f"   fusion de {f['extractions']} extractions quotidiennes{per} : {f['lues']} lignes lues -> "
+                          f"{f['sejours']} séjours distincts (un séjour vu plusieurs jours n'est gardé qu'une fois)")
         lignes += [f"   ATTENTION : {a}" for a in cr["avertissements"]]
     ok = sum(1 for cr in comptes if cr["ecarts"] == 0 and not cr.get("manquantes"))
     lignes += ["", f"{ok} fichier(s) sur {len(comptes)} prêts dans : {dossier_xlsx}",
