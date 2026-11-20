@@ -311,7 +311,9 @@ def _statut_sortie(d):
     if not d["date_connue"]:
         return "Sans date d’entrée"
     if d["sortie"] is None:
-        return "Sans sortie (en cours)"
+        return "Présent à la dernière extraction" if d.get("present_derniere_extraction") else "Sans sortie (en cours)"
+    if d.get("sortie_disparition"):
+        return "Définitive (disparition des extractions)"
     if d["sortie_proposee"]:
         return "Prévue (Evolucare, 4 jours)"
     return "Définitive"
@@ -322,7 +324,8 @@ def feuille_rotation(wb, R):
                        "Lits occupés = patients présents au recensement (minuit) : nombre entier. Rotation = sorties (définitives + prévues) par "
                        "lit sur la période. Intervalle de rotation = temps moyen pendant lequel un lit reste vide entre deux patients "
                        "(négatif si l’unité dépasse ses lits). Les exports ne donnent pas le numéro du lit : un lit est « repris le "
-                       "même jour » quand, dans la même unité, une entrée suit une sortie le même jour. Evolucare : une sortie à exactement 4 jours "
+                       "même jour » quand, dans la même unité, une entrée suit une sortie le même jour. Evolucare : avec les extractions "
+                       "quotidiennes, la sortie réelle est la disparition de la liste ; sinon une sortie à exactement 4 jours "
                        "est une sortie prévue, les autres dates sont définitives.",
                        [30, 12, 14, 17, 17, 24, 12, 12, 20, 20, 13])
     lignes = [[x["unite"].replace("Hors unités / UF absente", "Sans unité"), x["lits"], x["entrees"], x["definitives"], x["prevues"],

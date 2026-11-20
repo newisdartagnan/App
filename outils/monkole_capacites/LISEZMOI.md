@@ -30,6 +30,11 @@ peut lire les dates au format américain, arrondit les grands nombres et transfo
    l'extraction la plus récente (une sortie corrigée entre-temps est donc prise en compte). Trois colonnes sont ajoutées :
    `Premiere_extraction`, `Derniere_extraction`, `Nb_extractions`. Le rapport donne le nombre d'extractions, la première
    et la dernière date, les lignes lues et les séjours distincts, et signale un jour sans extraction.
+   Dans les statistiques, **la disparition de la liste donne la sortie réelle** : un patient présent à 8 h le 17 et absent
+   le 18 est sorti le 17 (compté sorti à 8 h, au plus tôt). Cette date remplace la `Date_Sortie` saisie dans Evolucare
+   (les services n'utilisent pas la fonction de sortie), qui reste visible dans la base « Base hospitalisations ». Un
+   patient encore présent à la dernière extraction est « en cours ». Pour un jour sans extraction, la sortie peut être
+   datée un jour trop tôt.
 
    Les noms produits ne portent pas de période : **ajouter vous-même `_AAAAMMJJ-AAAAMMJJ`** à la fin
    (ex. `Visite_Evolucare_20261001-20261031.xlsx`) avant de lancer les statistiques. Les autres .csv (GPS…) gardent leur
@@ -49,6 +54,9 @@ seulement si elle est au format jour/mois/année (une colonne au format mois/jou
 ensuite **relu et comparé au CSV cellule par cellule** : `entrees_csv/conversion_rapport.txt` donne pour chaque fichier
 lignes, colonnes, encodage, séparateur et le contrôle « aucune perte ». Un CSV converti sans écart est rangé dans
 `entrees_csv/convertis` ; en cas d'écart il reste en place et le rapport l'explique.
+
+Pour convertir d'autres fichiers .csv, en dehors des statistiques, utiliser l'outil autonome
+`outils/convertisseur_csv` (même conversion sans perte, sans renommage).
 
 ### Vos modifications du référentiel sont conservées
 

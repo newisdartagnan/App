@@ -59,6 +59,8 @@ def feuille_notez_bien(wb, R, positions, onglet):
     sorties_evo = [b for b in evo_b if b["sortie"] is not None and b["dans_periode"]]
     toutes_apres = sorties_evo and all(b["sortie"] >= fx for b in sorties_evo)
     n_prop = sum(b["sortie_proposee"] for b in evo_b if b["dans_periode"])
+    n_disp = sum(b.get("sortie_disparition", 0) for b in evo_b if b["dans_periode"])
+    n_pres = sum(b.get("present_derniere_extraction", 0) for b in evo_b if b["dans_periode"])
     alias = "; ".join(f"{a} / {b}" for a, b in R.ref["ALIAS_MEDECINS"].items())
     vides = f"{f.day + 1:02d}-{_fin_mois(R):02d}" if f.day < _fin_mois(R) else "hors période"
     hors_txt = ""
@@ -171,6 +173,10 @@ def feuille_notez_bien(wb, R, positions, onglet):
          "services n’utilisent pas la fonction de sortie : une sortie à exactement cette durée est une sortie prévue (elle termine "
          f"le séjour et libère le lit, mais n’entre pas dans la DMS ; {n_prop} séjour(s) concernés) ; une date plus courte ou plus "
          "longue est une sortie définitive. "
+         + ("Fichier issu des extractions quotidiennes des hospitalisés (8 h) : la sortie réelle est la disparition de la "
+            "liste, datée du dernier jour où le patient figure à 8 h (sortie au plus tôt ; elle remplace la Date_Sortie "
+            f"saisie, gardée dans la base) ; {n_disp} séjour(s) sortis ainsi, {n_pres} encore présent(s) à la dernière "
+            "extraction (en cours). " if (n_disp or n_pres) else "")
          + (f"Toutes les sorties Evo fournies sont postérieures au {fin_j}. " if toutes_apres else "")),
         ("21 / Occupation des lits",
          "Lits occupés d’un jour = patients présents au recensement de minuit (fin de journée ; heure modifiable dans le "
