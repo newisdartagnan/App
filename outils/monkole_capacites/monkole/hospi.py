@@ -6,6 +6,7 @@ from .texte import date_heure, dossier, texte
 from .visites import HOSPITALISATION, unite_hospi
 
 UN_JOUR = dt.timedelta(days=1)
+HEURE_EXTRACTION = 8      # extraction automatique quotidienne des hospitalisés Evolucare (patients présents à 8 h)
 
 
 def _fusionner(intervalles):
@@ -47,6 +48,17 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
                      "unite": unite_hospi(r["UF"], hors), "origine_site": "Site du fichier Hospi"})
     for r in donnees["hospi_evo"]:
         e, s = date_heure(r["Date_Entree"]), date_heure(r["Date_Sortie"])
+        s_evo, disparu, present = s, 0, 0
+        # Fichier issu de la fusion des extractions quotidiennes : la disparition de la liste donne la sortie réelle
+        # (présent à 8 h le dernier jour où il figure, absent le lendemain) ; encore présent à la dernière extraction = en cours
+        der, lot = date_heure(r.get("Derniere_extraction")), date_heure(r.get("Derniere_extraction_lot"))
+        if der and lot:
+            if der < lot:
+                s, disparu = der + dt.timedelta(hours=HEURE_EXTRACTION), 1
+                if e is not None and s < e:
+                    s = e
+            else:
+                s, present = None, 1
         num = dossier(r["Num_Dossier"])
         ss = sites_evo.get(num, set())
         if len(ss) == 1:
@@ -54,14 +66,16 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
         else:
             site, origine = "Site non renseigné", ("Aucune correspondance de site" if not ss else "Sites multiples : non attribué")
         base.append({"logiciel": "Evolucare", "ligne": r["_ligne"], "site": site, "dossier": num, "entree": e,
-                     "sortie": s, "uf": texte(r["UH"]), "unite": unite_hospi(r["UH"], hors), "origine_site": origine})
+                     "sortie": s, "uf": texte(r["UH"]), "unite": unite_hospi(r["UH"], hors), "origine_site": origine,
+                     "sortie_evolucare": s_evo, "sortie_disparition": disparu, "present_derniere_extraction": present})
     for b in base:
         e, s = b["entree"], b["sortie"]
         b["invalide"] = 1 if (e is not None and s is not None and s < e) else 0
         fin = s if s is not None else fin_excl
         b["dans_periode"] = 1 if (e is not None and not b["invalide"] and e < fin_excl and fin > debut) else 0
         b["sortie_apres"] = 1 if (s is not None and s >= fin_excl) else 0
-        b["sortie_proposee"] = 1 if (b["logiciel"] == "Evolucare" and e is not None and s is not None and n_prop
+        b["sortie_proposee"] = 1 if (b["logiciel"] == "Evolucare" and not b.get("sortie_disparition") and e is not None
+                                     and s is not None and n_prop
                                      and abs((s - e).total_seconds() / 86400 - n_prop) < 0.01) else 0
 
     # Dossiers : union des séjours couvrant la période et des dossiers hospitaliers des visites
@@ -97,6 +111,8 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
             ouvertes = [l for l in lignes if l["sortie"] is None]
             d["sortie"] = None if ouvertes else max(l["sortie"] for l in lignes)
             d["sortie_proposee"] = 0 if ouvertes else max(lignes, key=lambda l: l["sortie"])["sortie_proposee"]
+            d["sortie_disparition"] = 0 if ouvertes else max(lignes, key=lambda l: l["sortie"]).get("sortie_disparition", 0)
+            d["present_derniere_extraction"] = 1 if any(l.get("present_derniere_extraction") for l in lignes) else 0
             # Evolucare : la sortie prévue à 4 jours termine le séjour (la fonction de sortie n'est pas utilisée par les services)
             ints = _fusionner([(max(l["entree"], debut), min(l["sortie"] or fin_excl, fin_excl)) for l in lignes])
             d["intervalles"] = ints
@@ -106,7 +122,7 @@ def construire(donnees, ref, visites, actes_evo_sites, debut, fin_excl):
             d["origine_unite"] = "Visites hospitalières sans entrée"
             d["uf_contradictoires"] = 1 if len(d["unites_traces"]) > 1 else 0
             d["entree"] = d["sortie"] = None
-            d["sortie_proposee"] = 0
+            d["sortie_proposee"] = d["sortie_disparition"] = d["present_derniere_extraction"] = 0
             d["intervalles"] = []
             d["date_connue"] = 0
         e, s = d["entree"], d["sortie"]

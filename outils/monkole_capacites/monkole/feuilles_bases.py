@@ -78,10 +78,12 @@ def base_hospitalisations(wb, R):
     ws = _feuille(wb, "Base hospitalisations", ["Logiciel", "Ligne source", "Site retenu", "Num_Dossier", "Entrée source",
                                                  "Sortie source", "UF / UH source", "Unité harmonisée", "Origine du site",
                                                  "Intervalle dans période", "Sortie après la fin", "Dates invalides",
-                                                 "Sortie proposée (Evolucare)"])
+                                                 "Sortie proposée (Evolucare)", "Sortie par disparition des extractions",
+                                                 "Date_Sortie saisie dans Evolucare"])
     lignes = [(b["logiciel"], b["ligne"], b["site"], b["dossier"], b["entree"], b["sortie"], b["uf"], b["unite"],
-               b["origine_site"], b["dans_periode"], b["sortie_apres"], b["invalide"], b["sortie_proposee"]) for b in R.base_hospi]
-    _lignes(ws, lignes, {5: "dd/mm/yyyy hh:mm", 6: "dd/mm/yyyy hh:mm"})
+               b["origine_site"], b["dans_periode"], b["sortie_apres"], b["invalide"], b["sortie_proposee"],
+               b.get("sortie_disparition", 0), b.get("sortie_evolucare", b["sortie"])) for b in R.base_hospi]
+    _lignes(ws, lignes, {5: "dd/mm/yyyy hh:mm", 6: "dd/mm/yyyy hh:mm", 15: "dd/mm/yyyy hh:mm"})
 
 
 def dossiers_hospitaliers(wb, R):

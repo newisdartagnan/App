@@ -221,7 +221,7 @@ CIBLES = [
 REGROUPES = {"diag_evo", "hospi_evo"}   # plusieurs fichiers bruts -> un seul classeur
 SOURCE = "Fichier_source"
 # Hospitalisés : une extraction automatique par jour (8 h), à fusionner sur la période voulue
-EXTRACTIONS = ["Premiere_extraction", "Derniere_extraction", "Nb_extractions"]
+EXTRACTIONS = ["Premiere_extraction", "Derniere_extraction", "Nb_extractions", "Derniere_extraction_lot"]
 
 
 def lire_xlsx(chemin):
@@ -309,8 +309,9 @@ def _fusion_hospi(sources, prefixe, renommages):
                 sejours[k] = [ligne, etiquette, etiquette, 0]
             x = sejours[k]
             x[0], x[2], x[3] = ligne, etiquette, x[3] + 1
-    sortie = [entete + EXTRACTIONS] + [x[0] + [x[1], x[2], str(x[3])] for x in (sejours[k] for k in ordre)]
     jours = sorted(d for d in (date_extraction(s[0]) for s in sources) if d)
+    fin_lot = jours[-1].strftime("%d/%m/%Y") if jours else ""
+    sortie = [entete + EXTRACTIONS] + [x[0] + [x[1], x[2], str(x[3]), fin_lot] for x in (sejours[k] for k in ordre)]
     infos = {"extractions": len(sources), "lues": lues, "sejours": len(ordre),
              "premiere": jours[0] if jours else None, "derniere": jours[-1] if jours else None,
              "manquants": [jours[0] + dt.timedelta(days=i) for i in range((jours[-1] - jours[0]).days + 1)
