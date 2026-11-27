@@ -291,7 +291,8 @@ class FacturationService
         string $type,
         ?string $referenceId,
         float $prixPublic,
-        bool $prixDeCategorie = true
+        bool $prixDeCategorie = true,
+        ?int $fonctionTarifaire = null
     ): float {
         if ($patient->type_prise_en_charge !== 'assurance') {
             return $prixPublic;
@@ -303,7 +304,7 @@ class FacturationService
             return $prixPublic;
         }
 
-        return $contexte['lien']->assurance->prixPour($type, $referenceId, $prixPublic, $prixDeCategorie);
+        return $contexte['lien']->assurance->prixPour($type, $referenceId, $prixPublic, $prixDeCategorie, $fonctionTarifaire);
     }
 
     /**
@@ -470,7 +471,9 @@ class FacturationService
         $prix = $this->prixConvention(
             $visit->patient, 'consultation',
             $visit->type !== 'urgence' ? $visit->typeConsultation?->id : null,
-            (float) $montant
+            (float) $montant,
+            true,
+            $visit->type !== 'urgence' ? $visit->typeConsultation?->fonction_tarifaire : null
         );
 
         if (abs($prix - (float) $montant) > 0.009) {
@@ -521,7 +524,7 @@ class FacturationService
                 $partiel = $totalParametres > 1 && $retenus < $totalParametres;
 
                 $typeLigne = $examen->domaine === 'imagerie' ? 'imagerie' : 'examen_labo';
-                $prixPanel = $this->prixConvention($patient, $typeLigne, $type->id, (float) ($type->prix ?? 0), false);
+                $prixPanel = $this->prixConvention($patient, $typeLigne, $type->id, (float) ($type->prix ?? 0), false, $type->fonction_tarifaire);
 
                 $prix = $partiel
                     ? round($prixPanel * $retenus / $totalParametres, 2)
@@ -841,7 +844,7 @@ class FacturationService
                 $acte->visit,
                 $typeLigne,
                 $acte->libelle,
-                $this->prixConvention($acte->patient, $typeLigne, null, (float) $acte->montantTotal(), false),
+                $this->prixConvention($acte->patient, $typeLigne, null, (float) $acte->montantTotal(), false, $acte->fonction_tarifaire),
                 'CDF',
                 $acte->id
             );

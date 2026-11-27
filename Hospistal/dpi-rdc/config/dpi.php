@@ -19,6 +19,11 @@ return [
     'sync_batch_size' => 500,
     'sync_interval_minutes' => 15,
     'backup_retention_days' => 7,
+    // Nombre de sauvegardes gardées dans storage/app/sauvegardes.
+    'sauvegardes_conservees' => (int) env('DPI_SAUVEGARDES_CONSERVEES', 7),
+    // Vidage des tables depuis la page Maintenance (?mode=dieu) : fermé en
+    // production tant qu'on ne l'ouvre pas explicitement dans le .env.
+    'vidage_autorise' => env('DPI_VIDAGE_AUTORISE', env('APP_ENV') !== 'production'),
 
     /*
      * Taux de départ du dollar, en francs congolais.

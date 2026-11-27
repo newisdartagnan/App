@@ -23,7 +23,7 @@ class ActeClinique extends Model
         'date_prevue', 'duree_minutes', 'consentement', 'urgence', 'indication',
         'salle_id', 'anesthesiste_id', 'demandeur_id', 'type_anesthesie',
         'diagnostic_preop', 'diagnostic_postop', 'instrumentiste', 'kits', 'incidents',
-        'heure_entree_salle', 'heure_sortie_salle',
+        'heure_entree_salle', 'heure_sortie_salle', 'acte_catalogue_id', 'fonction_tarifaire',
     ];
 
     protected function casts(): array

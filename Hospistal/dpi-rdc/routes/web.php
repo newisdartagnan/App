@@ -3,6 +3,7 @@
 use App\Http\Controllers\AcompteController;
 use App\Http\Controllers\ActeCliniqueController;
 use App\Http\Controllers\AgendaController;
+use App\Http\Controllers\AmbulanceController;
 use App\Http\Controllers\ApparenceController;
 use App\Http\Controllers\AssuranceController;
 use App\Http\Controllers\Auth\LoginController;
@@ -12,6 +13,8 @@ use App\Http\Controllers\BilanHydriqueController;
 use App\Http\Controllers\BlocOperatoireController;
 use App\Http\Controllers\BonPriseEnChargeController;
 use App\Http\Controllers\CaisseController;
+use App\Http\Controllers\CatalogueController;
+use App\Http\Controllers\CompteController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConventionController;
 use App\Http\Controllers\DashboardController;
@@ -21,8 +24,13 @@ use App\Http\Controllers\DisponibiliteController;
 use App\Http\Controllers\DossierInfirmierController;
 use App\Http\Controllers\DossierMedicalController;
 use App\Http\Controllers\EquipementController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\ForfaitController;
+use App\Http\Controllers\GrandDepotController;
 use App\Http\Controllers\LaboratoireController;
+use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\MessagerieController;
+use App\Http\Controllers\MethodePaiementController;
 use App\Http\Controllers\MaterniteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NutritionController;
@@ -30,16 +38,21 @@ use App\Http\Controllers\OfficineController;
 use App\Http\Controllers\ParametreController;
 use App\Http\Controllers\ParcoursController;
 use App\Http\Controllers\PatientController;
+use App\Http\Controllers\PatientIdentiteController;
 use App\Http\Controllers\PharmacieController;
 use App\Http\Controllers\PlanAdministrationController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\PreventionController;
 use App\Http\Controllers\RapportSnisController;
+use App\Http\Controllers\RapportController;
 use App\Http\Controllers\RechercheController;
 use App\Http\Controllers\RecouvrementController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ServiceHospitalierController;
+use App\Http\Controllers\TacheController;
 use App\Http\Controllers\StatistiqueController;
 use App\Http\Controllers\TarifController;
+use App\Http\Controllers\TarificationController;
 use App\Http\Controllers\TransfertServiceController;
 use App\Http\Controllers\UrgenceController;
 use App\Http\Controllers\UtilisateurController;
@@ -67,6 +80,11 @@ Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth')->
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Mes tâches : le travail de chaque poste, rafraîchi seul (avec bip).
+    Route::get('/taches', [TacheController::class, 'index'])->name('taches.index');
+    Route::get('/taches/fragment', [TacheController::class, 'fragment'])->name('taches.fragment');
+    Route::post('/taches/resultats/{resultat}', [TacheController::class, 'resultat'])->name('taches.resultat');
+
     // La recherche, depuis n'importe quel écran : un geste gagné à chaque fois.
     Route::get('/recherche', [RechercheController::class, 'index'])->name('recherche');
 
@@ -78,6 +96,121 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('patients.show');
     Route::post('/patients/{patient}/envoyer-caisse', [PatientController::class, 'envoyerCaisse'])->name('patients.envoyer-caisse');
     Route::post('/patients/{patient}/assurance', [PatientController::class, 'majAssurance'])->name('patients.assurance');
+
+    // Partie administrative du dossier : identité, carte, photo, empreintes,
+    // relations familiales, méthodes de paiement, carte de vaccination.
+    Route::get('/patients/{patient}/modifier', [PatientIdentiteController::class, 'edit'])->name('patients.edit');
+    Route::put('/patients/{patient}', [PatientIdentiteController::class, 'update'])->name('patients.update');
+    Route::get('/patients/{patient}/carte', [PatientIdentiteController::class, 'carte'])->name('patients.carte');
+    Route::post('/patients/{patient}/photo', [PatientIdentiteController::class, 'photo'])->name('patients.photo.store');
+    Route::get('/photos/patients/{patient}', [PatientIdentiteController::class, 'voirPhoto'])->name('patients.photo');
+    Route::get('/patients/{patient}/empreintes', [PatientIdentiteController::class, 'empreintes'])->name('patients.empreintes');
+    Route::post('/patients/{patient}/empreintes', [PatientIdentiteController::class, 'enregistrerEmpreinte'])->name('patients.empreintes.store');
+    Route::delete('/empreintes/{empreinte}', [PatientIdentiteController::class, 'supprimerEmpreinte'])->name('patients.empreintes.destroy');
+    Route::get('/empreintes/{empreinte}/image', [PatientIdentiteController::class, 'imageEmpreinte'])->name('patients.empreintes.image');
+    Route::post('/patients/{patient}/relations', [PatientIdentiteController::class, 'ajouterRelation'])->name('patients.relations.store');
+    Route::delete('/relations-familiales/{relation}', [PatientIdentiteController::class, 'supprimerRelation'])->name('patients.relations.destroy');
+    Route::post('/patients/{patient}/methodes-paiement', [PatientIdentiteController::class, 'ajouterMethode'])->name('patients.methodes.store');
+    Route::delete('/patient-methodes-paiement/{lien}', [PatientIdentiteController::class, 'retirerMethode'])->name('patients.methodes.destroy');
+    Route::get('/patients/{patient}/carte-vaccination', [PatientIdentiteController::class, 'carteVaccination'])->name('patients.carte-vaccination');
+
+    // Catalogue de l'établissement
+    Route::get('/catalogue/examens', [CatalogueController::class, 'examens'])->name('catalogue.examens.index');
+    Route::get('/catalogue/examens/nouveau', [CatalogueController::class, 'creerExamen'])->name('catalogue.examens.create');
+    Route::get('/catalogue/imagerie', [CatalogueController::class, 'imagerie'])->name('catalogue.imagerie.index');
+    Route::get('/catalogue/imagerie/nouveau', [CatalogueController::class, 'creerImagerie'])->name('catalogue.imagerie.create');
+    Route::post('/catalogue/examens', [CatalogueController::class, 'enregistrerExamen'])->name('catalogue.examens.store');
+    Route::get('/catalogue/examens/{type}/modifier', [CatalogueController::class, 'modifierExamen'])->name('catalogue.examens.edit');
+    Route::post('/catalogue/examens/{type}', [CatalogueController::class, 'enregistrerExamen'])->name('catalogue.examens.update');
+    Route::post('/catalogue/examens/{type}/basculer', [CatalogueController::class, 'basculerExamen'])->name('catalogue.examens.basculer');
+    Route::get('/catalogue/services', [CatalogueController::class, 'services'])->name('catalogue.services.index');
+    Route::get('/catalogue/services/nouveau', [CatalogueController::class, 'creerService'])->name('catalogue.services.create');
+    Route::post('/catalogue/services', [CatalogueController::class, 'enregistrerService'])->name('catalogue.services.store');
+    Route::get('/catalogue/services/{service}/modifier', [CatalogueController::class, 'modifierService'])->name('catalogue.services.edit');
+    Route::post('/catalogue/services/{service}', [CatalogueController::class, 'enregistrerService'])->name('catalogue.services.update');
+    Route::post('/catalogue/services/{service}/basculer', [CatalogueController::class, 'basculerService'])->name('catalogue.services.basculer');
+    Route::get('/catalogue/locaux', [CatalogueController::class, 'locaux'])->name('catalogue.locaux.index');
+    Route::get('/catalogue/locaux/nouveau', [CatalogueController::class, 'creerLocal'])->name('catalogue.locaux.create');
+    Route::post('/catalogue/locaux', [CatalogueController::class, 'enregistrerLocal'])->name('catalogue.locaux.store');
+    Route::get('/catalogue/locaux/{local}/modifier', [CatalogueController::class, 'modifierLocal'])->name('catalogue.locaux.edit');
+    Route::post('/catalogue/locaux/{local}', [CatalogueController::class, 'enregistrerLocal'])->name('catalogue.locaux.update');
+    Route::post('/catalogue/locaux/{local}/basculer', [CatalogueController::class, 'basculerLocal'])->name('catalogue.locaux.basculer');
+    Route::get('/catalogue/lits', [CatalogueController::class, 'lits'])->name('catalogue.lits.index');
+    Route::get('/catalogue/lits/nouveau', [CatalogueController::class, 'creerLit'])->name('catalogue.lits.create');
+    Route::post('/catalogue/lits', [CatalogueController::class, 'enregistrerLit'])->name('catalogue.lits.store');
+    Route::get('/catalogue/lits/{lit}/modifier', [CatalogueController::class, 'modifierLit'])->name('catalogue.lits.edit');
+    Route::post('/catalogue/lits/{lit}', [CatalogueController::class, 'enregistrerLit'])->name('catalogue.lits.update');
+    Route::post('/catalogue/lits/{lit}/basculer', [CatalogueController::class, 'basculerLit'])->name('catalogue.lits.basculer');
+    Route::get('/catalogue/methodes-paiement', [MethodePaiementController::class, 'index'])->name('methodes-paiement.index');
+    Route::post('/catalogue/methodes-paiement', [MethodePaiementController::class, 'enregistrer'])->name('methodes-paiement.store');
+    Route::post('/catalogue/methodes-paiement/{methode}/basculer', [MethodePaiementController::class, 'basculer'])->name('methodes-paiement.basculer');
+
+    // Tarification : catégories de convention × fonctions tarifaires, catalogue des actes
+    Route::get('/tarification/categories', [TarificationController::class, 'categories'])->name('tarification.categories');
+    Route::post('/tarification/categories', [TarificationController::class, 'enregistrerCategorie'])->name('tarification.categories.store');
+    Route::post('/tarification/categories/{categorie}', [TarificationController::class, 'enregistrerCategorie'])->name('tarification.categories.update');
+    Route::delete('/tarification/categories/{categorie}', [TarificationController::class, 'supprimerCategorie'])->name('tarification.categories.destroy');
+    Route::post('/tarification/conventions/{assurance}/classer', [TarificationController::class, 'classerConvention'])->name('tarification.conventions.classer');
+    Route::get('/tarification/actes', [TarificationController::class, 'actes'])->name('tarification.actes');
+    Route::get('/tarification/actes/nouveau', [TarificationController::class, 'creerActe'])->name('tarification.actes.create');
+    Route::post('/tarification/actes', [TarificationController::class, 'enregistrerActe'])->name('tarification.actes.store');
+    Route::get('/tarification/actes/{acte}', [TarificationController::class, 'modifierActe'])->name('tarification.actes.edit');
+    Route::post('/tarification/actes/{acte}', [TarificationController::class, 'enregistrerActe'])->name('tarification.actes.update');
+
+    // Grand dépôt pharmaceutique
+    Route::prefix('grand-depot')->name('grand-depot.')->group(function () {
+        Route::get('/', [GrandDepotController::class, 'tableau'])->name('tableau');
+        Route::get('/fournisseurs', [GrandDepotController::class, 'fournisseurs'])->name('fournisseurs');
+        Route::post('/fournisseurs', [GrandDepotController::class, 'enregistrerFournisseur'])->name('fournisseurs.store');
+        Route::post('/fournisseurs/{fournisseur}/basculer', [GrandDepotController::class, 'basculerFournisseur'])->name('fournisseurs.basculer');
+        Route::get('/commandes', [GrandDepotController::class, 'commandes'])->name('commandes');
+        Route::get('/commandes/nouvelle', [GrandDepotController::class, 'creerCommande'])->name('commandes.create');
+        Route::post('/commandes', [GrandDepotController::class, 'enregistrerCommande'])->name('commandes.store');
+        Route::get('/commandes/{commande}', [GrandDepotController::class, 'voirCommande'])->name('commandes.show');
+        Route::post('/commandes/{commande}/envoyer', [GrandDepotController::class, 'envoyerCommande'])->name('commandes.envoyer');
+        Route::post('/commandes/{commande}/annuler', [GrandDepotController::class, 'annulerCommande'])->name('commandes.annuler');
+        Route::post('/commandes/{commande}/recevoir', [GrandDepotController::class, 'recevoirCommande'])->name('commandes.recevoir');
+        Route::get('/receptions', [GrandDepotController::class, 'receptions'])->name('receptions');
+        Route::get('/receptions/nouvelle', [GrandDepotController::class, 'creerReception'])->name('receptions.create');
+        Route::post('/receptions', [GrandDepotController::class, 'enregistrerReception'])->name('receptions.store');
+        Route::get('/receptions/{reception}', [GrandDepotController::class, 'voirReception'])->name('receptions.show');
+        Route::get('/inventaires', [GrandDepotController::class, 'inventaires'])->name('inventaires');
+        Route::post('/inventaires', [GrandDepotController::class, 'demarrerInventaire'])->name('inventaires.demarrer');
+        Route::get('/inventaires/{inventaire}', [GrandDepotController::class, 'voirInventaire'])->name('inventaires.show');
+        Route::post('/inventaires/{inventaire}', [GrandDepotController::class, 'saisirInventaire'])->name('inventaires.saisir');
+        Route::get('/destructions', [GrandDepotController::class, 'destructions'])->name('destructions');
+        Route::post('/destructions', [GrandDepotController::class, 'enregistrerDestruction'])->name('destructions.store');
+        Route::get('/destructions/{destruction}', [GrandDepotController::class, 'voirDestruction'])->name('destructions.show');
+        Route::get('/fiche-stock/{medicament}', [GrandDepotController::class, 'ficheStock'])->name('fiche');
+    });
+
+    // Gestion financière
+    Route::prefix('finances')->name('finance.')->group(function () {
+        Route::get('/', [FinanceController::class, 'tableau'])->name('tableau');
+        Route::get('/depenses', [FinanceController::class, 'depenses'])->name('depenses');
+        Route::get('/depenses/nouvelle', [FinanceController::class, 'creerDepense'])->name('depenses.create');
+        Route::post('/depenses', [FinanceController::class, 'enregistrerDepense'])->name('depenses.store');
+        Route::post('/depenses/{depense}/approuver', [FinanceController::class, 'approuver'])->name('depenses.approuver');
+        Route::post('/depenses/{depense}/rejeter', [FinanceController::class, 'rejeter'])->name('depenses.rejeter');
+        Route::post('/depenses/{depense}/payer', [FinanceController::class, 'payer'])->name('depenses.payer');
+        Route::get('/depenses/{depense}/piece', [FinanceController::class, 'piece'])->name('depenses.piece');
+        Route::get('/tresorerie', [FinanceController::class, 'comptes'])->name('comptes');
+        Route::post('/tresorerie/comptes', [FinanceController::class, 'enregistrerCompte'])->name('comptes.store');
+        Route::post('/tresorerie/transferts', [FinanceController::class, 'transferer'])->name('transferts.store');
+        Route::get('/tresorerie/{compte}/journal', [FinanceController::class, 'journal'])->name('journal');
+        Route::get('/budget', [FinanceController::class, 'budget'])->name('budget');
+        Route::post('/budget', [FinanceController::class, 'enregistrerBudget'])->name('budget.store');
+        Route::post('/rubriques', [FinanceController::class, 'enregistrerRubrique'])->name('rubriques.store');
+        Route::get('/resultat', [FinanceController::class, 'resultat'])->name('resultat');
+        Route::post('/cloture', [FinanceController::class, 'cloturer'])->name('cloturer');
+    });
+
+    // Ambulances
+    Route::get('/ambulances', [AmbulanceController::class, 'index'])->name('ambulances.index');
+    Route::post('/ambulances', [AmbulanceController::class, 'enregistrerAmbulance'])->name('ambulances.store');
+    Route::post('/ambulances/{ambulance}/basculer', [AmbulanceController::class, 'basculerAmbulance'])->name('ambulances.basculer');
+    Route::post('/ambulances/sorties', [AmbulanceController::class, 'enregistrerSortie'])->name('ambulances.sorties.store');
+    Route::post('/ambulances/sorties/{sortie}/retour', [AmbulanceController::class, 'retour'])->name('ambulances.sorties.retour');
 
     // Consultations — workflow caisse-first : le médecin consulte une visite payée
     Route::get('/patients/{patient}/consultation', [ConsultationController::class, 'create'])->name('consultations.create');
@@ -217,6 +350,47 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/utilisateurs/{utilisateur}', [UtilisateurController::class, 'update'])->name('utilisateurs.update');
     Route::post('/utilisateurs/{utilisateur}/basculer', [UtilisateurController::class, 'basculer'])->name('utilisateurs.basculer');
     Route::post('/utilisateurs/{utilisateur}/mot-de-passe', [UtilisateurController::class, 'motDePasse'])->name('utilisateurs.mot-de-passe');
+    Route::get('/utilisateurs/{utilisateur}/modifier', [UtilisateurController::class, 'edit'])->name('utilisateurs.edit');
+    Route::post('/utilisateurs/{utilisateur}/identite', [UtilisateurController::class, 'identite'])->name('utilisateurs.identite');
+    Route::delete('/utilisateurs/{utilisateur}', [UtilisateurController::class, 'destroy'])->name('utilisateurs.destroy');
+    Route::get('/utilisateurs/{utilisateur}/activites', [UtilisateurController::class, 'activites'])->name('utilisateurs.activites.agent');
+    Route::get('/activites', [UtilisateurController::class, 'activites'])->name('utilisateurs.activites');
+
+    // Rôles des utilisateurs et leurs permissions
+    Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+    Route::get('/roles/nouveau', [RoleController::class, 'create'])->name('roles.create');
+    Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+    Route::get('/roles/{role}/modifier', [RoleController::class, 'edit'])->name('roles.edit');
+    Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+    Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+
+    // Rapports d'activité
+    Route::get('/rapports', [RapportController::class, 'index'])->name('rapports.index');
+    Route::get('/rapports/caisse/{jour}', [RapportController::class, 'caisseJour'])->name('rapports.caisse.jour');
+    Route::get('/rapports/{rapport}', [RapportController::class, 'afficher'])->name('rapports.afficher');
+
+    // Chat — messagerie interne
+    Route::get('/chat', [MessagerieController::class, 'index'])->name('messagerie.index');
+    Route::get('/chat/non-lus', [MessagerieController::class, 'nonLus'])->name('messagerie.non-lus');
+    Route::get('/chat/{avec}', [MessagerieController::class, 'index'])->name('messagerie.conversation');
+    Route::get('/chat/{avec}/fil', [MessagerieController::class, 'fil'])->name('messagerie.fil');
+    Route::post('/chat/{avec}', [MessagerieController::class, 'envoyer'])->name('messagerie.envoyer');
+    Route::delete('/messages/{message}', [MessagerieController::class, 'supprimer'])->name('messagerie.supprimer');
+
+    // Mon compte
+    Route::get('/mon-compte', [CompteController::class, 'show'])->name('compte.index');
+    Route::post('/mon-compte/photo', [CompteController::class, 'photo'])->name('compte.photo.store');
+    Route::post('/mon-compte/informations', [CompteController::class, 'informations'])->name('compte.informations');
+    Route::post('/mon-compte/mot-de-passe', [CompteController::class, 'motDePasse'])->name('compte.mot-de-passe');
+    Route::get('/photos/agents/{user}', [CompteController::class, 'voirPhoto'])->name('compte.photo');
+
+    // Maintenance du serveur
+    Route::get('/maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
+    Route::post('/maintenance/deconnecter', [MaintenanceController::class, 'deconnecterTous'])->name('maintenance.deconnecter');
+    Route::post('/maintenance/sauvegarder', [MaintenanceController::class, 'sauvegarder'])->name('maintenance.sauvegarder');
+    Route::get('/maintenance/sauvegardes/{nom}', [MaintenanceController::class, 'telecharger'])->name('maintenance.telecharger');
+    Route::post('/maintenance/rafraichir', [MaintenanceController::class, 'rafraichir'])->name('maintenance.rafraichir');
+    Route::post('/maintenance/vider', [MaintenanceController::class, 'vider'])->name('maintenance.vider');
     // L'attente à l'échelle de l'hôpital : quel poste, quel jour, quelle heure.
     Route::get('/attente', [ParcoursController::class, 'attente'])->name('parcours.attente');
     Route::get('/mon-temps', [ParcoursController::class, 'profil'])->name('parcours.moi');

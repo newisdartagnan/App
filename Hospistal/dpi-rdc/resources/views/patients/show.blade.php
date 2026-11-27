@@ -177,35 +177,7 @@
         </form>
     </details>
 
-    {{-- Données patient --}}
-    <div class="bg-white rounded-xl shadow p-6 grid grid-cols-2 gap-4 text-sm mb-6">
-        <div><span class="font-medium text-gray-600">Sexe :</span> {{ $patient->sexe }}</div>
-        <div><span class="font-medium text-gray-600">Date de naissance :</span> {{ $patient->date_naissance?->format('d/m/Y') ?? '—' }}</div>
-        <div><span class="font-medium text-gray-600">Lieu de naissance :</span> {{ $patient->lieu_naissance ?? '—' }}</div>
-        <div><span class="font-medium text-gray-600">Téléphone :</span> {{ $patient->telephone ?? '—' }}</div>
-        <div><span class="font-medium text-gray-600">Province :</span> {{ $patient->province ?? '—' }}</div>
-        <div><span class="font-medium text-gray-600">Territoire :</span> {{ $patient->territoire ?? '—' }}</div>
-        <div><span class="font-medium text-gray-600">Adresse :</span> {{ $patient->adresse ?? '—' }}</div>
-        <div><span class="font-medium text-gray-600">Profession :</span> {{ $patient->profession ?? '—' }}</div>
-        {{-- Saisie à l'accueil et jamais relue jusqu'ici. --}}
-        <div><span class="font-medium text-gray-600">Nationalité :</span> {{ $patient->nationalite ?? '—' }}</div>
-        <div><span class="font-medium text-gray-600">Situation matrimoniale :</span> {{ $patient->situation_matrimoniale }}</div>
-        <div><span class="font-medium text-gray-600">Niveau d'instruction :</span> {{ $patient->niveau_instruction }}</div>
-        <div><span class="font-medium text-gray-600">Prise en charge :</span> {{ $patient->type_prise_en_charge }}</div>
-        @if($patient->assurance_nom)
-        <div><span class="font-medium text-gray-600">Assurance :</span> {{ $patient->assurance_nom }} — {{ $patient->assurance_numero }}</div>
-        @endif
-        @php $caracteristiques = $patient->caracteristiquesSnis(); @endphp
-        @if($caracteristiques)
-        {{-- Ce que le canevas du SNIS compte à part sur le nouveau cas. --}}
-        <div class="col-span-2"><span class="font-medium text-gray-600">Caractéristiques :</span>
-            {{ implode(' · ', $caracteristiques) }}</div>
-        @endif
-        @if($patient->contact_urgence_nom)
-        <div class="col-span-2"><span class="font-medium text-gray-600">Contact urgence :</span>
-            {{ $patient->contact_urgence_nom }} ({{ $patient->contact_urgence_lien }}) — {{ $patient->contact_urgence_telephone }}</div>
-        @endif
-    </div>
+    @include('patients._administratif')
 
     {{--
         Rendez-vous à venir.

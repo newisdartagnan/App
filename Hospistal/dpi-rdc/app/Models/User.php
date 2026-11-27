@@ -20,7 +20,7 @@ class User extends Authenticatable
     protected $fillable = [
         'establishment_id', 'matricule', 'nom', 'prenom', 'email',
         'telephone', 'password', 'specialite', 'theme', 'is_active',
-        'last_login_at', 'offline_token', 'offline_token_expires_at',
+        'last_login_at', 'offline_token', 'offline_token_expires_at', 'photo_path',
     ];
 
     protected $hidden = [
@@ -52,6 +52,17 @@ class User extends Authenticatable
         return $this->hasMany(AbsenceMedecin::class);
     }
 
+    /** Adresse de la photo de profil, ou null (l'initiale s'affiche alors). */
+    public function photoUrl(): ?string
+    {
+        return $this->photo_path ? route('compte.photo', $this) : null;
+    }
+
+    public function initiales(): string
+    {
+        return mb_strtoupper(mb_substr((string) $this->nom, 0, 1).mb_substr((string) $this->prenom, 0, 1));
+    }
+
     public function getNomCompletAttribute(): string
     {
         return "{$this->nom} {$this->prenom}";
@@ -80,8 +91,8 @@ class User extends Authenticatable
     /** Rôles de l'utilisateur, en clair. */
     public function libelleRoles(): string
     {
-        $roles = $this->getRoleNames()
-            ->map(fn (string $role) => self::NOMS_ROLES[$role] ?? $role)
+        $roles = $this->roles
+            ->map(fn ($role) => self::NOMS_ROLES[$role->name] ?? ($role->libelle ?: $role->name))
             ->implode(', ');
 
         return $roles ?: 'Sans rôle attribué';

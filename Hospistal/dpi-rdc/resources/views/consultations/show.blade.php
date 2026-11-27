@@ -181,7 +181,10 @@
                     {{ $diag['code_cim10'] }}
                 </span>
                 @endif
-                <span class="flex-1">{{ $diag['libelle'] ?? 'Diagnostic non libellé' }}</span>
+                <span class="flex-1">{{ $diag['libelle'] ?? 'Diagnostic non libellé' }}
+                    @if($diag['code_cim11'] ?? null)<span class="font-mono text-xs text-gray-500">({{ $diag['code_cim11'] }})</span>@endif
+                    @if(isset($diag['nature']))<span class="block text-xs text-gray-500">{{ \App\Models\Consultation::NATURES_DIAGNOSTIC[$diag['nature']] ?? $diag['nature'] }}</span>@endif
+                </span>
                 <span class="text-xs px-2 py-1 rounded-full
                     {{ $typeDiag === 'principal' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600' }}">
                     {{ $typeDiag }}

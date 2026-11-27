@@ -167,6 +167,26 @@ class PreventionService
     {
         $antigene = $donnees['antigene'] ?? null;
 
+        // Un vaccin hors calendrier (rage, typhoïde, COVID…) s'enregistre
+        // sous « autre » avec son nom ; il n'entre pas dans les doses PEV.
+        if ($antigene === 'autre') {
+            if (blank($donnees['antigene_libre'] ?? null)) {
+                throw new \InvalidArgumentException('Indiquez le nom du vaccin.');
+            }
+
+            return Vaccination::create([
+                'patient_id' => $patient->id,
+                'establishment_id' => $patient->establishment_id,
+                'user_id' => auth()->id(),
+                'date_vaccination' => $donnees['date_vaccination'] ?? now()->toDateString(),
+                'antigene' => 'autre',
+                'antigene_libre' => trim($donnees['antigene_libre']),
+                'strategie' => $donnees['strategie'] ?? 'fixe',
+                'lot' => $donnees['lot'] ?? null,
+                'observation' => $donnees['observation'] ?? null,
+            ]);
+        }
+
         if (! isset(Vaccination::ANTIGENES[$antigene])) {
             throw new \InvalidArgumentException('Antigène inconnu : '.$antigene);
         }

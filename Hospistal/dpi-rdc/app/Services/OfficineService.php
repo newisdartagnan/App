@@ -197,66 +197,79 @@ class OfficineService
     ): void {
         $etablissement = auth()->user()->establishment_id;
 
-        $stockSource = StockMedicament::where('officine_id', $source->id)
+        // Premier périmé, premier sorti (FEFO) : la quantité se prend sur les
+        // lots dans l'ordre de leur péremption, sur plusieurs lots s'il le
+        // faut — un lot entamé ne bloque plus une réquisition plus grosse.
+        $lots = StockMedicament::where('officine_id', $source->id)
             ->where('medicament_id', $medicament->id)
             ->where('quantite_disponible', '>', 0)
-            ->orderBy('date_peremption')
-            ->first();
+            ->orderByRaw('date_peremption IS NULL, date_peremption')
+            ->lockForUpdate()
+            ->get();
 
-        if (! $stockSource || $stockSource->quantite_disponible < $quantite) {
+        if ((float) $lots->sum('quantite_disponible') < $quantite - 0.0001) {
             throw new \RuntimeException("Stock insuffisant pour {$medicament->denomination_commune}.");
         }
 
-        $avantSource = (float) $stockSource->quantite_disponible;
-        $stockSource->decrement('quantite_disponible', $quantite);
+        $reste = $quantite;
+        foreach ($lots as $stockSource) {
+            if ($reste <= 0.0001) {
+                break;
+            }
+            $prise = min($reste, (float) $stockSource->quantite_disponible);
+            $reste -= $prise;
 
-        MouvementStock::create([
-            'medicament_id' => $medicament->id,
-            'establishment_id' => $etablissement,
-            'officine_id' => $source->id,
-            'user_id' => auth()->id(),
-            'type' => 'transfert_sortie',
-            'quantite' => $quantite,
-            'quantite_avant' => $avantSource,
-            'quantite_apres' => $avantSource - $quantite,
-            'reference' => $reference,
-            'destination' => $destination->nom,
-            'created_at' => now(),
-        ]);
+            $avantSource = (float) $stockSource->quantite_disponible;
+            $stockSource->decrement('quantite_disponible', $prise);
 
-        // Entrée côté destination, sur le même lot pour conserver la traçabilité
-        $stockDest = StockMedicament::firstOrCreate(
-            [
-                'officine_id' => $destination->id,
+            MouvementStock::create([
                 'medicament_id' => $medicament->id,
-                'lot' => $stockSource->lot,
-            ],
-            [
                 'establishment_id' => $etablissement,
-                'quantite_disponible' => 0,
-                'quantite_alerte' => $stockSource->quantite_alerte,
-                'prix_unitaire_vente' => $stockSource->prix_unitaire_vente,
-                'prix_unitaire_achat' => $stockSource->prix_unitaire_achat,
-                'date_peremption' => $stockSource->date_peremption,
-            ]
-        );
+                'officine_id' => $source->id,
+                'user_id' => auth()->id(),
+                'type' => 'transfert_sortie',
+                'quantite' => $prise,
+                'quantite_avant' => $avantSource,
+                'quantite_apres' => $avantSource - $prise,
+                'reference' => $reference,
+                'destination' => $destination->nom,
+                'created_at' => now(),
+            ]);
 
-        $avantDest = (float) $stockDest->quantite_disponible;
-        $stockDest->increment('quantite_disponible', $quantite);
+            // Entrée côté destination, sur le même lot pour conserver la traçabilité
+            $stockDest = StockMedicament::firstOrCreate(
+                [
+                    'officine_id' => $destination->id,
+                    'medicament_id' => $medicament->id,
+                    'lot' => $stockSource->lot,
+                ],
+                [
+                    'establishment_id' => $etablissement,
+                    'quantite_disponible' => 0,
+                    'quantite_alerte' => $stockSource->quantite_alerte,
+                    'prix_unitaire_vente' => $stockSource->prix_unitaire_vente,
+                    'prix_unitaire_achat' => $stockSource->prix_unitaire_achat,
+                    'date_peremption' => $stockSource->date_peremption,
+                ]
+            );
 
-        MouvementStock::create([
-            'medicament_id' => $medicament->id,
-            'establishment_id' => $etablissement,
-            'officine_id' => $destination->id,
-            'user_id' => auth()->id(),
-            'type' => 'transfert_entree',
-            'quantite' => $quantite,
-            'quantite_avant' => $avantDest,
-            'quantite_apres' => $avantDest + $quantite,
-            'reference' => $reference,
-            'provenance' => $source->nom,
-            'created_at' => now(),
-        ]);
+            $avantDest = (float) $stockDest->quantite_disponible;
+            $stockDest->increment('quantite_disponible', $prise);
+
+            MouvementStock::create([
+                'medicament_id' => $medicament->id,
+                'establishment_id' => $etablissement,
+                'officine_id' => $destination->id,
+                'user_id' => auth()->id(),
+                'type' => 'transfert_entree',
+                'quantite' => $prise,
+                'quantite_avant' => $avantDest,
+                'quantite_apres' => $avantDest + $prise,
+                'reference' => $reference,
+                'provenance' => $source->nom,
+                'created_at' => now(),
+            ]);
+        }
     }
 
     /**

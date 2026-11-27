@@ -46,6 +46,8 @@ class PatientCreate extends Component
 
     public string $profession = '';
 
+    public string $autres_details = '';
+
     public string $situation_matrimoniale = 'inconnu';
 
     public string $niveau_instruction = 'inconnu';
@@ -93,6 +95,10 @@ class PatientCreate extends Component
             'province' => 'nullable|string|max:100',
 
             'type_prise_en_charge' => 'required|in:prive,assurance,indigent,fonctionnaire,autre',
+
+            'situation_matrimoniale' => 'nullable|in:celibataire,marie,divorce,veuf,union_libre,inconnu',
+
+            'autres_details' => 'nullable|string|max:2000',
 
         ];
 
@@ -325,6 +331,7 @@ class PatientCreate extends Component
                 'territoire' => $this->territoire ?: null,
 
                 'profession' => $this->profession ?: null,
+                'autres_details' => $this->autres_details ?: null,
 
                 'situation_matrimoniale' => $this->situation_matrimoniale,
 

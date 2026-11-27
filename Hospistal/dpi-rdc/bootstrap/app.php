@@ -25,6 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Le stock de sang du réseau : au quart d'heure, parce qu'entre deux
         // passages on décide d'envoyer une ambulance sur cette ligne-là.
         $schedule->command('dpi:sang-reseau')->everyFifteenMinutes()->withoutOverlapping();
+
+        // Une sauvegarde locale par jour, en pleine nuit : si le disque
+        // lâche, on ne perd au plus qu'une journée.
+        $schedule->command('dpi:sauvegarder')->dailyAt('02:15')->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (TokenMismatchException $e, Request $request) {

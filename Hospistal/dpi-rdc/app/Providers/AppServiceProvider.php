@@ -30,9 +30,19 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Patient::observe(AuditObserver::class);
-        Visit::observe(AuditObserver::class);
-        Consultation::observe(AuditObserver::class);
+        // Le journal d'activité : chaque geste clinique garde son auteur.
+        // C'est lui que lit la page « Activités » d'un utilisateur.
+        foreach ([
+            Patient::class, Visit::class, Consultation::class,
+            \App\Models\Prescription::class, \App\Models\ExamenLaboratoire::class,
+            \App\Models\Dispensation::class, \App\Models\SigneVital::class,
+            \App\Models\DocumentClinique::class, \App\Models\AdministrationTraitement::class,
+            \App\Models\Vaccination::class, \App\Models\RendezVous::class,
+            \App\Models\NoteEvolution::class, \App\Models\ActeClinique::class,
+            \App\Models\TransfertService::class,
+        ] as $modele) {
+            $modele::observe(AuditObserver::class);
+        }
 
         // Les pièces de caisse ont leur propre journal, écrit sans délai.
         foreach ([

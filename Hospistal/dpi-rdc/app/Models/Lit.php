@@ -13,7 +13,7 @@ class Lit extends Model
     protected $table = 'lits';
 
     protected $fillable = [
-        'service_id', 'establishment_id', 'numero', 'statut', 'is_active',
+        'service_id', 'establishment_id', 'numero', 'statut', 'is_active', 'local_id',
     ];
 
     protected function casts(): array
@@ -29,5 +29,10 @@ class Lit extends Model
     public function establishment(): BelongsTo
     {
         return $this->belongsTo(Establishment::class);
+    }
+
+    public function local(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Local::class, 'local_id');
     }
 }

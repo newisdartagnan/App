@@ -158,6 +158,40 @@ class LaboratoireService
         });
     }
 
+    /**
+     * Saisie rapide d'UN paramètre depuis « Mes tâches » (touche Entrée).
+     *
+     * Un nombre est lu comme valeur numérique et interprété contre les
+     * valeurs de référence ; un texte (« positif », « absence ») reste brut.
+     * L'examen ne passe « résultat disponible » qu'une fois tous ses
+     * paramètres renseignés : avant, il est « en analyse ».
+     */
+    public function saisirUnResultat(ResultatExamen $resultat, string $saisie): ExamenLaboratoire
+    {
+        return DB::transaction(function () use ($resultat, $saisie) {
+            $saisie = trim($saisie);
+            $normalise = str_replace(',', '.', $saisie);
+            $valeurNumerique = is_numeric($normalise) ? (float) $normalise : null;
+
+            $resultat->update([
+                'valeur_brute' => $saisie,
+                'valeur_numerique' => $valeurNumerique,
+                'interpretation' => $this->interpreter($resultat, $valeurNumerique, $saisie),
+            ]);
+
+            $examen = $resultat->examen()->with('resultats')->first();
+            $complet = $examen->resultats->every(fn ($r) => $r->valeur_brute !== null && $r->valeur_brute !== '');
+
+            $examen->update([
+                'statut' => $complet ? 'resultat_disponible' : 'en_analyse',
+                'date_resultat' => $complet ? now() : $examen->date_resultat,
+                'laborantin_id' => auth()->id(),
+            ]);
+
+            return $examen->fresh(['resultats.typeExamen']);
+        });
+    }
+
     public function valider(ExamenLaboratoire $examen, ?string $conclusion = null): ExamenLaboratoire
     {
         $examen->resultats()->update([

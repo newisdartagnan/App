@@ -23,6 +23,7 @@ class Patient extends Model
         'contact_urgence_nom', 'contact_urgence_telephone', 'contact_urgence_lien',
         'type_prise_en_charge', 'assurance_nom', 'assurance_numero', 'groupe_sanguin',
         'duplicate_of', 'duplicate_confidence', 'merge_status',
+        'photo_path', 'autres_details', 'created_by',
         'sync_status', 'sync_hash',
     ];
 
@@ -47,6 +48,10 @@ class Patient extends Model
      */
     protected static function booted(): void
     {
+        static::creating(function (Patient $patient) {
+            $patient->created_by ??= auth()->id();
+        });
+
         static::saving(function (Patient $patient) {
             if ($patient->isDirty('telephone')) {
                 $patient->telephone_index = self::empreinteTelephone($patient->telephone);
@@ -87,6 +92,42 @@ class Patient extends Model
     {
         return self::empreinteTelephone($terme) !== null
             && preg_match('/^[\d\s.+()-]+$/', trim($terme)) === 1;
+    }
+
+    public function enregistrePar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function empreintes(): HasMany
+    {
+        return $this->hasMany(EmpreintePatient::class);
+    }
+
+    public function relationsFamiliales(): HasMany
+    {
+        return $this->hasMany(RelationFamiliale::class);
+    }
+
+    /** Relations où ce patient est le proche d'un autre dossier. */
+    public function relationsInverses(): HasMany
+    {
+        return $this->hasMany(RelationFamiliale::class, 'proche_id');
+    }
+
+    public function methodesPaiement(): HasMany
+    {
+        return $this->hasMany(PatientMethodePaiement::class);
+    }
+
+    public function vaccinations(): HasMany
+    {
+        return $this->hasMany(Vaccination::class);
+    }
+
+    public function photoUrl(): ?string
+    {
+        return $this->photo_path ? route('patients.photo', $this) : null;
     }
 
     public function establishment(): BelongsTo
@@ -189,6 +230,29 @@ class Patient extends Model
                 : null,
             $this->estIndigent() ? 'Indigent' : null,
         ]));
+    }
+
+    /**
+     * L'âge lisible, comme au registre : « 7 ans », « 1 an », « 5 mois »,
+     * « 12 jours ». Un nourrisson ne se compte pas en années.
+     */
+    public function libelleAge(): string
+    {
+        if (! $this->date_naissance) {
+            return '—';
+        }
+        $naissance = $this->date_naissance;
+        $ans = (int) $naissance->diffInYears(now());
+        if ($ans >= 1) {
+            return $ans.' '.($ans > 1 ? 'ans' : 'an');
+        }
+        $mois = (int) $naissance->diffInMonths(now());
+        if ($mois >= 1) {
+            return $mois.' mois';
+        }
+        $jours = max(0, (int) $naissance->diffInDays(now()));
+
+        return $jours.' '.($jours > 1 ? 'jours' : 'jour');
     }
 
     public function getNomCompletAttribute(): string
