@@ -29,6 +29,11 @@
             <input id="e-prix" name="prix" type="number" step="0.01" min="0" value="{{ old('prix', $type->prix) }}" class="w-full min-h-[44px] border rounded-lg px-3"></div>
         <div><label for="e-delai" class="block text-sm font-semibold mb-1">Délai de rendu (heures)</label>
             <input id="e-delai" name="delai_heures" type="number" min="0" value="{{ old('delai_heures', $type->delai_heures) }}" class="w-full min-h-[44px] border rounded-lg px-3"></div>
+        <div><label for="e-ft" class="block text-sm font-semibold mb-1">Fonction tarifaire <span class="text-xs font-normal text-gray-500">(conventions)</span></label>
+            <select id="e-ft" name="fonction_tarifaire" class="w-full min-h-[44px] border rounded-lg px-3">
+                <option value="">— Coefficient du contrat —</option>
+                @for($k = 1; $k <= \App\Models\CategorieTarifaire::NB_FONCTIONS; $k++)<option value="{{ $k }}" @selected((int) old('fonction_tarifaire', $type->fonction_tarifaire) === $k)>{{ $k }}</option>@endfor
+            </select></div>
         <label class="flex items-center gap-2 text-sm"><input type="hidden" name="est_actif" value="0"><input type="checkbox" name="est_actif" value="1" @checked(old('est_actif', $type->est_actif ?? true))> Actif (proposé à la prescription)</label>
     </div>
 

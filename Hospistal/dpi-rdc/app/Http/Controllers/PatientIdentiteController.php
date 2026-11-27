@@ -279,7 +279,9 @@ class PatientIdentiteController extends Controller
                 PatientAssurance::updateOrCreate(
                     ['patient_id' => $patient->id, 'assurance_id' => $methode->assurance_id],
                     [
-                        'numero_police' => $donnees['identifiant'] ?? null,
+                        // La police est obligatoire : sans identifiant fourni,
+                        // le numéro de dossier en tient lieu.
+                        'numero_police' => ($donnees['identifiant'] ?? null) ?: $patient->dossier_number,
                         'date_debut' => $donnees['date_debut'] ?? null,
                         'date_fin' => $donnees['date_fin'] ?? null,
                         'est_actif' => true,

@@ -75,6 +75,7 @@ class CatalogueController extends Controller
             'modalite' => ['nullable', Rule::in(array_keys(TypeExamen::MODALITES))],
             'prix' => 'nullable|numeric|min:0',
             'delai_heures' => 'nullable|integer|min:0|max:2000',
+            'fonction_tarifaire' => 'nullable|integer|min:1|max:'.\App\Models\CategorieTarifaire::NB_FONCTIONS,
             'est_actif' => 'nullable|boolean',
             'parametres' => 'nullable|array',
             'parametres.*.nom' => 'nullable|string|max:150',
@@ -124,6 +125,7 @@ class CatalogueController extends Controller
             'prix' => $donnees['prix'] ?? 0,
             'delai_heures' => $donnees['delai_heures'] ?? ($domaine === 'imagerie' ? 24 : 4),
             'est_actif' => $request->boolean('est_actif', ! $type->exists || $type->est_actif),
+            'fonction_tarifaire' => $donnees['fonction_tarifaire'] ?? null,
             'valeurs_reference' => $valeurs,
         ])->save();
 

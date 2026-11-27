@@ -17,6 +17,7 @@ class Assurance extends Model
         'delai_reglement_jours', 'mode_reglement', 'periodicite_facturation',
         'ticket_moderateur', 'contact_nom', 'contact_telephone', 'contact_email',
         'contrat_debut', 'contrat_fin', 'exige_bon_prise_en_charge', 'coefficient_tarif',
+        'categorie_tarifaire_id',
     ];
 
     protected function casts(): array
@@ -114,12 +115,21 @@ class Assurance extends Model
             && $this->contrat_fin->lte(now()->addDays($jours));
     }
 
+    /** Catégorie de convention (A, B, C, D…) qui fixe les coefficients. */
+    public function categorieTarifaire(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(CategorieTarifaire::class, 'categorie_tarifaire_id');
+    }
+
     /**
      * Prix d'une prestation pour les bénéficiaires de cette convention :
-     * le prix fixé pour la prestation, à défaut celui de sa catégorie, à
-     * défaut le prix public multiplié par le coefficient du contrat.
+     * le prix fixé pour la prestation, à défaut celui de sa catégorie de
+     * prestation, à défaut — si la convention est classée dans une catégorie
+     * tarifaire et que la prestation porte une fonction tarifaire — le prix
+     * de base multiplié par le coefficient de cette fonction, à défaut le
+     * prix public multiplié par le coefficient du contrat.
      */
-    public function prixPour(string $type, ?string $referenceId, float $prixPublic, bool $prixDeCategorie = true): float
+    public function prixPour(string $type, ?string $referenceId, float $prixPublic, bool $prixDeCategorie = true, ?int $fonctionTarifaire = null): float
     {
         $tarifs = $this->relationLoaded('tarifs') ? $this->tarifs : $this->tarifs()->get();
 
@@ -129,6 +139,10 @@ class Assurance extends Model
 
         if ($prixDeCategorie && ($tarif = $tarifs->first(fn ($t) => $t->type === $type && $t->reference_id === null))) {
             return (float) $tarif->prix;
+        }
+
+        if ($fonctionTarifaire && $this->categorie_tarifaire_id && ($categorie = $this->categorieTarifaire)) {
+            return round($prixPublic * $categorie->coefficient($fonctionTarifaire), 2);
         }
 
         $coefficient = (float) ($this->coefficient_tarif ?: 1);

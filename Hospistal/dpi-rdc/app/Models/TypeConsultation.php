@@ -13,7 +13,7 @@ class TypeConsultation extends Model
     protected $table = 'types_consultation';
 
     protected $fillable = [
-        'code', 'libelle', 'categorie', 'specialite', 'prix_usd', 'est_actif',
+        'code', 'libelle', 'categorie', 'specialite', 'prix_usd', 'est_actif', 'fonction_tarifaire',
     ];
 
     protected function casts(): array

@@ -153,7 +153,9 @@ class DossierAdministratifEtCatalogueTest extends TestCase
         $this->post(route('methodes-paiement.store'), ['libelle' => 'Assuré SONAS', 'type' => 'assurance', 'assurance_id' => $assurance->id])
             ->assertSessionHas('success');
         $sonas = MethodePaiement::where('libelle', 'Assuré SONAS')->first();
-        $this->post(route('patients.methodes.store', $a), ['methode_paiement_id' => $sonas->id, 'identifiant' => 'POL-77']);
+        // Sans identifiant, le numéro de dossier tient lieu de police.
+        $this->post(route('patients.methodes.store', $a), ['methode_paiement_id' => $sonas->id])->assertSessionHas('success');
+        $this->assertSame($a->dossier_number, PatientAssurance::where('patient_id', $a->id)->where('assurance_id', $assurance->id)->value('numero_police'));
         $this->assertTrue(PatientAssurance::where(['patient_id' => $a->id, 'assurance_id' => $assurance->id, 'est_actif' => true])->exists());
         $this->assertSame('assurance', $a->fresh()->type_prise_en_charge);
 

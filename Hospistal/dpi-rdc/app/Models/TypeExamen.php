@@ -14,7 +14,7 @@ class TypeExamen extends Model
 
     protected $fillable = [
         'code', 'categorie', 'libelle', 'delai_heures', 'prix',
-        'valeurs_reference', 'est_actif', 'domaine', 'modalite',
+        'valeurs_reference', 'est_actif', 'domaine', 'modalite', 'fonction_tarifaire',
     ];
 
     protected function casts(): array

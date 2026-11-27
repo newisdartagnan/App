@@ -126,6 +126,7 @@
         ($adminNav || $u?->can('settings.manage')) ? ['Services / unités de soins', route('catalogue.services.index'), request()->routeIs('catalogue.services.*')] : null,
         ($adminNav || $u?->can('settings.manage')) ? ['Locaux de services', route('catalogue.locaux.index'), request()->routeIs('catalogue.locaux.*')] : null,
         ($adminNav || $u?->can('settings.manage') || $u?->can('soin.execute')) ? ['Lits dans les locaux', route('catalogue.lits.index'), request()->routeIs('catalogue.lits.*')] : null,
+        ($adminNav || $u?->can('settings.manage') || $u?->can('facture.annuler')) ? ['Tarification : catégories & actes', route('tarification.categories'), request()->routeIs('tarification.*')] : null,
         ($adminNav || $u?->can('settings.manage') || $u?->can('facture.create')) ? ['Méthodes de paiement', route('methodes-paiement.index'), request()->routeIs('methodes-paiement.*')] : null,
         ($adminNav || $u?->can('ambulance.manage')) ? ['Ambulances', route('ambulances.index'), request()->routeIs('ambulances.*')] : null,
         ($adminNav || $u?->can('user.manage')) ? ['Utilisateurs', route('utilisateurs.index'), request()->routeIs('utilisateurs.*')] : null,
@@ -163,6 +164,12 @@
         @endforeach
 
         <a href="{{ route('officines.tableau') }}" class="nav-lien {{ request()->routeIs('pharmacie.*') || request()->routeIs('officines.*') ? 'est-actif' : '' }}">Pharmacie</a>
+        @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur']) || auth()->user()?->can('depot.manage') || auth()->user()?->can('stock.receive'))
+        <a href="{{ route('grand-depot.tableau') }}" class="nav-lien {{ request()->routeIs('grand-depot.*') ? 'est-actif' : '' }}">🏬 Grand dépôt</a>
+        @endif
+        @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur']) || auth()->user()?->can('finance.view') || auth()->user()?->can('finance.depense') || auth()->user()?->can('finance.valider'))
+        <a href="{{ route('finance.tableau') }}" class="nav-lien {{ request()->routeIs('finance.*') ? 'est-actif' : '' }}">💰 Finances</a>
+        @endif
         <a href="{{ route('statistiques.index') }}" class="nav-lien {{ request()->routeIs('statistiques.*') ? 'est-actif' : '' }}">Statistiques</a>
         <a href="{{ route('rapports.index') }}" class="nav-lien {{ request()->routeIs('rapports.*') ? 'est-actif' : '' }}">📊 Rapports</a>
         @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'infirmier_chef', 'agent_admin']))

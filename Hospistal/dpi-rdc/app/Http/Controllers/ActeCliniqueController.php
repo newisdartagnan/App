@@ -105,6 +105,15 @@ class ActeCliniqueController extends Controller
             return back()->withInput()->with('error', 'Séjour terminé — aucun nouvel acte possible.');
         }
 
+        // Un acte du catalogue se facture à son tarif (normal, urgent ou
+        // externe) et garde sa fonction tarifaire pour les conventions.
+        $fiche = \App\Models\ActeCatalogue::where('domaine', $donnees['domaine'])
+            ->where('libelle', $donnees['libelle'])
+            ->first();
+        if ($fiche && ! $fiche->estDisponible()) {
+            return back()->withInput()->with('error', 'Cet acte n\'est pas disponible actuellement ('.\App\Models\ActeCatalogue::DISPONIBILITES[$fiche->disponibilite].').');
+        }
+
         $acte = ActeClinique::create([
             'visit_id' => $visit->id,
             'patient_id' => $visit->patient_id,
@@ -112,7 +121,9 @@ class ActeCliniqueController extends Controller
             'demandeur_id' => auth()->id(),
             'domaine' => $donnees['domaine'],
             'libelle' => $donnees['libelle'],
-            'prix' => $donnees['prix'],
+            'prix' => $fiche ? $this->prixDuCatalogue($fiche, $visit, $request->boolean('urgence')) : $donnees['prix'],
+            'acte_catalogue_id' => $fiche?->id,
+            'fonction_tarifaire' => $fiche?->fonction_tarifaire,
             'duree_minutes' => $donnees['duree_minutes'] ?? null,
             'indication' => $donnees['indication'] ?? null,
             'diagnostic_preop' => $donnees['diagnostic_preop'] ?? null,
@@ -226,7 +237,41 @@ class ActeCliniqueController extends Controller
                 ])->all();
         }
 
-        return config('dpi.actes.'.$domaine, config('dpi.actes.chirurgie', []));
+        // Le catalogue de l'établissement (fiches d'actes disponibles) en
+        // tête, puis la liste de départ de la configuration.
+        $devises = app(\App\Services\DeviseService::class);
+        $fiches = \App\Models\ActeCatalogue::where('domaine', $domaine)
+            ->where('disponibilite', 'oui')
+            ->orderBy('libelle')
+            ->get()
+            ->map(fn ($a) => [
+                'libelle' => $a->libelle,
+                'prix' => round($devises->versCdf($a->prixDeBase('normal'), $a->devise)),
+                'duree' => $a->duree_minutes ?? 60,
+                'acte_catalogue_id' => $a->id,
+            ])->all();
+
+        $configuration = collect(config('dpi.actes.'.$domaine, config('dpi.actes.chirurgie', [])))
+            ->reject(fn ($item) => collect($fiches)->contains('libelle', $item['libelle']))
+            ->all();
+
+        return array_values(array_merge($fiches, $configuration));
+    }
+
+    /**
+     * Prix d'un acte du catalogue pour ce séjour : urgent aux urgences,
+     * externe en consultation externe, normal en hospitalisation — converti
+     * en francs. Le coefficient de la convention s'applique à la facturation.
+     */
+    private function prixDuCatalogue(\App\Models\ActeCatalogue $acte, Visit $visit, bool $urgence): float
+    {
+        $contexte = match (true) {
+            $urgence || $visit->type === 'urgence' => 'urgent',
+            $visit->type === 'consultation_externe' => 'externe',
+            default => 'normal',
+        };
+
+        return round(app(\App\Services\DeviseService::class)->versCdf($acte->prixDeBase($contexte), $acte->devise));
     }
 
     /**

@@ -24,7 +24,9 @@ use App\Http\Controllers\DisponibiliteController;
 use App\Http\Controllers\DossierInfirmierController;
 use App\Http\Controllers\DossierMedicalController;
 use App\Http\Controllers\EquipementController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\ForfaitController;
+use App\Http\Controllers\GrandDepotController;
 use App\Http\Controllers\LaboratoireController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MessagerieController;
@@ -50,6 +52,7 @@ use App\Http\Controllers\ServiceHospitalierController;
 use App\Http\Controllers\TacheController;
 use App\Http\Controllers\StatistiqueController;
 use App\Http\Controllers\TarifController;
+use App\Http\Controllers\TarificationController;
 use App\Http\Controllers\TransfertServiceController;
 use App\Http\Controllers\UrgenceController;
 use App\Http\Controllers\UtilisateurController;
@@ -141,6 +144,66 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/catalogue/methodes-paiement', [MethodePaiementController::class, 'index'])->name('methodes-paiement.index');
     Route::post('/catalogue/methodes-paiement', [MethodePaiementController::class, 'enregistrer'])->name('methodes-paiement.store');
     Route::post('/catalogue/methodes-paiement/{methode}/basculer', [MethodePaiementController::class, 'basculer'])->name('methodes-paiement.basculer');
+
+    // Tarification : catégories de convention × fonctions tarifaires, catalogue des actes
+    Route::get('/tarification/categories', [TarificationController::class, 'categories'])->name('tarification.categories');
+    Route::post('/tarification/categories', [TarificationController::class, 'enregistrerCategorie'])->name('tarification.categories.store');
+    Route::post('/tarification/categories/{categorie}', [TarificationController::class, 'enregistrerCategorie'])->name('tarification.categories.update');
+    Route::delete('/tarification/categories/{categorie}', [TarificationController::class, 'supprimerCategorie'])->name('tarification.categories.destroy');
+    Route::post('/tarification/conventions/{assurance}/classer', [TarificationController::class, 'classerConvention'])->name('tarification.conventions.classer');
+    Route::get('/tarification/actes', [TarificationController::class, 'actes'])->name('tarification.actes');
+    Route::get('/tarification/actes/nouveau', [TarificationController::class, 'creerActe'])->name('tarification.actes.create');
+    Route::post('/tarification/actes', [TarificationController::class, 'enregistrerActe'])->name('tarification.actes.store');
+    Route::get('/tarification/actes/{acte}', [TarificationController::class, 'modifierActe'])->name('tarification.actes.edit');
+    Route::post('/tarification/actes/{acte}', [TarificationController::class, 'enregistrerActe'])->name('tarification.actes.update');
+
+    // Grand dépôt pharmaceutique
+    Route::prefix('grand-depot')->name('grand-depot.')->group(function () {
+        Route::get('/', [GrandDepotController::class, 'tableau'])->name('tableau');
+        Route::get('/fournisseurs', [GrandDepotController::class, 'fournisseurs'])->name('fournisseurs');
+        Route::post('/fournisseurs', [GrandDepotController::class, 'enregistrerFournisseur'])->name('fournisseurs.store');
+        Route::post('/fournisseurs/{fournisseur}/basculer', [GrandDepotController::class, 'basculerFournisseur'])->name('fournisseurs.basculer');
+        Route::get('/commandes', [GrandDepotController::class, 'commandes'])->name('commandes');
+        Route::get('/commandes/nouvelle', [GrandDepotController::class, 'creerCommande'])->name('commandes.create');
+        Route::post('/commandes', [GrandDepotController::class, 'enregistrerCommande'])->name('commandes.store');
+        Route::get('/commandes/{commande}', [GrandDepotController::class, 'voirCommande'])->name('commandes.show');
+        Route::post('/commandes/{commande}/envoyer', [GrandDepotController::class, 'envoyerCommande'])->name('commandes.envoyer');
+        Route::post('/commandes/{commande}/annuler', [GrandDepotController::class, 'annulerCommande'])->name('commandes.annuler');
+        Route::post('/commandes/{commande}/recevoir', [GrandDepotController::class, 'recevoirCommande'])->name('commandes.recevoir');
+        Route::get('/receptions', [GrandDepotController::class, 'receptions'])->name('receptions');
+        Route::get('/receptions/nouvelle', [GrandDepotController::class, 'creerReception'])->name('receptions.create');
+        Route::post('/receptions', [GrandDepotController::class, 'enregistrerReception'])->name('receptions.store');
+        Route::get('/receptions/{reception}', [GrandDepotController::class, 'voirReception'])->name('receptions.show');
+        Route::get('/inventaires', [GrandDepotController::class, 'inventaires'])->name('inventaires');
+        Route::post('/inventaires', [GrandDepotController::class, 'demarrerInventaire'])->name('inventaires.demarrer');
+        Route::get('/inventaires/{inventaire}', [GrandDepotController::class, 'voirInventaire'])->name('inventaires.show');
+        Route::post('/inventaires/{inventaire}', [GrandDepotController::class, 'saisirInventaire'])->name('inventaires.saisir');
+        Route::get('/destructions', [GrandDepotController::class, 'destructions'])->name('destructions');
+        Route::post('/destructions', [GrandDepotController::class, 'enregistrerDestruction'])->name('destructions.store');
+        Route::get('/destructions/{destruction}', [GrandDepotController::class, 'voirDestruction'])->name('destructions.show');
+        Route::get('/fiche-stock/{medicament}', [GrandDepotController::class, 'ficheStock'])->name('fiche');
+    });
+
+    // Gestion financière
+    Route::prefix('finances')->name('finance.')->group(function () {
+        Route::get('/', [FinanceController::class, 'tableau'])->name('tableau');
+        Route::get('/depenses', [FinanceController::class, 'depenses'])->name('depenses');
+        Route::get('/depenses/nouvelle', [FinanceController::class, 'creerDepense'])->name('depenses.create');
+        Route::post('/depenses', [FinanceController::class, 'enregistrerDepense'])->name('depenses.store');
+        Route::post('/depenses/{depense}/approuver', [FinanceController::class, 'approuver'])->name('depenses.approuver');
+        Route::post('/depenses/{depense}/rejeter', [FinanceController::class, 'rejeter'])->name('depenses.rejeter');
+        Route::post('/depenses/{depense}/payer', [FinanceController::class, 'payer'])->name('depenses.payer');
+        Route::get('/depenses/{depense}/piece', [FinanceController::class, 'piece'])->name('depenses.piece');
+        Route::get('/tresorerie', [FinanceController::class, 'comptes'])->name('comptes');
+        Route::post('/tresorerie/comptes', [FinanceController::class, 'enregistrerCompte'])->name('comptes.store');
+        Route::post('/tresorerie/transferts', [FinanceController::class, 'transferer'])->name('transferts.store');
+        Route::get('/tresorerie/{compte}/journal', [FinanceController::class, 'journal'])->name('journal');
+        Route::get('/budget', [FinanceController::class, 'budget'])->name('budget');
+        Route::post('/budget', [FinanceController::class, 'enregistrerBudget'])->name('budget.store');
+        Route::post('/rubriques', [FinanceController::class, 'enregistrerRubrique'])->name('rubriques.store');
+        Route::get('/resultat', [FinanceController::class, 'resultat'])->name('resultat');
+        Route::post('/cloture', [FinanceController::class, 'cloturer'])->name('cloturer');
+    });
 
     // Ambulances
     Route::get('/ambulances', [AmbulanceController::class, 'index'])->name('ambulances.index');
