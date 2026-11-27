@@ -25,6 +25,11 @@ class Service extends Model
         return $this->belongsTo(Establishment::class);
     }
 
+    public function locaux(): HasMany
+    {
+        return $this->hasMany(Local::class);
+    }
+
     public function lits(): HasMany
     {
         return $this->hasMany(Lit::class);

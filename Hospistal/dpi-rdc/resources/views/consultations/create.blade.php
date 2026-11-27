@@ -122,6 +122,13 @@
                         value="{{ old('diagnostics.' . $i . '.libelle') }}"
                         placeholder="Chercher ou écrire (ex : palu, TB, HTA…)"
                         class="w-full min-h-[40px] rounded border border-gray-300 px-3 py-1.5 text-sm">
+                    <label for="diag-nature-{{ $i }}" class="sr-only">Nature du diagnostic</label>
+                    <select id="diag-nature-{{ $i }}" name="diagnostics[{{ $i }}][nature]"
+                            class="mt-2 w-full min-h-[40px] rounded border border-gray-300 px-2 text-sm">
+                        @foreach(\App\Models\Consultation::NATURES_DIAGNOSTIC as $cle => $libNature)
+                        <option value="{{ $cle }}" @selected(old('diagnostics.'.$i.'.nature', 'certitude') === $cle)>{{ $libNature }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 @endfor
             </div>

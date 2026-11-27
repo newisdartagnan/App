@@ -3,6 +3,7 @@
 use App\Http\Controllers\AcompteController;
 use App\Http\Controllers\ActeCliniqueController;
 use App\Http\Controllers\AgendaController;
+use App\Http\Controllers\AmbulanceController;
 use App\Http\Controllers\ApparenceController;
 use App\Http\Controllers\AssuranceController;
 use App\Http\Controllers\Auth\LoginController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\BilanHydriqueController;
 use App\Http\Controllers\BlocOperatoireController;
 use App\Http\Controllers\BonPriseEnChargeController;
 use App\Http\Controllers\CaisseController;
+use App\Http\Controllers\CatalogueController;
 use App\Http\Controllers\CompteController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConventionController;
@@ -25,6 +27,8 @@ use App\Http\Controllers\EquipementController;
 use App\Http\Controllers\ForfaitController;
 use App\Http\Controllers\LaboratoireController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\MessagerieController;
+use App\Http\Controllers\MethodePaiementController;
 use App\Http\Controllers\MaterniteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NutritionController;
@@ -32,11 +36,13 @@ use App\Http\Controllers\OfficineController;
 use App\Http\Controllers\ParametreController;
 use App\Http\Controllers\ParcoursController;
 use App\Http\Controllers\PatientController;
+use App\Http\Controllers\PatientIdentiteController;
 use App\Http\Controllers\PharmacieController;
 use App\Http\Controllers\PlanAdministrationController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\PreventionController;
 use App\Http\Controllers\RapportSnisController;
+use App\Http\Controllers\RapportController;
 use App\Http\Controllers\RechercheController;
 use App\Http\Controllers\RecouvrementController;
 use App\Http\Controllers\RoleController;
@@ -87,6 +93,61 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/patients/{patient}', [PatientController::class, 'show'])->name('patients.show');
     Route::post('/patients/{patient}/envoyer-caisse', [PatientController::class, 'envoyerCaisse'])->name('patients.envoyer-caisse');
     Route::post('/patients/{patient}/assurance', [PatientController::class, 'majAssurance'])->name('patients.assurance');
+
+    // Partie administrative du dossier : identité, carte, photo, empreintes,
+    // relations familiales, méthodes de paiement, carte de vaccination.
+    Route::get('/patients/{patient}/modifier', [PatientIdentiteController::class, 'edit'])->name('patients.edit');
+    Route::put('/patients/{patient}', [PatientIdentiteController::class, 'update'])->name('patients.update');
+    Route::get('/patients/{patient}/carte', [PatientIdentiteController::class, 'carte'])->name('patients.carte');
+    Route::post('/patients/{patient}/photo', [PatientIdentiteController::class, 'photo'])->name('patients.photo.store');
+    Route::get('/photos/patients/{patient}', [PatientIdentiteController::class, 'voirPhoto'])->name('patients.photo');
+    Route::get('/patients/{patient}/empreintes', [PatientIdentiteController::class, 'empreintes'])->name('patients.empreintes');
+    Route::post('/patients/{patient}/empreintes', [PatientIdentiteController::class, 'enregistrerEmpreinte'])->name('patients.empreintes.store');
+    Route::delete('/empreintes/{empreinte}', [PatientIdentiteController::class, 'supprimerEmpreinte'])->name('patients.empreintes.destroy');
+    Route::get('/empreintes/{empreinte}/image', [PatientIdentiteController::class, 'imageEmpreinte'])->name('patients.empreintes.image');
+    Route::post('/patients/{patient}/relations', [PatientIdentiteController::class, 'ajouterRelation'])->name('patients.relations.store');
+    Route::delete('/relations-familiales/{relation}', [PatientIdentiteController::class, 'supprimerRelation'])->name('patients.relations.destroy');
+    Route::post('/patients/{patient}/methodes-paiement', [PatientIdentiteController::class, 'ajouterMethode'])->name('patients.methodes.store');
+    Route::delete('/patient-methodes-paiement/{lien}', [PatientIdentiteController::class, 'retirerMethode'])->name('patients.methodes.destroy');
+    Route::get('/patients/{patient}/carte-vaccination', [PatientIdentiteController::class, 'carteVaccination'])->name('patients.carte-vaccination');
+
+    // Catalogue de l'établissement
+    Route::get('/catalogue/examens', [CatalogueController::class, 'examens'])->name('catalogue.examens.index');
+    Route::get('/catalogue/examens/nouveau', [CatalogueController::class, 'creerExamen'])->name('catalogue.examens.create');
+    Route::get('/catalogue/imagerie', [CatalogueController::class, 'imagerie'])->name('catalogue.imagerie.index');
+    Route::get('/catalogue/imagerie/nouveau', [CatalogueController::class, 'creerImagerie'])->name('catalogue.imagerie.create');
+    Route::post('/catalogue/examens', [CatalogueController::class, 'enregistrerExamen'])->name('catalogue.examens.store');
+    Route::get('/catalogue/examens/{type}/modifier', [CatalogueController::class, 'modifierExamen'])->name('catalogue.examens.edit');
+    Route::post('/catalogue/examens/{type}', [CatalogueController::class, 'enregistrerExamen'])->name('catalogue.examens.update');
+    Route::post('/catalogue/examens/{type}/basculer', [CatalogueController::class, 'basculerExamen'])->name('catalogue.examens.basculer');
+    Route::get('/catalogue/services', [CatalogueController::class, 'services'])->name('catalogue.services.index');
+    Route::get('/catalogue/services/nouveau', [CatalogueController::class, 'creerService'])->name('catalogue.services.create');
+    Route::post('/catalogue/services', [CatalogueController::class, 'enregistrerService'])->name('catalogue.services.store');
+    Route::get('/catalogue/services/{service}/modifier', [CatalogueController::class, 'modifierService'])->name('catalogue.services.edit');
+    Route::post('/catalogue/services/{service}', [CatalogueController::class, 'enregistrerService'])->name('catalogue.services.update');
+    Route::post('/catalogue/services/{service}/basculer', [CatalogueController::class, 'basculerService'])->name('catalogue.services.basculer');
+    Route::get('/catalogue/locaux', [CatalogueController::class, 'locaux'])->name('catalogue.locaux.index');
+    Route::get('/catalogue/locaux/nouveau', [CatalogueController::class, 'creerLocal'])->name('catalogue.locaux.create');
+    Route::post('/catalogue/locaux', [CatalogueController::class, 'enregistrerLocal'])->name('catalogue.locaux.store');
+    Route::get('/catalogue/locaux/{local}/modifier', [CatalogueController::class, 'modifierLocal'])->name('catalogue.locaux.edit');
+    Route::post('/catalogue/locaux/{local}', [CatalogueController::class, 'enregistrerLocal'])->name('catalogue.locaux.update');
+    Route::post('/catalogue/locaux/{local}/basculer', [CatalogueController::class, 'basculerLocal'])->name('catalogue.locaux.basculer');
+    Route::get('/catalogue/lits', [CatalogueController::class, 'lits'])->name('catalogue.lits.index');
+    Route::get('/catalogue/lits/nouveau', [CatalogueController::class, 'creerLit'])->name('catalogue.lits.create');
+    Route::post('/catalogue/lits', [CatalogueController::class, 'enregistrerLit'])->name('catalogue.lits.store');
+    Route::get('/catalogue/lits/{lit}/modifier', [CatalogueController::class, 'modifierLit'])->name('catalogue.lits.edit');
+    Route::post('/catalogue/lits/{lit}', [CatalogueController::class, 'enregistrerLit'])->name('catalogue.lits.update');
+    Route::post('/catalogue/lits/{lit}/basculer', [CatalogueController::class, 'basculerLit'])->name('catalogue.lits.basculer');
+    Route::get('/catalogue/methodes-paiement', [MethodePaiementController::class, 'index'])->name('methodes-paiement.index');
+    Route::post('/catalogue/methodes-paiement', [MethodePaiementController::class, 'enregistrer'])->name('methodes-paiement.store');
+    Route::post('/catalogue/methodes-paiement/{methode}/basculer', [MethodePaiementController::class, 'basculer'])->name('methodes-paiement.basculer');
+
+    // Ambulances
+    Route::get('/ambulances', [AmbulanceController::class, 'index'])->name('ambulances.index');
+    Route::post('/ambulances', [AmbulanceController::class, 'enregistrerAmbulance'])->name('ambulances.store');
+    Route::post('/ambulances/{ambulance}/basculer', [AmbulanceController::class, 'basculerAmbulance'])->name('ambulances.basculer');
+    Route::post('/ambulances/sorties', [AmbulanceController::class, 'enregistrerSortie'])->name('ambulances.sorties.store');
+    Route::post('/ambulances/sorties/{sortie}/retour', [AmbulanceController::class, 'retour'])->name('ambulances.sorties.retour');
 
     // Consultations — workflow caisse-first : le médecin consulte une visite payée
     Route::get('/patients/{patient}/consultation', [ConsultationController::class, 'create'])->name('consultations.create');
@@ -239,6 +300,19 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/roles/{role}/modifier', [RoleController::class, 'edit'])->name('roles.edit');
     Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
     Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+
+    // Rapports d'activité
+    Route::get('/rapports', [RapportController::class, 'index'])->name('rapports.index');
+    Route::get('/rapports/caisse/{jour}', [RapportController::class, 'caisseJour'])->name('rapports.caisse.jour');
+    Route::get('/rapports/{rapport}', [RapportController::class, 'afficher'])->name('rapports.afficher');
+
+    // Chat — messagerie interne
+    Route::get('/chat', [MessagerieController::class, 'index'])->name('messagerie.index');
+    Route::get('/chat/non-lus', [MessagerieController::class, 'nonLus'])->name('messagerie.non-lus');
+    Route::get('/chat/{avec}', [MessagerieController::class, 'index'])->name('messagerie.conversation');
+    Route::get('/chat/{avec}/fil', [MessagerieController::class, 'fil'])->name('messagerie.fil');
+    Route::post('/chat/{avec}', [MessagerieController::class, 'envoyer'])->name('messagerie.envoyer');
+    Route::delete('/messages/{message}', [MessagerieController::class, 'supprimer'])->name('messagerie.supprimer');
 
     // Mon compte
     Route::get('/mon-compte', [CompteController::class, 'show'])->name('compte.index');

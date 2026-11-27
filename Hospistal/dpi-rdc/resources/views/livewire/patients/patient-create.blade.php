@@ -84,6 +84,7 @@
                         <option value="marie">Marié(e)</option>
                         <option value="divorce">Divorcé(e)</option>
                         <option value="veuf">Veuf / Veuve</option>
+                        <option value="union_libre">Union libre</option>
                     </select>
                 </div>
                 <div>
@@ -100,6 +101,11 @@
                     <label for="patient-profession" class="block text-sm font-medium text-gray-700 mb-1">Profession</label>
                     <input id="patient-profession" name="profession" wire:model="profession" type="text" autocomplete="organization-title"
                         class="w-full min-h-[44px] rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="patient-autres-details" class="block text-sm font-medium text-gray-700 mb-1">Autres détails</label>
+                    <textarea id="patient-autres-details" name="autres_details" wire:model="autres_details" rows="2"
+                        class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500"></textarea>
                 </div>
             </div>
         </div>

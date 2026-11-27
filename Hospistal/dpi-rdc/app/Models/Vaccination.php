@@ -27,7 +27,7 @@ class Vaccination extends Model
 
     protected $fillable = [
         'patient_id', 'establishment_id', 'user_id',
-        'date_vaccination', 'antigene', 'strategie', 'lot', 'observation',
+        'date_vaccination', 'antigene', 'strategie', 'lot', 'observation', 'antigene_libre',
     ];
 
     protected function casts(): array
@@ -78,6 +78,16 @@ class Vaccination extends Model
      * elle est écrite ici pour qu'on puisse la lire, la discuter et la
      * corriger, plutôt qu'enfouie dans une requête. L'écran l'affiche.
      */
+    /** Nom lisible du vaccin, y compris un « autre » écrit à la main. */
+    public function libelleVaccin(): string
+    {
+        if ($this->antigene === 'autre') {
+            return $this->antigene_libre ?: 'Autre vaccin';
+        }
+
+        return self::ANTIGENES[$this->antigene]['libelle'] ?? (string) $this->antigene;
+    }
+
     public const SCHEMA_COMPLET = [
         'bcg', 'vpo_1', 'vpo_2', 'vpo_3',
         'dtc_hepb_hib_1', 'dtc_hepb_hib_2', 'dtc_hepb_hib_3',

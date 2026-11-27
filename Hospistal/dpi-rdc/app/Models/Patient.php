@@ -23,6 +23,7 @@ class Patient extends Model
         'contact_urgence_nom', 'contact_urgence_telephone', 'contact_urgence_lien',
         'type_prise_en_charge', 'assurance_nom', 'assurance_numero', 'groupe_sanguin',
         'duplicate_of', 'duplicate_confidence', 'merge_status',
+        'photo_path', 'autres_details', 'created_by',
         'sync_status', 'sync_hash',
     ];
 
@@ -47,6 +48,10 @@ class Patient extends Model
      */
     protected static function booted(): void
     {
+        static::creating(function (Patient $patient) {
+            $patient->created_by ??= auth()->id();
+        });
+
         static::saving(function (Patient $patient) {
             if ($patient->isDirty('telephone')) {
                 $patient->telephone_index = self::empreinteTelephone($patient->telephone);
@@ -87,6 +92,42 @@ class Patient extends Model
     {
         return self::empreinteTelephone($terme) !== null
             && preg_match('/^[\d\s.+()-]+$/', trim($terme)) === 1;
+    }
+
+    public function enregistrePar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function empreintes(): HasMany
+    {
+        return $this->hasMany(EmpreintePatient::class);
+    }
+
+    public function relationsFamiliales(): HasMany
+    {
+        return $this->hasMany(RelationFamiliale::class);
+    }
+
+    /** Relations où ce patient est le proche d'un autre dossier. */
+    public function relationsInverses(): HasMany
+    {
+        return $this->hasMany(RelationFamiliale::class, 'proche_id');
+    }
+
+    public function methodesPaiement(): HasMany
+    {
+        return $this->hasMany(PatientMethodePaiement::class);
+    }
+
+    public function vaccinations(): HasMany
+    {
+        return $this->hasMany(Vaccination::class);
+    }
+
+    public function photoUrl(): ?string
+    {
+        return $this->photo_path ? route('patients.photo', $this) : null;
     }
 
     public function establishment(): BelongsTo

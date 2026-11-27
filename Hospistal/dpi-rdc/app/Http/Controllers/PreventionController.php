@@ -125,7 +125,8 @@ class PreventionController extends Controller
         $this->autoriser();
 
         $donnees = $request->validate([
-            'antigene' => 'required|in:'.implode(',', array_keys(Vaccination::ANTIGENES)),
+            'antigene' => 'required|in:autre,'.implode(',', array_keys(Vaccination::ANTIGENES)),
+            'antigene_libre' => 'nullable|required_if:antigene,autre|string|max:150',
             'strategie' => 'required|in:'.implode(',', array_keys(Vaccination::STRATEGIES)),
             'date_vaccination' => 'nullable|date|before_or_equal:today',
             'lot' => 'nullable|string|max:60',
@@ -133,14 +134,14 @@ class PreventionController extends Controller
         ]);
 
         try {
-            $this->prevention->vacciner($patient, $donnees);
+            $vaccination = $this->prevention->vacciner($patient, $donnees);
         } catch (\RuntimeException|\InvalidArgumentException $e) {
             return back()->withInput()->withErrors(['antigene' => $e->getMessage()]);
         }
 
         return redirect()
-            ->route('prevention.patient', $patient)
-            ->with('success', Vaccination::ANTIGENES[$donnees['antigene']]['libelle'].' enregistré.');
+            ->to($request->input('retour') === 'dossier' ? route('patients.show', $patient) : route('prevention.patient', $patient))
+            ->with('success', $vaccination->libelleVaccin().' enregistré.');
     }
 
     // ═══════════════════════════════════════════════════════════

@@ -30,6 +30,20 @@ class Consultation extends Model
      * même la plus fréquente : on ne tranche pas avant d'avoir la goutte
      * épaisse. Elle doit pouvoir s'écrire, quitte à être reprise ensuite.
      */
+    /**
+     * Nature d'un diagnostic, telle que la fiche la distingue : certitude,
+     * présomption (en attendant les résultats), différentiel, et pour le
+     * bloc, pré- et peropératoire. Le rang principal / associé reste à part :
+     * c'est lui que compte le canevas SNIS.
+     */
+    public const NATURES_DIAGNOSTIC = [
+        'certitude' => 'Diagnostic de certitude',
+        'presomption' => 'Diagnostic de présomption',
+        'differentiel' => 'Diagnostic différentiel',
+        'preoperatoire' => 'Diagnostic préopératoire',
+        'peroperatoire' => 'Diagnostic peropératoire',
+    ];
+
     public const ORIENTATIONS = [
         'domicile' => 'Retour à domicile',
         'attente_examens' => 'En attente de résultats d\'examens',

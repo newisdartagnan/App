@@ -115,6 +115,31 @@
         ],
     ];
 
+    // « Plus » : le paramétrage de l'établissement, chaque lien gardé par
+    // le droit d'y agir.
+    $u = auth()->user();
+    $adminNav = $u?->hasAnyRole(['super_admin', 'directeur']);
+    $liensPlus = array_values(array_filter([
+        ($adminNav || $u?->can('stock.view')) ? ['Produits pharmaceutiques', route('pharmacie.medicaments'), request()->routeIs('pharmacie.medicaments')] : null,
+        ($adminNav || $u?->can('settings.manage') || $u?->can('labo.validate')) ? ['Examens de laboratoire', route('catalogue.examens.index'), request()->routeIs('catalogue.examens.*')] : null,
+        ($adminNav || $u?->can('settings.manage') || $u?->can('labo.validate')) ? ['Techniques d\'imagerie', route('catalogue.imagerie.index'), request()->routeIs('catalogue.imagerie.*')] : null,
+        ($adminNav || $u?->can('settings.manage')) ? ['Services / unités de soins', route('catalogue.services.index'), request()->routeIs('catalogue.services.*')] : null,
+        ($adminNav || $u?->can('settings.manage')) ? ['Locaux de services', route('catalogue.locaux.index'), request()->routeIs('catalogue.locaux.*')] : null,
+        ($adminNav || $u?->can('settings.manage') || $u?->can('soin.execute')) ? ['Lits dans les locaux', route('catalogue.lits.index'), request()->routeIs('catalogue.lits.*')] : null,
+        ($adminNav || $u?->can('settings.manage') || $u?->can('facture.create')) ? ['Méthodes de paiement', route('methodes-paiement.index'), request()->routeIs('methodes-paiement.*')] : null,
+        ($adminNav || $u?->can('ambulance.manage')) ? ['Ambulances', route('ambulances.index'), request()->routeIs('ambulances.*')] : null,
+        ($adminNav || $u?->can('user.manage')) ? ['Utilisateurs', route('utilisateurs.index'), request()->routeIs('utilisateurs.*')] : null,
+        ($adminNav || $u?->can('user.manage')) ? ['Rôles / fonctions du personnel', route('roles.index'), request()->routeIs('roles.*')] : null,
+        ($u?->hasRole('super_admin') || $u?->can('maintenance.manage')) ? ['Maintenance', route('maintenance.index'), request()->routeIs('maintenance.*')] : null,
+    ]));
+    if ($liensPlus !== []) {
+        $groupes[] = [
+            'libelle' => 'Plus',
+            'actif' => collect($liensPlus)->contains(fn ($l) => $l[2]),
+            'liens' => $liensPlus,
+        ];
+    }
+
 @endphp
 <nav class="dpi-nav" style="background-color:#1e3a8a;color:#fff;">
     <div class="dpi-nav-inner">
@@ -139,6 +164,7 @@
 
         <a href="{{ route('officines.tableau') }}" class="nav-lien {{ request()->routeIs('pharmacie.*') || request()->routeIs('officines.*') ? 'est-actif' : '' }}">Pharmacie</a>
         <a href="{{ route('statistiques.index') }}" class="nav-lien {{ request()->routeIs('statistiques.*') ? 'est-actif' : '' }}">Statistiques</a>
+        <a href="{{ route('rapports.index') }}" class="nav-lien {{ request()->routeIs('rapports.*') ? 'est-actif' : '' }}">📊 Rapports</a>
         @if(auth()->user()?->hasAnyRole(['super_admin', 'directeur', 'infirmier_chef', 'agent_admin']))
         <a href="{{ route('snis.index') }}" title="Rapport mensuel à la zone de santé"
            class="nav-lien {{ request()->routeIs('snis.*') ? 'est-actif' : '' }}">📋 SNIS</a>

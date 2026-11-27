@@ -238,6 +238,7 @@ class ConsultationController extends Controller
             'diagnostics.*.libelle' => 'nullable|string|max:255',
             'diagnostics.*.code_cim10' => 'nullable|string|max:20',
             'diagnostics.*.code_cim11' => 'nullable|string|max:20',
+            'diagnostics.*.nature' => ['nullable', Rule::in(array_keys(Consultation::NATURES_DIAGNOSTIC))],
             'orientation' => ['nullable', Rule::in(array_keys(Consultation::ORIENTATIONS))],
             'service_oriente_id' => 'nullable|uuid|exists:services,id',
         ]);
@@ -261,6 +262,7 @@ class ConsultationController extends Controller
                 // pas, et les rapports lisent encore les deux.
                 'code_cim10' => strtoupper(trim($diag['code_cim10'] ?? '')) ?: null,
                 'type' => $i === 0 ? 'principal' : 'associe',
+                'nature' => $diag['nature'] ?? 'certitude',
             ];
         }
 
