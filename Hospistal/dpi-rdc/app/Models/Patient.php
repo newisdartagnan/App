@@ -191,6 +191,29 @@ class Patient extends Model
         ]));
     }
 
+    /**
+     * L'âge lisible, comme au registre : « 7 ans », « 1 an », « 5 mois »,
+     * « 12 jours ». Un nourrisson ne se compte pas en années.
+     */
+    public function libelleAge(): string
+    {
+        if (! $this->date_naissance) {
+            return '—';
+        }
+        $naissance = $this->date_naissance;
+        $ans = (int) $naissance->diffInYears(now());
+        if ($ans >= 1) {
+            return $ans.' '.($ans > 1 ? 'ans' : 'an');
+        }
+        $mois = (int) $naissance->diffInMonths(now());
+        if ($mois >= 1) {
+            return $mois.' mois';
+        }
+        $jours = max(0, (int) $naissance->diffInDays(now()));
+
+        return $jours.' '.($jours > 1 ? 'jours' : 'jour');
+    }
+
     public function getNomCompletAttribute(): string
     {
         return trim($this->nom.' '.($this->postnom ? $this->postnom.' ' : '').$this->prenom);

@@ -38,6 +38,7 @@ use App\Http\Controllers\RapportSnisController;
 use App\Http\Controllers\RechercheController;
 use App\Http\Controllers\RecouvrementController;
 use App\Http\Controllers\ServiceHospitalierController;
+use App\Http\Controllers\TacheController;
 use App\Http\Controllers\StatistiqueController;
 use App\Http\Controllers\TarifController;
 use App\Http\Controllers\TransfertServiceController;
@@ -66,6 +67,11 @@ Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth')->
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Mes tâches : le travail de chaque poste, rafraîchi seul (avec bip).
+    Route::get('/taches', [TacheController::class, 'index'])->name('taches.index');
+    Route::get('/taches/fragment', [TacheController::class, 'fragment'])->name('taches.fragment');
+    Route::post('/taches/resultats/{resultat}', [TacheController::class, 'resultat'])->name('taches.resultat');
 
     // La recherche, depuis n'importe quel écran : un geste gagné à chaque fois.
     Route::get('/recherche', [RechercheController::class, 'index'])->name('recherche');

@@ -118,8 +118,9 @@
 @endphp
 <nav class="dpi-nav" style="background-color:#1e3a8a;color:#fff;">
     <div class="dpi-nav-inner">
-        <a href="{{ route('dashboard') }}" class="nav-lien {{ request()->routeIs('dashboard') ? 'est-actif' : '' }}">Accueil</a>
+        <a href="{{ route('dashboard') }}" class="nav-lien {{ request()->routeIs('dashboard') ? 'est-actif' : '' }}">Accès rapides</a>
         <a href="{{ route('patients.index') }}" class="nav-lien {{ request()->routeIs('patients.*') ? 'est-actif' : '' }}">Patients</a>
+        <a href="{{ route('taches.index') }}" class="nav-lien {{ request()->routeIs('taches.*') ? 'est-actif' : '' }}">💼 Tâches</a>
         <a href="{{ route('urgences.index') }}" class="nav-lien {{ request()->routeIs('urgences.*') ? 'est-actif' : '' }}">Urgences</a>
 
         @foreach($groupes as $groupe)

@@ -23,18 +23,55 @@ class PatientController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
         $sexe = (string) $request->query('sexe', '');
+        $serviceId = (string) $request->query('service', '');
+        $episode = (string) $request->query('episode', '');
+        $ageMin = $request->filled('age_min') ? max(0, (int) $request->query('age_min')) : null;
+        $ageMax = $request->filled('age_max') ? max(0, (int) $request->query('age_max')) : null;
+
+        // Le dernier épisode (visite) de chaque patient, lu par sous-requête :
+        // la liste montre d'un coup d'œil où en est chacun, comme au registre.
+        $derniere = fn (string $colonne) => Visit::query()
+            ->select($colonne)
+            ->whereColumn('visits.patient_id', 'patients.id')
+            ->orderByDesc('date_entree')
+            ->limit(1);
 
         $patients = Patient::query()
+            ->select('patients.*')
+            ->addSelect([
+                'derniere_visite_id' => $derniere('id'),
+                'dernier_service_id' => $derniere('service_id'),
+                'dernier_statut' => $derniere('statut'),
+                'dernier_debut' => $derniere('date_entree'),
+                'dernier_fin' => $derniere('date_sortie'),
+            ])
             ->when($search !== '', fn ($q) => $this->appliquerRecherche($q, $search))
             ->when($sexe !== '', fn ($q) => $q->where('sexe', $sexe))
+            ->when($serviceId !== '', fn ($q) => $q->whereRaw(
+                '('.$derniere('service_id')->toSql().') = ?', [$serviceId]
+            ))
+            ->when($episode === 'en_cours', fn ($q) => $q->whereRaw(
+                '('.$derniere('statut')->toSql().') in (\'en_attente\', \'en_cours\')'
+            ))
+            ->when($episode === 'cloture', fn ($q) => $q->whereRaw(
+                '('.$derniere('statut')->toSql().') in (\'termine\', \'annule\')'
+            ))
+            ->when($episode === 'aucun', fn ($q) => $q->whereDoesntHave('visits'))
+            ->when($ageMin !== null, fn ($q) => $q->whereDate('date_naissance', '<=', now()->subYears($ageMin)))
+            ->when($ageMax !== null, fn ($q) => $q->whereDate('date_naissance', '>', now()->subYears($ageMax + 1)))
             ->where(function ($q) {
                 $q->where('merge_status', '!=', 'merged')->orWhereNull('merge_status');
             })
-            ->orderBy('nom')
+            ->orderByDesc('created_at')
             ->paginate(20)
             ->withQueryString();
 
-        return view('patients.index', compact('patients', 'search', 'sexe'));
+        $services = \App\Models\Service::orderBy('nom')->get(['id', 'nom']);
+        $nomsServices = $services->pluck('nom', 'id');
+
+        return view('patients.index', compact(
+            'patients', 'search', 'sexe', 'serviceId', 'episode', 'ageMin', 'ageMax', 'services', 'nomsServices'
+        ));
     }
 
     /**
