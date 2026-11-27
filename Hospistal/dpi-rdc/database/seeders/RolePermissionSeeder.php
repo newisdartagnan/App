@@ -25,6 +25,54 @@ class RolePermissionSeeder extends Seeder
         // Exécuter et tracer un soin : c'est le travail infirmier, et il
         // ne se confond pas avec celui de prescrire.
         'soin.execute',
+        // Superviser le serveur : sauvegardes, sessions ouvertes, vidage.
+        'maintenance.manage',
+        // Lire les rapports d'activité (patients, labo, imagerie, services…).
+        'rapport.view',
+        // Tenir le registre des sorties d'ambulance.
+        'ambulance.manage',
+        // Grand dépôt : fournisseurs, commandes, réceptions, inventaires.
+        'depot.manage',
+        // Gestion financière : saisir une dépense, l'approuver, lire la trésorerie.
+        'finance.depense', 'finance.valider', 'finance.view',
+    ];
+
+    /**
+     * Ce que chaque permission autorise, en clair : la page des rôles
+     * l'affiche à côté de la case à cocher.
+     */
+    public const DESCRIPTIONS = [
+        'patient.create' => 'Enregistrer un nouveau patient',
+        'patient.view' => 'Voir la liste des patients et ouvrir un dossier',
+        'patient.update' => 'Modifier l\'identité d\'un patient (photo, empreintes, relations, carte)',
+        'patient.merge' => 'Fusionner deux dossiers en doublon',
+        'consultation.create' => 'Consulter un patient : examen clinique, diagnostics, orientation',
+        'consultation.view' => 'Lire les consultations et le dossier médical',
+        'consultation.validate' => 'Valider une consultation, clôturer un épisode',
+        'prescription.create' => 'Prescrire des produits, des soins et des instructions',
+        'dispensation.execute' => 'Distribuer les produits prescrits (pharmacie)',
+        'stock.view' => 'Voir le stock des produits et intrants',
+        'stock.adjust' => 'Ajuster le stock (inventaire, pertes, périmés)',
+        'stock.receive' => 'Réceptionner des produits en stock',
+        'facture.create' => 'Créer et modifier les factures des patients',
+        'paiement.receive' => 'Encaisser un paiement au guichet',
+        'rapport.financier.view' => 'Lire les rapports de caisse et de facturation',
+        'facture.annuler' => 'Annuler une facture par un avoir',
+        'facture.remise' => 'Accorder une remise',
+        'sync.manage' => 'Gérer la synchronisation avec le serveur central',
+        'user.manage' => 'Gérer les comptes, les rôles et les permissions',
+        'settings.manage' => 'Paramétrer l\'établissement : services, locaux, lits, examens, tarifs',
+        'labo.create' => 'Demander des examens de laboratoire et d\'imagerie',
+        'labo.view' => 'Voir les examens et leurs résultats',
+        'labo.validate' => 'Saisir et valider les résultats d\'examens',
+        'soin.execute' => 'Administrer les soins, exécuter les instructions, signes vitaux',
+        'maintenance.manage' => 'Maintenance : sauvegardes, utilisateurs connectés, vidage des données',
+        'rapport.view' => 'Lire les rapports d\'activité (patients, laboratoire, imagerie, services, SNIS)',
+        'ambulance.manage' => 'Enregistrer les sorties d\'ambulance',
+        'depot.manage' => 'Grand dépôt : fournisseurs, commandes, réceptions, inventaires',
+        'finance.depense' => 'Saisir une dépense ou un décaissement',
+        'finance.valider' => 'Approuver une dépense, clôturer un mois',
+        'finance.view' => 'Lire la trésorerie, le budget et le compte de résultat',
     ];
 
     /**
@@ -41,11 +89,12 @@ class RolePermissionSeeder extends Seeder
                 'patient.view', 'consultation.view', 'consultation.validate',
                 'rapport.financier.view', 'settings.manage', 'sync.manage',
                 'labo.view', 'stock.view', 'facture.annuler', 'facture.remise',
+                'rapport.view', 'finance.view', 'finance.valider',
             ],
             'medecin' => [
                 'patient.view', 'patient.create', 'patient.update',
                 'consultation.create', 'consultation.view', 'consultation.validate',
-                'prescription.create', 'labo.create', 'labo.view',
+                'prescription.create', 'labo.create', 'labo.view', 'rapport.view',
                 // Un médecin de garde pose lui-même une voie à trois heures
                 // du matin : lui refuser la trace serait la perdre.
                 'soin.execute',
@@ -66,17 +115,19 @@ class RolePermissionSeeder extends Seeder
             'pharmacien' => [
                 'stock.view', 'stock.adjust', 'stock.receive',
                 'dispensation.execute', 'prescription.create', 'patient.view',
+                'depot.manage', 'rapport.view',
             ],
-            'caissier' => ['facture.create', 'paiement.receive', 'patient.view'],
+            'caissier' => ['facture.create', 'paiement.receive', 'patient.view', 'ambulance.manage'],
             // Le chef de facturation et de recouvrement corrige les factures
             // et suit ce que les assureurs doivent. Il n'encaisse pas : la
             // main qui reçoit l'argent n'est pas celle qui annule la dette.
             'chef_facturation' => [
                 'patient.view', 'facture.create', 'facture.annuler',
-                'facture.remise', 'rapport.financier.view',
+                'facture.remise', 'rapport.financier.view', 'finance.view', 'finance.depense',
             ],
             'agent_admin' => [
                 'patient.create', 'patient.view', 'patient.update', 'settings.manage',
+                'ambulance.manage', 'rapport.view',
             ],
         ];
     }

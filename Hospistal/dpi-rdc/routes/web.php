@@ -12,6 +12,7 @@ use App\Http\Controllers\BilanHydriqueController;
 use App\Http\Controllers\BlocOperatoireController;
 use App\Http\Controllers\BonPriseEnChargeController;
 use App\Http\Controllers\CaisseController;
+use App\Http\Controllers\CompteController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConventionController;
 use App\Http\Controllers\DashboardController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\DossierMedicalController;
 use App\Http\Controllers\EquipementController;
 use App\Http\Controllers\ForfaitController;
 use App\Http\Controllers\LaboratoireController;
+use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MaterniteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NutritionController;
@@ -37,6 +39,7 @@ use App\Http\Controllers\PreventionController;
 use App\Http\Controllers\RapportSnisController;
 use App\Http\Controllers\RechercheController;
 use App\Http\Controllers\RecouvrementController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ServiceHospitalierController;
 use App\Http\Controllers\TacheController;
 use App\Http\Controllers\StatistiqueController;
@@ -223,6 +226,34 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/utilisateurs/{utilisateur}', [UtilisateurController::class, 'update'])->name('utilisateurs.update');
     Route::post('/utilisateurs/{utilisateur}/basculer', [UtilisateurController::class, 'basculer'])->name('utilisateurs.basculer');
     Route::post('/utilisateurs/{utilisateur}/mot-de-passe', [UtilisateurController::class, 'motDePasse'])->name('utilisateurs.mot-de-passe');
+    Route::get('/utilisateurs/{utilisateur}/modifier', [UtilisateurController::class, 'edit'])->name('utilisateurs.edit');
+    Route::post('/utilisateurs/{utilisateur}/identite', [UtilisateurController::class, 'identite'])->name('utilisateurs.identite');
+    Route::delete('/utilisateurs/{utilisateur}', [UtilisateurController::class, 'destroy'])->name('utilisateurs.destroy');
+    Route::get('/utilisateurs/{utilisateur}/activites', [UtilisateurController::class, 'activites'])->name('utilisateurs.activites.agent');
+    Route::get('/activites', [UtilisateurController::class, 'activites'])->name('utilisateurs.activites');
+
+    // Rôles des utilisateurs et leurs permissions
+    Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+    Route::get('/roles/nouveau', [RoleController::class, 'create'])->name('roles.create');
+    Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+    Route::get('/roles/{role}/modifier', [RoleController::class, 'edit'])->name('roles.edit');
+    Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+    Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+
+    // Mon compte
+    Route::get('/mon-compte', [CompteController::class, 'show'])->name('compte.index');
+    Route::post('/mon-compte/photo', [CompteController::class, 'photo'])->name('compte.photo.store');
+    Route::post('/mon-compte/informations', [CompteController::class, 'informations'])->name('compte.informations');
+    Route::post('/mon-compte/mot-de-passe', [CompteController::class, 'motDePasse'])->name('compte.mot-de-passe');
+    Route::get('/photos/agents/{user}', [CompteController::class, 'voirPhoto'])->name('compte.photo');
+
+    // Maintenance du serveur
+    Route::get('/maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
+    Route::post('/maintenance/deconnecter', [MaintenanceController::class, 'deconnecterTous'])->name('maintenance.deconnecter');
+    Route::post('/maintenance/sauvegarder', [MaintenanceController::class, 'sauvegarder'])->name('maintenance.sauvegarder');
+    Route::get('/maintenance/sauvegardes/{nom}', [MaintenanceController::class, 'telecharger'])->name('maintenance.telecharger');
+    Route::post('/maintenance/rafraichir', [MaintenanceController::class, 'rafraichir'])->name('maintenance.rafraichir');
+    Route::post('/maintenance/vider', [MaintenanceController::class, 'vider'])->name('maintenance.vider');
     // L'attente à l'échelle de l'hôpital : quel poste, quel jour, quelle heure.
     Route::get('/attente', [ParcoursController::class, 'attente'])->name('parcours.attente');
     Route::get('/mon-temps', [ParcoursController::class, 'profil'])->name('parcours.moi');

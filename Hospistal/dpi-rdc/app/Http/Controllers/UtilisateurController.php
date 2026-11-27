@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 
 /**
  * Comptes du personnel et profils d'utilisation.
@@ -48,13 +48,22 @@ class UtilisateurController extends Controller
 
         $role = $request->query('role');
         $recherche = trim((string) $request->query('recherche'));
+        $organiser = $request->query('organiser') === 'role' ? 'role' : 'nom';
+        $tables = config('permission.table_names');
 
         $utilisateurs = User::with('roles')
             ->when($role, fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', $role)))
             ->when($recherche !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->whereRaw('LOWER(nom) LIKE ?', ['%'.mb_strtolower($recherche).'%'])
                 ->orWhereRaw('LOWER(prenom) LIKE ?', ['%'.mb_strtolower($recherche).'%'])
-                ->orWhereRaw('LOWER(COALESCE(matricule, \'\')) LIKE ?', ['%'.mb_strtolower($recherche).'%'])))
+                ->orWhereRaw('LOWER(COALESCE(matricule, \'\')) LIKE ?', ['%'.mb_strtolower($recherche).'%'])
+                ->orWhereRaw('LOWER(COALESCE(email, \'\')) LIKE ?', ['%'.mb_strtolower($recherche).'%'])))
+            ->when($organiser === 'role', fn ($q) => $q->orderBy(
+                \Illuminate\Support\Facades\DB::table($tables['model_has_roles'].' as mhr')
+                    ->join($tables['roles'].' as r', 'r.id', '=', 'mhr.role_id')
+                    ->whereColumn('mhr.model_id', 'users.id')
+                    ->selectRaw('MIN(r.name)')
+            ))
             ->orderBy('nom')
             ->paginate(25)
             ->withQueryString();
@@ -62,10 +71,11 @@ class UtilisateurController extends Controller
         return view('utilisateurs.index', [
             'utilisateurs' => $utilisateurs,
             'roles' => $this->rolesDisponibles(),
-            'libelles' => self::LIBELLES_ROLES,
+            'libelles' => $this->libelles(),
             'specialites' => $this->specialites(),
             'roleFiltre' => $role,
             'recherche' => $recherche,
+            'organiser' => $organiser,
         ]);
     }
 
@@ -126,7 +136,7 @@ class UtilisateurController extends Controller
         return back()->with('success', sprintf(
             'Compte de %s créé — profil « %s ». Identifiant de connexion : %s.',
             $utilisateur->nom_complet,
-            self::LIBELLES_ROLES[$donnees['role']] ?? $donnees['role'],
+            $this->libelles()[$donnees['role']] ?? $donnees['role'],
             $utilisateur->matricule ?: $utilisateur->email
         ));
     }
@@ -135,26 +145,33 @@ class UtilisateurController extends Controller
     {
         $this->autoriser();
 
+        // Un agent peut cumuler plusieurs rôles (« Médecin » et « Technicien
+        // d'imagerie ») : la page de modification envoie roles[], la ligne
+        // rapide de la liste un seul role.
         $donnees = $request->validate([
-            'role' => ['required', Rule::in($this->rolesDisponibles())],
+            'role' => ['required_without:roles', 'nullable', Rule::in($this->rolesDisponibles())],
+            'roles' => 'required_without:role|array|min:1',
+            'roles.*' => [Rule::in($this->rolesDisponibles())],
             'specialite' => 'nullable|string|max:100',
             'telephone' => 'nullable|string|max:50',
-        ]);
+        ], ['roles.required_without' => 'Attribuez au moins un rôle.']);
+
+        $roles = array_values(array_unique($donnees['roles'] ?? [$donnees['role']]));
 
         // Retirer le dernier administrateur fermerait la porte à clé de
         // l'intérieur : on refuse.
-        if ($this->estDernierAdministrateur($utilisateur) && $donnees['role'] !== 'super_admin') {
+        if ($this->estDernierAdministrateur($utilisateur) && ! in_array('super_admin', $roles, true)) {
             return back()->with('error',
                 'Ce compte est le dernier administrateur : changer son profil rendrait le paramétrage inaccessible.');
         }
 
-        $utilisateur->syncRoles([$donnees['role']]);
+        $utilisateur->syncRoles($roles);
         $utilisateur->update([
-            'specialite' => $donnees['role'] === 'medecin' ? (($donnees['specialite'] ?? null) ?: null) : null,
+            'specialite' => in_array('medecin', $roles, true) ? (($donnees['specialite'] ?? null) ?: null) : null,
             'telephone' => ($donnees['telephone'] ?? null) ?: null,
         ]);
 
-        if ($donnees['role'] === 'medecin') {
+        if (in_array('medecin', $roles, true)) {
             DisponibiliteMedecinSeeder::installerPour($utilisateur);
         }
 
@@ -194,12 +211,109 @@ class UtilisateurController extends Controller
         return back()->with('success', 'Mot de passe de '.$utilisateur->nom_complet.' réinitialisé.');
     }
 
-    /** @return array<int, string> */
+    /**
+     * Rôles proposés : les rôles préréglés dans l'ordre, puis ceux que
+     * l'établissement a créés lui-même (« Accoucheuse », « Comptable »…).
+     *
+     * @return array<int, string>
+     */
     private function rolesDisponibles(): array
     {
-        $existants = Role::pluck('name')->all();
+        $existants = Role::orderBy('name')->pluck('name')->all();
 
-        return array_values(array_intersect(self::ORDRE_ROLES, $existants));
+        return array_values(array_merge(
+            array_intersect(self::ORDRE_ROLES, $existants),
+            array_diff($existants, self::ORDRE_ROLES)
+        ));
+    }
+
+    /** @return array<string, string> */
+    private function libelles(): array
+    {
+        $libelles = self::LIBELLES_ROLES;
+        foreach (Role::whereNotIn('name', array_keys(self::LIBELLES_ROLES))->get() as $role) {
+            $libelles[$role->name] = RoleController::libelle($role);
+        }
+
+        return $libelles;
+    }
+
+    /** Page de modification complète : photo, identité, rôles multiples. */
+    public function edit(User $utilisateur): View
+    {
+        $this->autoriser();
+
+        return view('utilisateurs.edit', [
+            'utilisateur' => $utilisateur->load('roles'),
+            'roles' => $this->rolesDisponibles(),
+            'libelles' => $this->libelles(),
+            'specialites' => $this->specialites(),
+        ]);
+    }
+
+    /** Identité, adresse électronique et photo, depuis la page de modification. */
+    public function identite(Request $request, User $utilisateur): RedirectResponse
+    {
+        $this->autoriser();
+
+        $donnees = $request->validate([
+            'nom' => 'required|string|max:100',
+            'prenom' => 'required|string|max:100',
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($utilisateur->id)],
+            'matricule' => ['nullable', 'string', 'max:50', Rule::unique('users', 'matricule')->ignore($utilisateur->id)],
+        ]);
+
+        if (blank($donnees['email'] ?? null) && blank($donnees['matricule'] ?? null)) {
+            return back()->withErrors(['email' => 'Un matricule ou une adresse électronique est nécessaire pour se connecter.']);
+        }
+
+        $utilisateur->update($donnees);
+
+        return back()->with('success', 'Informations de '.$utilisateur->nom_complet.' enregistrées.');
+    }
+
+    /**
+     * « Supprimer » un compte : il est retiré du système — désactivé, sans
+     * rôle — mais jamais effacé. Le journal d'audit est inviolable et cite
+     * l'agent : effacer le compte priverait les actes signés de leur auteur.
+     */
+    public function destroy(User $utilisateur): RedirectResponse
+    {
+        $this->autoriser();
+
+        if ($utilisateur->id === auth()->id()) {
+            return back()->with('error', 'Vous ne pouvez pas supprimer votre propre compte.');
+        }
+        if ($this->estDernierAdministrateur($utilisateur)) {
+            return back()->with('error', 'Ce compte est le dernier administrateur.');
+        }
+
+        $utilisateur->syncRoles([]);
+        $utilisateur->update(['is_active' => false, 'remember_token' => null]);
+
+        return back()->with('success',
+            'Compte de '.$utilisateur->nom_complet.' retiré : il ne peut plus se connecter et n\'a plus aucun rôle. Son nom reste sur les actes qu\'il a signés.');
+    }
+
+    /** Journal d'activité d'un agent, ou de tous (page « Voir les activités »). */
+    public function activites(Request $request, ?User $utilisateur = null): View
+    {
+        $estSoi = $utilisateur && $utilisateur->id === auth()->id();
+        if (! $estSoi) {
+            $this->autoriser();
+        }
+
+        $du = $request->query('du');
+        $au = $request->query('au');
+        $service = app(\App\Services\ActiviteService::class);
+
+        return view('utilisateurs.activites', [
+            'utilisateur' => $utilisateur,
+            'journal' => $service->journal($utilisateur, $du, $au),
+            'activites' => $service,
+            'du' => $du,
+            'au' => $au,
+        ]);
     }
 
     /** @return array<int, string> */
@@ -226,7 +340,7 @@ class UtilisateurController extends Controller
     private function autoriser(): void
     {
         abort_unless(
-            auth()->user()?->hasAnyRole(['super_admin', 'directeur']),
+            auth()->user()?->hasAnyRole(['super_admin', 'directeur']) || auth()->user()?->can('user.manage'),
             403,
             'Gestion des comptes réservée à la direction.'
         );

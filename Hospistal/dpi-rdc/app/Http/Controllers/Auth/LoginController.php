@@ -27,6 +27,7 @@ class LoginController extends Controller
         if (Auth::attempt([$field => $credentials['login'], 'password' => $credentials['password'], 'is_active' => true], $request->boolean('remember'))) {
             $request->session()->regenerate();
             auth()->user()->update(['last_login_at' => now()]);
+            \App\Jobs\WriteAuditLog::dispatch(action: 'auth.connexion', tableName: 'users', recordId: auth()->id());
 
             return redirect()->intended(route('dashboard'));
         }

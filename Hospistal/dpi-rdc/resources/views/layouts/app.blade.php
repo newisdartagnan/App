@@ -49,10 +49,13 @@
                     nom du médecin de garde parti à six heures. Elle reste donc
                     sur téléphone — tronquée s'il le faut, jamais supprimée.
                 --}}
-                <div class="text-right leading-tight min-w-0 max-w-[9rem] sm:max-w-none">
-                    <p class="text-sm font-semibold truncate">{{ auth()->user()->nom_complet }}</p>
-                    <p class="text-xs text-blue-200 truncate">{{ auth()->user()->libelleRoles() }}</p>
-                </div>
+                <a href="{{ route('compte.index') }}" title="Mon compte" class="flex items-center gap-2 min-w-0 hover:opacity-90">
+                    <div class="text-right leading-tight min-w-0 max-w-[9rem] sm:max-w-none">
+                        <p class="text-sm font-semibold truncate">{{ auth()->user()->nom_complet }}</p>
+                        <p class="text-xs text-blue-200 truncate">{{ auth()->user()->libelleRoles() }}</p>
+                    </div>
+                    @include('compte._avatar', ['u' => auth()->user(), 'taille' => 36])
+                </a>
                 <a href="{{ route('apparence.index') }}" title="Apparence — choisir un thème"
                    class="bg-blue-900 hover:bg-blue-950 text-white text-xs font-semibold rounded-lg px-3
                           inline-flex items-center justify-center min-h-[44px] min-w-[44px] shrink-0">
@@ -86,6 +89,11 @@
 
     <main class="max-w-7xl mx-auto px-4 py-6">
         @auth
+        @if(auth()->user()->roles->isEmpty())
+        <div class="mb-4 rounded-lg px-4 py-3 text-sm border bg-amber-50 border-amber-300 text-amber-900">
+            Vous ne pouvez rien faire dans le système, vous ne disposez d'aucun rôle ni d'aucune permission. Demandez à l'administrateur de vous attribuer un rôle.
+        </div>
+        @endif
         <div class="max-w-7xl mx-auto dpi-sans-impression">@include('partials._flash')</div>
         @endauth
         @yield('content')

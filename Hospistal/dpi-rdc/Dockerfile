@@ -20,6 +20,10 @@ RUN apk add --no-cache nodejs npm
 # libres butent sur les tables de références compressées des PDF récents.
 RUN apk add --no-cache qpdf
 
+# pg_dump : le bouton « Sauvegarder » de la page Maintenance et la
+# sauvegarde quotidienne du planificateur.
+RUN apk add --no-cache postgresql16-client
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www

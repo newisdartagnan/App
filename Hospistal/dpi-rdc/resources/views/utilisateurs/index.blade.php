@@ -5,7 +5,10 @@
 
     <div class="flex items-center gap-3 mb-1 flex-wrap">
         <a href="{{ route('parametres.index') }}" class="text-blue-700 hover:underline text-sm">← Paramétrage</a>
-        <h2 class="text-2xl font-bold text-gray-800">👥 Comptes du personnel</h2>
+        <h2 class="text-2xl font-bold text-gray-800">👥 Utilisateurs ({{ $utilisateurs->total() }})</h2>
+        <span class="flex-1"></span>
+        <a href="{{ route('roles.index') }}" class="min-h-[40px] inline-flex items-center px-4 rounded-lg border bg-white text-blue-700 hover:bg-blue-50 text-sm font-semibold">🛡️ Rôles</a>
+        <a href="{{ route('utilisateurs.activites') }}" class="min-h-[40px] inline-flex items-center px-4 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold">Voir les activités</a>
     </div>
     <p class="text-sm text-gray-500 mb-5">
         Un agent se connecte avec son matricule ou son adresse électronique. Son profil
@@ -109,9 +112,16 @@
             </select>
         </div>
         <div>
-            <label for="f-recherche" class="block text-xs font-semibold text-gray-600 mb-1">Nom ou matricule</label>
+            <label for="f-recherche" class="block text-xs font-semibold text-gray-600 mb-1">Rechercher un utilisateur (nom, matricule, email)</label>
             <input id="f-recherche" name="recherche" value="{{ $recherche }}"
                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+            <label for="f-organiser" class="block text-xs font-semibold text-gray-600 mb-1">Organiser par</label>
+            <select id="f-organiser" name="organiser" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <option value="nom" @selected($organiser === 'nom')>Nom</option>
+                <option value="role" @selected($organiser === 'role')>Rôle</option>
+            </select>
         </div>
         <button class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm">Filtrer</button>
     </form>
@@ -136,7 +146,10 @@
                     @php $roleCourant = $utilisateur->roles->first()?->name; @endphp
                     <tr class="align-top {{ $utilisateur->is_active ? '' : 'opacity-50' }}">
                         <td class="px-4 py-3">
-                            <span class="font-medium">{{ $utilisateur->nom_complet }}</span>
+                            <div class="flex items-center gap-2">
+                                @include('compte._avatar', ['u' => $utilisateur, 'taille' => 32])
+                                <a href="{{ route('utilisateurs.edit', $utilisateur) }}" class="font-semibold text-blue-700 hover:underline">{{ $utilisateur->nom_complet }}</a>
+                            </div>
                             @if($utilisateur->telephone)
                             <p class="text-xs text-gray-400">{{ $utilisateur->telephone }}</p>
                             @endif
@@ -152,9 +165,11 @@
                             @endif
                         </td>
                         <td class="px-4 py-3">
-                            <span class="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
-                                {{ $roleCourant ? explode(' — ', $libelles[$roleCourant] ?? $roleCourant)[0] : 'Sans profil' }}
-                            </span>
+                            @forelse($utilisateur->roles as $r)
+                            <span class="inline-block mb-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">{{ explode(' — ', $libelles[$r->name] ?? $r->name)[0] }}</span>
+                            @empty
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800">Sans rôle</span>
+                            @endforelse
                         </td>
                         <td class="px-4 py-3 text-xs text-gray-600">{{ $utilisateur->specialite ?: '—' }}</td>
                         <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
@@ -184,6 +199,14 @@
                                 <input type="hidden" name="telephone" value="{{ $utilisateur->telephone }}">
                                 <button class="bg-blue-700 hover:bg-blue-800 text-white rounded px-3 py-1 text-xs font-semibold">Modifier</button>
                             </form>
+                            <div class="flex flex-wrap gap-2 items-center mb-2">
+                                <a href="{{ route('utilisateurs.activites.agent', $utilisateur) }}" class="inline-flex items-center min-h-[32px] px-3 rounded-lg border text-xs font-semibold hover:bg-gray-50">〰 Activités</a>
+                                <a href="{{ route('utilisateurs.edit', $utilisateur) }}" class="inline-flex items-center min-h-[32px] px-3 rounded-lg border text-xs font-semibold text-blue-700 hover:bg-blue-50">✎ Modifier</a>
+                                <form method="POST" action="{{ route('utilisateurs.destroy', $utilisateur) }}" onsubmit="return confirm('Retirer ce compte ? Il ne pourra plus se connecter ; son nom reste sur les actes signés.');">
+                                    @csrf @method('DELETE')
+                                    <button class="inline-flex items-center min-h-[32px] px-3 rounded-lg border text-xs text-red-700 hover:bg-red-50" title="Supprimer">🗑</button>
+                                </form>
+                            </div>
                             <div class="flex flex-wrap gap-2 items-center">
                                 <form method="POST" action="{{ route('utilisateurs.basculer', $utilisateur) }}">
                                     @csrf
